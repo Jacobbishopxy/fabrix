@@ -1,0 +1,37 @@
+{
+	"rust-analyzer.diagnostics.disabled": [
+		"macro-error",
+		"unresolved-import",
+		"unresolved-macro"
+	],
+	"rust-analyzer.linkedProjects": ["fabrix/Cargo.toml"],
+	"cSpell.words": [
+		"chrono",
+		"concat",
+		"Cond",
+		"conv",
+		"Dataframe",
+		"dtype",
+		"dtypes",
+		"Fabrix",
+		"ftype",
+		"hconcat",
+		"hstack",
+		"iloc",
+		"itertools",
+		"Postgres",
+		"rechunk",
+		"Sqlite",
+		"sqlx",
+		"sqlz",
+		"svalue",
+		"TMAP",
+		"Upcasting",
+		"Upsert",
+		"vconcat",
+		"vstack"
+	],
+	"files.watcherExclude": {
+		"**/target": true
+	}
+}
