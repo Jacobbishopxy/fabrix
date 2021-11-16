@@ -3,7 +3,7 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::{FabrixError, FabrixResult, FieldInfo, Series, Value, ValueType};
+use crate::{DbError, DbResult, FieldInfo, Series, Value, ValueType};
 
 /// Table Schema
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -225,7 +225,7 @@ impl From<&str> for IndexType {
 }
 
 impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
-    type Error = FabrixError;
+    type Error = DbError;
 
     fn try_from(value: &'a FieldInfo) -> Result<Self, Self::Error> {
         let dtype = value.dtype();
@@ -239,7 +239,7 @@ impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
             ValueType::I32 => Ok(IndexType::Int),
             ValueType::I64 => Ok(IndexType::BigInt),
             ValueType::Uuid => Ok(IndexType::Uuid),
-            _ => Err(FabrixError::new_common_error(format!(
+            _ => Err(DbError::new_common_error(format!(
                 "{:?} cannot convert to index type",
                 dtype
             ))),
@@ -268,7 +268,7 @@ impl<'a> IndexOption<'a> {
         IndexOption { name, index_type }
     }
 
-    pub fn try_from_series(series: &'a Series) -> FabrixResult<Self> {
+    pub fn try_from_series(series: &'a Series) -> DbResult<Self> {
         let dtype = series.dtype();
         let index_type = match dtype {
             ValueType::U8 => Ok(IndexType::Int),
@@ -280,7 +280,7 @@ impl<'a> IndexOption<'a> {
             ValueType::I32 => Ok(IndexType::Int),
             ValueType::I64 => Ok(IndexType::BigInt),
             ValueType::Uuid => Ok(IndexType::Uuid),
-            _ => Err(FabrixError::new_common_error(format!(
+            _ => Err(DbError::new_common_error(format!(
                 "{:?} is not an appropriate index type",
                 dtype
             ))),

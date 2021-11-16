@@ -3,17 +3,17 @@
 use sea_query::{Expr, Order, Query};
 
 use super::{adt, alias, filter_builder, statement, try_from_value_to_svalue, DeleteOrSelect};
-use crate::{DmlQuery, FabrixResult, Series, SqlBuilder};
+use crate::{DbResult, DmlQuery, Series, SqlBuilder};
 
 impl DmlQuery for SqlBuilder {
     /// given a list of ids, check existed ids (used for `upsert` method). Make sure index contains only not-null values
-    fn select_existing_ids(&self, table_name: &str, index: &Series) -> FabrixResult<String> {
+    fn select_existing_ids(&self, table_name: &str, index: &Series) -> DbResult<String> {
         let mut statement = Query::select();
         let (index_name, index_dtype) = (index.name(), index.dtype());
         let ids = index
             .into_iter()
             .map(|i| try_from_value_to_svalue(i, &index_dtype, false))
-            .collect::<FabrixResult<Vec<_>>>()?;
+            .collect::<DbResult<Vec<_>>>()?;
 
         statement
             .column(alias!(index_name))

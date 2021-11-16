@@ -51,7 +51,7 @@ use polars::prelude::{
 };
 
 use super::{cis_err, inf_err, oob_err, FieldInfo, Series, IDX};
-use crate::{FabrixError, FabrixResult, Value, ValueType};
+use crate::{DbError, DbResult, Value, ValueType};
 
 /// DataFrame is a data structure used in Fabrix crate, it wrapped `polars` Series as DF index and
 /// `polars` DataFrame for holding 2 dimensional data. Make sure index series is not nullable.
@@ -72,24 +72,24 @@ impl DataFrame {
         data_fields: Vec<Field>,
         index_field: Field,
         nullable: bool,
-    ) -> FabrixResult<Self> {
+    ) -> DbResult<Self> {
         let data = data_fields
             .into_iter()
             .map(|d| Series::empty_series_from_field(d, nullable))
-            .collect::<FabrixResult<Vec<Series>>>()?;
+            .collect::<DbResult<Vec<Series>>>()?;
         let index = Series::empty_series_from_field(index_field, nullable)?;
 
         DataFrame::from_series(data, index)
     }
 
     /// Create a DataFrame from Vec<Series> (data) and Series (index)
-    pub fn from_series(series: Vec<Series>, index: Series) -> FabrixResult<Self> {
+    pub fn from_series(series: Vec<Series>, index: Series) -> DbResult<Self> {
         let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
         Ok(DataFrame { data, index })
     }
 
     /// Create a DataFrame from Vec<Series> and index name
-    pub fn from_series_with_index(series: Vec<Series>, index_name: &str) -> FabrixResult<Self> {
+    pub fn from_series_with_index(series: Vec<Series>, index_name: &str) -> DbResult<Self> {
         let index;
         let mut series = series;
         match series.iter().position(|s| s.name() == index_name) {
@@ -97,7 +97,7 @@ impl DataFrame {
                 index = series.swap_remove(i);
             }
             None => {
-                return Err(FabrixError::new_common_error(format!(
+                return Err(DbError::new_common_error(format!(
                     "index {:?} does not exist",
                     index_name
                 )))
@@ -111,7 +111,7 @@ impl DataFrame {
     }
 
     /// Create a DataFrame from Vec<Series>, index is automatically generated
-    pub fn from_series_default_index(series: Vec<Series>) -> FabrixResult<Self> {
+    pub fn from_series_default_index(series: Vec<Series>) -> DbResult<Self> {
         let len = series.first().ok_or(cis_err("Vec<Series>"))?.len() as u64;
         let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
         let index = Series::from_integer(&len)?;
@@ -160,7 +160,7 @@ impl DataFrame {
     }
 
     /// set column names
-    pub fn set_column_names<N>(&mut self, names: &[N]) -> FabrixResult<&mut Self>
+    pub fn set_column_names<N>(&mut self, names: &[N]) -> DbResult<&mut Self>
     where
         N: AsRef<str>,
     {
@@ -169,7 +169,7 @@ impl DataFrame {
     }
 
     /// rename
-    pub fn rename(&mut self, origin: &str, new: &str) -> FabrixResult<&mut Self> {
+    pub fn rename(&mut self, origin: &str, new: &str) -> DbResult<&mut Self> {
         self.data.rename(origin, new)?;
         Ok(self)
     }
@@ -238,7 +238,7 @@ impl DataFrame {
     }
 
     /// horizontal stack, return cloned data
-    pub fn hconcat(&self, columns: &[Series]) -> FabrixResult<DataFrame> {
+    pub fn hconcat(&self, columns: &[Series]) -> DbResult<DataFrame> {
         let raw_columns = columns
             .into_iter()
             .cloned()
@@ -250,7 +250,7 @@ impl DataFrame {
     }
 
     /// horizontal stack, self mutation
-    pub fn hconcat_mut(&mut self, columns: &[Series]) -> FabrixResult<&mut Self> {
+    pub fn hconcat_mut(&mut self, columns: &[Series]) -> DbResult<&mut Self> {
         let raw_columns = columns
             .into_iter()
             .cloned()
@@ -264,9 +264,9 @@ impl DataFrame {
 
     // TODO: dtypes safety check is optional?
     /// vertical stack, return cloned data
-    pub fn vconcat(&self, df: &DataFrame) -> FabrixResult<DataFrame> {
+    pub fn vconcat(&self, df: &DataFrame) -> DbResult<DataFrame> {
         if !self.is_dtypes_match(&df) {
-            return Err(FabrixError::new_df_dtypes_mismatch_error(
+            return Err(DbError::new_df_dtypes_mismatch_error(
                 self.dtypes(),
                 df.dtypes(),
             ));
@@ -280,9 +280,9 @@ impl DataFrame {
 
     // TODO: dtypes safety check is optional?
     /// vertical concat, self mutation
-    pub fn vconcat_mut(&mut self, df: &DataFrame) -> FabrixResult<&mut Self> {
+    pub fn vconcat_mut(&mut self, df: &DataFrame) -> DbResult<&mut Self> {
         if !self.is_dtypes_match(&df) {
-            return Err(FabrixError::new_df_dtypes_mismatch_error(
+            return Err(DbError::new_df_dtypes_mismatch_error(
                 self.dtypes(),
                 df.dtypes(),
             ));
@@ -294,7 +294,7 @@ impl DataFrame {
     }
 
     /// take cloned rows by an indices array
-    pub fn take_rows_by_idx(&self, indices: &[usize]) -> FabrixResult<DataFrame> {
+    pub fn take_rows_by_idx(&self, indices: &[usize]) -> DbResult<DataFrame> {
         let idx = indices.into_iter().map(|i| *i as u32).collect::<Vec<_>>();
         let idx = UInt32Chunked::new_from_slice(IDX, &idx);
         let data = self.data.take(&idx)?;
@@ -306,14 +306,14 @@ impl DataFrame {
     }
 
     /// take cloned DataFrame by an index Series
-    pub fn take_rows(&self, index: &Series) -> FabrixResult<DataFrame> {
+    pub fn take_rows(&self, index: &Series) -> DbResult<DataFrame> {
         let idx = self.index.find_indices(index);
 
         Ok(self.take_rows_by_idx(&idx[..])?)
     }
 
     /// pop row
-    pub fn pop_row(&mut self) -> FabrixResult<&mut Self> {
+    pub fn pop_row(&mut self) -> DbResult<&mut Self> {
         let len = self.height();
         if len == 0 {
             return Err(cis_err("dataframe"));
@@ -325,7 +325,7 @@ impl DataFrame {
     }
 
     /// remove a row by idx
-    pub fn remove_row_by_idx(&mut self, idx: usize) -> FabrixResult<&mut Self> {
+    pub fn remove_row_by_idx(&mut self, idx: usize) -> DbResult<&mut Self> {
         let len = self.height();
         if idx >= len {
             return Err(oob_err(idx, len));
@@ -339,7 +339,7 @@ impl DataFrame {
     }
 
     /// remove a row
-    pub fn remove_row(&mut self, index: Value) -> FabrixResult<&mut Self> {
+    pub fn remove_row(&mut self, index: Value) -> DbResult<&mut Self> {
         match self.index.find_index(&index) {
             Some(idx) => self.remove_row_by_idx(idx),
             None => Err(inf_err(&index)),
@@ -347,7 +347,7 @@ impl DataFrame {
     }
 
     /// remove rows by idx
-    pub fn remove_rows_by_idx(&mut self, idx: &[usize]) -> FabrixResult<&mut Self> {
+    pub fn remove_rows_by_idx(&mut self, idx: &[usize]) -> DbResult<&mut Self> {
         if idx.is_empty() {
             return Err(cis_err("idx"));
         }
@@ -366,7 +366,7 @@ impl DataFrame {
     }
 
     /// remove rows. expensive
-    pub fn remove_rows<'a>(&mut self, indices: Vec<Value>) -> FabrixResult<&mut Self> {
+    pub fn remove_rows<'a>(&mut self, indices: Vec<Value>) -> DbResult<&mut Self> {
         let idx = Series::from_values_default_name(indices, false)?;
         let idx = self.index.find_indices(&idx);
 
@@ -374,7 +374,7 @@ impl DataFrame {
     }
 
     /// remove a slice of rows from the dataframe
-    pub fn remove_slice(&mut self, offset: i64, length: usize) -> FabrixResult<&mut Self> {
+    pub fn remove_slice(&mut self, offset: i64, length: usize) -> DbResult<&mut Self> {
         let len = self.height();
         let offset = if offset >= 0 {
             offset
@@ -393,7 +393,7 @@ impl DataFrame {
     }
 
     /// popup rows by indices array
-    pub fn popup_rows_by_idx(&mut self, indices: &[usize]) -> FabrixResult<DataFrame> {
+    pub fn popup_rows_by_idx(&mut self, indices: &[usize]) -> DbResult<DataFrame> {
         // get df
         let pop = self.take_rows_by_idx(indices)?;
         // create a `BooleanChunked` and get residual data
@@ -403,7 +403,7 @@ impl DataFrame {
     }
 
     /// popup rows
-    pub fn popup_rows(&mut self, index: &Series) -> FabrixResult<DataFrame> {
+    pub fn popup_rows(&mut self, index: &Series) -> DbResult<DataFrame> {
         let idx = self.index.find_indices(index);
 
         Ok(self.popup_rows_by_idx(&idx)?)
@@ -418,7 +418,7 @@ impl DataFrame {
     }
 
     /// take cloned DataFrame by column names
-    pub fn take_cols<'a, S>(&self, cols: S) -> FabrixResult<DataFrame>
+    pub fn take_cols<'a, S>(&self, cols: S) -> DbResult<DataFrame>
     where
         S: Selection<'a, &'a str>,
     {

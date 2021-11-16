@@ -144,25 +144,25 @@ pub(crate) use impl_value_from;
 macro_rules! impl_try_from_value {
     ($val_var:ident, Option<$ftype:ty>, $hint:expr) => {
         impl TryFrom<$crate::Value> for Option<$ftype> {
-            type Error = $crate::FabrixError;
+            type Error = $crate::DbError;
 
             fn try_from(value: $crate::Value) -> Result<Self, Self::Error> {
                 match value {
                     $crate::Value::Null => Ok(None),
                     $crate::Value::$val_var(v) => Ok(Some(v)),
-                    _ => Err($crate::FabrixError::new_parse_info_error(value, $hint)),
+                    _ => Err($crate::DbError::new_parse_info_error(value, $hint)),
                 }
             }
         }
     };
     ($val_var:ident, $ftype:ty, $hint:expr) => {
         impl TryFrom<$crate::Value> for $ftype {
-            type Error = $crate::FabrixError;
+            type Error = $crate::DbError;
 
             fn try_from(value: $crate::Value) -> Result<Self, Self::Error> {
                 match value {
                     $crate::Value::$val_var(v) => Ok(v),
-                    _ => Err($crate::FabrixError::new_parse_info_error(value, $hint)),
+                    _ => Err($crate::DbError::new_parse_info_error(value, $hint)),
                 }
             }
         }

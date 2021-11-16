@@ -18,7 +18,7 @@
 ///         &self,
 ///         sql_row: &SqlRow,
 ///         idx: usize,
-///     ) -> FabrixResult<Value> {
+///     ) -> DbResult<Value> {
 ///         match sql_row {
 ///             SqlRow::Mysql(r) => {
 ///                 let v: Option<bool> = r.try_get(idx)?;
@@ -58,7 +58,7 @@
 ///         DataType::Object("Decimal")
 ///     }
 ///
-///     fn extract_value(&self, sql_row: &SqlRow, idx: usize) -> FabrixResult<Value> {
+///     fn extract_value(&self, sql_row: &SqlRow, idx: usize) -> DbResult<Value> {
 ///         match sql_row {
 ///             SqlRow::Mysql(r) => {
 ///                 let v: Option<RDecimal> = r.try_get(idx)?;
@@ -74,7 +74,7 @@
 ///                     None => Ok(Value::Null),
 ///                 }
 ///             }
-///             _ => Err(FabrixError::new_common_error(MISMATCHED_SQL_ROW)),
+///             _ => Err(DbError::new_common_error(MISMATCHED_SQL_ROW)),
 ///         }
 ///     }
 /// }
@@ -94,7 +94,7 @@ macro_rules! impl_sql_type_tag_marker {
                 &self,
                 sql_row: &SqlRow,
                 idx: usize,
-            ) -> $crate::FabrixResult<$crate::Value> {
+            ) -> $crate::DbResult<$crate::Value> {
                 match sql_row {
                     $(
                         SqlRow::$sql_row_var(r) => {
@@ -106,7 +106,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::FabrixError::new_common_error($residual))
+                        _ => Err($crate::DbError::new_common_error($residual))
                     )?
                 }
             }
@@ -126,7 +126,7 @@ macro_rules! impl_sql_type_tag_marker {
                 &self,
                 sql_row: &SqlRow,
                 idx: usize,
-            ) -> $crate::FabrixResult<$crate::Value> {
+            ) -> $crate::DbResult<$crate::Value> {
                 match sql_row {
                     $(
                         SqlRow::$sql_row_var(r) => {
@@ -138,7 +138,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::FabrixError::new_common_error($residual))
+                        _ => Err($crate::DbError::new_common_error($residual))
                     )?
                 }
             }
@@ -163,7 +163,7 @@ pub(crate) use tmap_pair;
 macro_rules! conn_e_err {
     ($pool:expr) => {
         if $pool.is_some() {
-            return Err($crate::FabrixError::new_common_error(
+            return Err($crate::DbError::new_common_error(
                 "connection has already been established",
             ));
         }
@@ -174,7 +174,7 @@ macro_rules! conn_e_err {
 macro_rules! conn_n_err {
     ($pool:expr) => {
         if $pool.is_none() {
-            return Err($crate::FabrixError::new_common_error(
+            return Err($crate::DbError::new_common_error(
                 "connection has not been established yet",
             ));
         }

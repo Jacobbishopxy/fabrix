@@ -6,7 +6,7 @@ use sqlx::{Column, Row as SRow};
 use super::types::{
     value_type_try_into_marker, OptMarker, SqlRow, MYSQL_TMAP, PG_TMAP, SQLITE_TMAP,
 };
-use crate::{FabrixResult, Row, SqlBuilder, Value, ValueType, D1};
+use crate::{DbResult, Row, SqlBuilder, Value, ValueType, D1};
 
 /// SqlRowProcessor is the core struct for processing different types of SqlRow
 pub(crate) struct SqlRowProcessor {
@@ -68,11 +68,7 @@ impl SqlRowProcessor {
     }
 
     /// customize processing fn, without using cache
-    pub fn process_by_fn<R>(
-        &self,
-        sql_row: R,
-        f: &dyn Fn(SqlRow) -> FabrixResult<D1>,
-    ) -> FabrixResult<D1>
+    pub fn process_by_fn<R>(&self, sql_row: R, f: &dyn Fn(SqlRow) -> DbResult<D1>) -> DbResult<D1>
     where
         R: Into<SqlRow>,
     {
@@ -80,7 +76,7 @@ impl SqlRowProcessor {
     }
 
     /// converting a sql row into a vector of `Value`
-    pub fn process<T>(&mut self, sql_row: T) -> FabrixResult<Vec<Value>>
+    pub fn process<T>(&mut self, sql_row: T) -> DbResult<Vec<Value>>
     where
         T: Into<SqlRow>,
     {
@@ -104,7 +100,7 @@ impl SqlRowProcessor {
 
     /// converting a sql row into `Row`
     /// WARNING: this method is assumed primary key is the first selected column in Sql query string
-    pub fn process_to_row<T>(&mut self, sql_row: T) -> FabrixResult<Row>
+    pub fn process_to_row<T>(&mut self, sql_row: T) -> DbResult<Row>
     where
         T: Into<SqlRow>,
     {
@@ -173,7 +169,7 @@ mod test_processor {
         let processor = SqlRowProcessor::new();
 
         // apply a new function instead of using default `process` method
-        let box_f = |row| -> FabrixResult<D1> {
+        let box_f = |row| -> DbResult<D1> {
             let id = MYSQL_TMAP
                 .get("VARCHAR")
                 .unwrap()

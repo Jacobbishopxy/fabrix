@@ -50,7 +50,7 @@ use crate::core::{
     ObjectTypeDate, ObjectTypeDateTime, ObjectTypeDecimal, ObjectTypeTime, ObjectTypeUuid,
 };
 use crate::{
-    series, value, Date, DateTime, Decimal, FabrixError, FabrixResult, Time, Uuid, Value, ValueType,
+    series, value, Date, DateTime, DbError, DbResult, Decimal, Time, Uuid, Value, ValueType,
 };
 
 // Series new methods
@@ -119,7 +119,7 @@ pub struct Series(pub(crate) PSeries);
 
 impl Series {
     /// new Series from an integer type (Rust standard type)
-    pub fn from_integer<I>(value: &I) -> FabrixResult<Self>
+    pub fn from_integer<I>(value: &I) -> DbResult<Self>
     where
         I: Into<Value> + Copy,
     {
@@ -127,7 +127,7 @@ impl Series {
     }
 
     /// new Series from a range
-    pub fn from_range<'a, I>(range: &[I; 2]) -> FabrixResult<Self>
+    pub fn from_range<'a, I>(range: &[I; 2]) -> DbResult<Self>
     where
         I: Into<Value> + Copy,
     {
@@ -135,17 +135,17 @@ impl Series {
     }
 
     /// new Series from Vec<Value> and name
-    pub fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> FabrixResult<Self> {
+    pub fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> DbResult<Self> {
         Ok(from_values(values, name, nullable)?)
     }
 
     /// new Series from Vec<Value>
-    pub fn from_values_default_name(values: Vec<Value>, nullable: bool) -> FabrixResult<Self> {
+    pub fn from_values_default_name(values: Vec<Value>, nullable: bool) -> DbResult<Self> {
         Ok(from_values(values, IDX, nullable)?)
     }
 
     /// new empty Series from field
-    pub fn empty_series_from_field(field: Field, nullable: bool) -> FabrixResult<Self> {
+    pub fn empty_series_from_field(field: Field, nullable: bool) -> DbResult<Self> {
         Ok(empty_series_from_field(field, nullable)?)
     }
 
@@ -197,7 +197,7 @@ impl Series {
     }
 
     /// head, if length is `None`, return a series only contains the first element
-    pub fn head(&self, length: Option<usize>) -> FabrixResult<Series> {
+    pub fn head(&self, length: Option<usize>) -> DbResult<Series> {
         let len = self.len();
 
         match length {
@@ -213,7 +213,7 @@ impl Series {
     }
 
     /// tail, if length is `None`, return a series only contains the last element
-    pub fn tail(&self, length: Option<usize>) -> FabrixResult<Series> {
+    pub fn tail(&self, length: Option<usize>) -> DbResult<Series> {
         let len = self.len();
 
         match length {
@@ -229,7 +229,7 @@ impl Series {
     }
 
     /// get a cloned value by idx
-    pub fn get(&self, idx: usize) -> FabrixResult<Value> {
+    pub fn get(&self, idx: usize) -> DbResult<Value> {
         let len = self.len();
 
         if idx >= len {
@@ -241,7 +241,7 @@ impl Series {
     }
 
     /// take a cloned slice by an indices array
-    pub fn take(&self, indices: &[usize]) -> FabrixResult<Series> {
+    pub fn take(&self, indices: &[usize]) -> DbResult<Series> {
         let indices = indices.into_iter().map(|i| *i as u32).collect::<Vec<_>>();
         let rng = UInt32Chunked::new_from_slice(IDX, &indices);
         Ok(Series(self.0.take(&rng)?))
@@ -280,13 +280,13 @@ impl Series {
     }
 
     /// concat another series to current series
-    pub fn concat(&mut self, series: Series) -> FabrixResult<&mut Self> {
+    pub fn concat(&mut self, series: Series) -> DbResult<&mut Self> {
         self.0.append(&series.0)?;
         Ok(self)
     }
 
     /// split into two series
-    pub fn split(&self, idx: usize) -> FabrixResult<(Series, Series)> {
+    pub fn split(&self, idx: usize) -> DbResult<(Series, Series)> {
         let len = self.len();
 
         if idx >= len {
@@ -298,14 +298,14 @@ impl Series {
     }
 
     /// push a value at the end of the series, self mutation
-    pub fn push(&mut self, value: Value) -> FabrixResult<&mut Self> {
+    pub fn push(&mut self, value: Value) -> DbResult<&mut Self> {
         let s = from_values(vec![value], IDX, true)?;
         self.concat(s)?;
         Ok(self)
     }
 
     /// insert a value into the series by idx, self mutation
-    pub fn insert(&mut self, idx: usize, value: Value) -> FabrixResult<&mut Self> {
+    pub fn insert(&mut self, idx: usize, value: Value) -> DbResult<&mut Self> {
         let (mut s1, s2) = self.split(idx)?;
 
         s1.push(value)?.concat(s2)?;
@@ -315,7 +315,7 @@ impl Series {
     }
 
     /// insert a series at a specified idx, self mutation
-    pub fn insert_many<'a>(&mut self, idx: usize, series: Series) -> FabrixResult<&mut Self> {
+    pub fn insert_many<'a>(&mut self, idx: usize, series: Series) -> DbResult<&mut Self> {
         let (mut s1, s2) = self.split(idx)?;
 
         s1.concat(series)?.concat(s2)?;
@@ -325,10 +325,10 @@ impl Series {
     }
 
     /// pop the last element from the series, self mutation
-    pub fn pop(&mut self) -> FabrixResult<&mut Self> {
+    pub fn pop(&mut self) -> DbResult<&mut Self> {
         let len = self.len();
         if len == 0 {
-            return Err(FabrixError::new_common_error("series is empty"));
+            return Err(DbError::new_common_error("series is empty"));
         }
 
         *self = self.slice(0, len - 1);
@@ -337,7 +337,7 @@ impl Series {
     }
 
     /// remove a value from the series, self mutation
-    pub fn remove<'a>(&mut self, idx: usize) -> FabrixResult<&mut Self> {
+    pub fn remove<'a>(&mut self, idx: usize) -> DbResult<&mut Self> {
         let len = self.len();
         if idx >= len {
             return Err(oob_err(idx, len));
@@ -351,7 +351,7 @@ impl Series {
     }
 
     /// remove a slice from the series, self mutation
-    pub fn remove_slice<'a>(&mut self, offset: i64, length: usize) -> FabrixResult<&mut Self> {
+    pub fn remove_slice<'a>(&mut self, offset: i64, length: usize) -> DbResult<&mut Self> {
         let len = self.len();
         let offset = if offset >= 0 {
             offset
@@ -371,7 +371,7 @@ impl Series {
 }
 
 /// new Series from an AnyValue (integer specific)
-fn from_integer(val: Value) -> FabrixResult<Series> {
+fn from_integer(val: Value) -> DbResult<Series> {
     match val {
         Value::U8(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
         Value::U16(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
@@ -381,12 +381,12 @@ fn from_integer(val: Value) -> FabrixResult<Series> {
         Value::I16(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
         Value::I32(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
         Value::I64(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        _ => Err(FabrixError::new_common_error("val is not integer")),
+        _ => Err(DbError::new_common_error("val is not integer")),
     }
 }
 
 /// new Series from a range of AnyValue (integer specific)
-fn from_range<'a>(rng: [Value; 2]) -> FabrixResult<Series> {
+fn from_range<'a>(rng: [Value; 2]) -> DbResult<Series> {
     let [r0, r1] = rng;
     match [r0, r1] {
         [Value::U8(s), Value::U8(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
@@ -397,7 +397,7 @@ fn from_range<'a>(rng: [Value; 2]) -> FabrixResult<Series> {
         [Value::I16(s), Value::I16(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
         [Value::I32(s), Value::I32(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
         [Value::I64(s), Value::I64(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        _ => Err(FabrixError::new_common_error(
+        _ => Err(DbError::new_common_error(
             "rng is not integer or not the same type of pair",
         )),
     }
@@ -423,7 +423,7 @@ impl From<Series> for PSeries {
 /// let r = values
 ///     .into_iter()
 ///     .map(|v| bool::try_from(v))
-///     .collect::<FabrixResult<Vec<_>>>()?;
+///     .collect::<DbResult<Vec<_>>>()?;
 /// let s = ChunkedArray::<BooleanType>::new_from_slice(IDX, &r[..]);
 /// Ok(Series(s.into_series()))
 /// ```
@@ -432,7 +432,7 @@ macro_rules! series_from_values {
         let r = $values
             .into_iter()
             .map(|v| Option::<$ftype>::try_from(v))
-            .collect::<$crate::FabrixResult<Vec<_>>>()?;
+            .collect::<$crate::DbResult<Vec<_>>>()?;
 
         let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_opt_slice($name, &r[..]);
         Ok(Series(s.into_series()))
@@ -441,7 +441,7 @@ macro_rules! series_from_values {
         let r = $values
             .into_iter()
             .map(|v| <$ftype>::try_from(v))
-            .collect::<$crate::FabrixResult<Vec<_>>>()?;
+            .collect::<$crate::DbResult<Vec<_>>>()?;
 
         let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_slice($name, &r[..]);
         Ok(Series(s.into_series()))
@@ -476,9 +476,9 @@ macro_rules! sfv {
 
 /// series from values, series type is determined by the first value, if it is null value
 /// then use u64 as the default type. If values are not the same type, then return error.
-fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> FabrixResult<Series> {
+fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> DbResult<Series> {
     if values.len() == 0 {
-        return Err(FabrixError::new_common_error("values' length is 0!"));
+        return Err(DbError::new_common_error("values' length is 0!"));
     }
 
     let dtype = ValueType::from(&values[0]);
@@ -506,7 +506,7 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> FabrixResult<S
 }
 
 /// empty series from field
-fn empty_series_from_field(field: Field, nullable: bool) -> FabrixResult<Series> {
+fn empty_series_from_field(field: Field, nullable: bool) -> DbResult<Series> {
     match field.data_type() {
         DataType::Boolean => sfv!(nullable; field.name(); bool, BooleanType),
         DataType::Utf8 => sfv!(nullable; field.name(); String, Utf8Type),

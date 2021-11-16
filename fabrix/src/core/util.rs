@@ -2,7 +2,7 @@
 //!
 //! utilities
 
-use crate::{FabrixError, Value};
+use crate::{DbError, Value};
 
 /// Used for counting iteration and determining when to stop yielding
 pub struct Stepper {
@@ -32,16 +32,16 @@ impl Stepper {
 pub const IDX: &'static str = "index";
 
 /// out of boundary error
-pub(crate) fn oob_err(length: usize, len: usize) -> FabrixError {
-    FabrixError::new_common_error(format!("length {:?} out of len {:?} boundary", length, len))
+pub(crate) fn oob_err(length: usize, len: usize) -> DbError {
+    DbError::new_common_error(format!("length {:?} out of len {:?} boundary", length, len))
 }
 
 /// index not found error
-pub(crate) fn inf_err<'a>(index: &Value) -> FabrixError {
-    FabrixError::new_common_error(format!("index {:?} not found", index))
+pub(crate) fn inf_err<'a>(index: &Value) -> DbError {
+    DbError::new_common_error(format!("index {:?} not found", index))
 }
 
 /// content empty error
-pub(crate) fn cis_err(name: &str) -> FabrixError {
-    FabrixError::new_common_error(format!("{:?} is empty", name))
+pub(crate) fn cis_err(name: &str) -> DbError {
+    DbError::new_common_error(format!("{:?} is empty", name))
 }

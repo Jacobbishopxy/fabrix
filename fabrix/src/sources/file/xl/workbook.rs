@@ -11,7 +11,7 @@ use quick_xml::{events::Event, Reader};
 use zip::ZipArchive;
 
 use super::{util, DateSystem, SheetReader, Worksheet};
-use crate::XlResult;
+use crate::FlResult;
 
 /// The main struct of this module.
 ///
@@ -304,7 +304,7 @@ impl Workbook {
     ///     // non-xlsx file
     ///     let mut wb = Workbook::open("src/main.rs");
     ///     assert!(wb.is_err());
-    pub fn new(file: File) -> XlResult<Self> {
+    pub fn new(file: File) -> FlResult<Self> {
         match ZipArchive::new(file) {
             Ok(mut xls) => {
                 let strings = strings(&mut xls);

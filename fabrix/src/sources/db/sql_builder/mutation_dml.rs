@@ -3,11 +3,11 @@
 use sea_query::{Expr, Query};
 
 use super::{alias, filter_builder, statement, try_from_value_to_svalue, DeleteOrSelect};
-use crate::{adt, DataFrame, DmlMutation, FabrixResult, SqlBuilder};
+use crate::{adt, DataFrame, DbResult, DmlMutation, SqlBuilder};
 
 impl DmlMutation for SqlBuilder {
     /// given a `Dataframe`, insert it into an existing table
-    fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> FabrixResult<String> {
+    fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> DbResult<String> {
         // announce an insert statement
         let mut statement = Query::insert();
         // given a table name, insert into it
@@ -36,7 +36,7 @@ impl DmlMutation for SqlBuilder {
                     .into_iter()
                     .zip(column_info.iter())
                     .map(|(v, inf)| try_from_value_to_svalue(v, &inf.dtype(), true))
-                    .collect::<FabrixResult<Vec<_>>>()?,
+                    .collect::<DbResult<Vec<_>>>()?,
             );
 
             // make sure columns length equals records length
@@ -52,7 +52,7 @@ impl DmlMutation for SqlBuilder {
         table_name: &str,
         df: DataFrame,
         index_option: &adt::IndexOption,
-    ) -> FabrixResult<Vec<String>> {
+    ) -> DbResult<Vec<String>> {
         let column_info = df.fields();
         let indices_type = df.index_dtype().clone();
         let mut res = vec![];

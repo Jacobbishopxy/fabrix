@@ -25,7 +25,7 @@ use itertools::Itertools;
 use polars::prelude::Field;
 
 use super::{inf_err, oob_err, util::Stepper, SeriesIntoIterator};
-use crate::{DataFrame, FabrixError, FabrixResult, Series, Value, ValueType};
+use crate::{DataFrame, DbError, DbResult, Series, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub struct Row {
@@ -75,12 +75,12 @@ impl Row {
 
 impl DataFrame {
     /// create a DataFrame by Rows, slower than column-wise constructors.
-    pub fn from_rows(rows: Vec<Row>) -> FabrixResult<Self> {
+    pub fn from_rows(rows: Vec<Row>) -> DbResult<Self> {
         let mut rows = rows;
         // rows length
         let m = rows.len();
         if m == 0 {
-            return Err(FabrixError::new_empty_error());
+            return Err(DbError::new_empty_error());
         }
         // rows width
         let n = rows.first().unwrap().len();
@@ -103,12 +103,12 @@ impl DataFrame {
     }
 
     /// create a DataFrame by Vec<Vec<Value>>, slower than column-wise constructors
-    pub fn from_row_values(values: Vec<Vec<Value>>) -> FabrixResult<Self> {
+    pub fn from_row_values(values: Vec<Vec<Value>>) -> DbResult<Self> {
         let mut values = values;
         // values length
         let m = values.len();
         if m == 0 {
-            return Err(FabrixError::new_empty_error());
+            return Err(DbError::new_empty_error());
         }
         // values width
         let n = values.first().unwrap().len();
@@ -128,7 +128,7 @@ impl DataFrame {
 
     /// get a row by idx. This method is slower than get a column (`self.data.get_row`).
     /// beware performance: `Series.get` is slow.
-    pub fn get_row_by_idx(&self, idx: usize) -> FabrixResult<Row> {
+    pub fn get_row_by_idx(&self, idx: usize) -> DbResult<Row> {
         let len = self.height();
         if idx >= len {
             return Err(oob_err(idx, len));
@@ -148,20 +148,20 @@ impl DataFrame {
     }
 
     /// get a row by index. This method is slower than get a column.
-    pub fn get_row<'a>(&self, index: &Value) -> FabrixResult<Row> {
+    pub fn get_row<'a>(&self, index: &Value) -> DbResult<Row> {
         self.index
             .find_index(index)
             .map_or(Err(inf_err(index)), |i| self.get_row_by_idx(i))
     }
 
     /// append a row to the dataframe. dtypes of the row must be equivalent to self dtypes
-    pub fn append(&mut self, row: Row) -> FabrixResult<&mut Self> {
+    pub fn append(&mut self, row: Row) -> DbResult<&mut Self> {
         let d = DataFrame::from_rows(vec![row])?;
         self.vconcat_mut(&d)
     }
 
     /// insert a row into the dataframe by idx
-    pub fn insert_row_by_idx(&mut self, idx: usize, row: Row) -> FabrixResult<&mut Self> {
+    pub fn insert_row_by_idx(&mut self, idx: usize, row: Row) -> DbResult<&mut Self> {
         let len = self.height();
         let (mut d1, d2) = (self.slice(0, idx), self.slice(idx as i64, len));
 
@@ -172,7 +172,7 @@ impl DataFrame {
     }
 
     /// insert a row into the dataframe
-    pub fn insert_row(&mut self, index: Value, row: Row) -> FabrixResult<&mut Self> {
+    pub fn insert_row(&mut self, index: Value, row: Row) -> DbResult<&mut Self> {
         match self.index.find_index(&index) {
             Some(idx) => self.insert_row_by_idx(idx, row),
             None => Err(inf_err(&index)),
@@ -180,7 +180,7 @@ impl DataFrame {
     }
 
     /// insert rows into the dataframe by idx
-    pub fn insert_rows_by_idx(&mut self, idx: usize, rows: Vec<Row>) -> FabrixResult<&mut Self> {
+    pub fn insert_rows_by_idx(&mut self, idx: usize, rows: Vec<Row>) -> DbResult<&mut Self> {
         let len = self.height();
         let (mut d1, d2) = (self.slice(0, idx), self.slice(idx as i64, len));
         let di = DataFrame::from_rows(rows)?;
@@ -192,7 +192,7 @@ impl DataFrame {
     }
 
     /// insert rows into the dataframe by index
-    pub fn insert_rows(&mut self, index: Value, rows: Vec<Row>) -> FabrixResult<&mut Self> {
+    pub fn insert_rows(&mut self, index: Value, rows: Vec<Row>) -> DbResult<&mut Self> {
         match self.index.find_index(&index) {
             Some(idx) => self.insert_rows_by_idx(idx, rows),
             None => Err(inf_err(&index)),

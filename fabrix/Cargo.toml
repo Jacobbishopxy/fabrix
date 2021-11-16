@@ -46,10 +46,11 @@ uuid = { version = "0.8.2", features = ["serde", "v4"] }
 lazy_static = "1.4.0"
 futures = "0.3.17"
 quick-xml = { version = "0.22.0", features = ["serialize"], optional = true }
-zip = { version = "0.5.13", optional = true}
+zip = { version = "0.5.13", optional = true }
+bson2 = { version = "2.0.3", optional = true }
 
 [features]
-default = ["db", "file", "json"]
+default = ["db", "file", "bson"]
 db = ["sea-query", "sqlx"]
 file = ["quick-xml", "zip"]
-json = []
+bson = ["bson2"]

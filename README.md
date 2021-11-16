@@ -43,7 +43,7 @@ Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Seri
 │   │   │
 │   │   └── parquet                     // Parquet
 │   │
-│   └── json
+│   └── bson
 │
 ├── errors.rs                           // error handling
 │

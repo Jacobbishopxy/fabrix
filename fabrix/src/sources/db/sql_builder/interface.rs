@@ -1,6 +1,6 @@
 //! Sql builder interface
 
-use crate::{adt, DataFrame, FabrixResult, FieldInfo, Series};
+use crate::{adt, DataFrame, DbResult, FieldInfo, Series};
 
 // DDL Query
 pub trait DdlQuery {
@@ -43,21 +43,21 @@ pub trait DdlMutation {
 
 // DML Query
 pub trait DmlQuery {
-    fn select_existing_ids(&self, table_name: &str, index: &Series) -> FabrixResult<String>;
+    fn select_existing_ids(&self, table_name: &str, index: &Series) -> DbResult<String>;
 
     fn select(&self, select: &adt::Select) -> String;
 }
 
 // DML Mutation
 pub trait DmlMutation {
-    fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> FabrixResult<String>;
+    fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> DbResult<String>;
 
     fn update(
         &self,
         table_name: &str,
         df: DataFrame,
         index_option: &adt::IndexOption,
-    ) -> FabrixResult<Vec<String>>;
+    ) -> DbResult<Vec<String>>;
 
     fn delete(&self, delete: &adt::Delete) -> String;
 }
