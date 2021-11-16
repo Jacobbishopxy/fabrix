@@ -54,6 +54,10 @@ Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Seri
 └── lib.rs
 ```
 
+## Examples
+
+under construction...
+
 ## Note
 
 - Progression of `dataframe/core`: `value` -> `series` -> `dataframe` -> `row`

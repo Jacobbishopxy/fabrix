@@ -8,7 +8,7 @@ pub use crate::core::{
 #[cfg(feature = "db")]
 pub use crate::sources::db::sql_builder::adt;
 #[cfg(feature = "db")]
-pub use crate::sources::db::{DdlMutation, DdlQuery, DmlMutation, DmlQuery, SqlBuilder};
+pub use crate::sources::db::sql_executor::{ConnInfo, Executor as SqlExecutor};
 
 #[cfg(feature = "file")]
 pub use crate::sources::file::error::{XlError, XlResult};

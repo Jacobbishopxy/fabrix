@@ -5,18 +5,15 @@
 use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
 use quick_xml::events::attributes::{Attribute, Attributes};
 
+use super::DateSystem;
 use crate::{XlError, XlResult};
 
-#[derive(Debug)]
-pub(crate) enum DateSystem {
-    V1900,
-    V1904,
-}
-
+/// Xml attribute -> String
 pub(crate) fn attr_value(a: &Attribute) -> String {
     String::from_utf8(a.value.to_vec()).unwrap()
 }
 
+/// Try Xml attribute -> Option<String>
 pub(crate) fn get(attrs: Attributes, which: &[u8]) -> Option<String> {
     for attr in attrs {
         let a = attr.unwrap();
@@ -69,6 +66,7 @@ pub(crate) enum DateConversion {
     Number(i64),
 }
 
+/// Excel number -> date/time
 pub(crate) fn excel_number_to_date(
     number: f64,
     date_system: &DateSystem,
