@@ -1,6 +1,7 @@
 //! Db
 //! Used for database IO
 
+mod error;
 pub mod sql_builder;
 pub mod sql_executor;
 

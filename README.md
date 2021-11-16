@@ -31,7 +31,17 @@ Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Seri
 │   │       ├── loader.rs               // Database loader, CRUD logic implementation
 │   │       ├── executor.rs             // Sql executor, business logic implementation
 │   │       └── macros.rs
+│   │
 │   ├── file
+│   │   ├── xl                          // Excel
+│   │   │   ├── util.rs
+│   │   │   ├── worksheet.rs
+│   │   │   ├── workbook.rs
+│   │   │   └── executor.rs
+│   │   │
+│   │   ├── csv                         // CSV
+│   │   │
+│   │   └── parquet                     // Parquet
 │   │
 │   └── json
 │
@@ -49,3 +59,4 @@ Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Seri
 - Progression of `dataframe/core`: `value` -> `series` -> `dataframe` -> `row`
 - Progression of `dataframe/sources`: `db` -> `file` -> `json`
   - `db`: `sql_builder` -> `sql_executor`
+  - `file`: `xl` -> `csv` -> `parquet`
