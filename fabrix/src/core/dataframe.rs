@@ -46,9 +46,7 @@
 
 use itertools::Itertools;
 use polars::frame::select::Selection;
-use polars::prelude::{
-    BooleanChunked, DataFrame as PDataFrame, Field, NewChunkedArray, UInt32Chunked,
-};
+use polars::prelude::{BooleanChunked, DataFrame as PDataFrame, Field, NewChunkedArray};
 
 use super::{cis_err, inf_err, oob_err, FieldInfo, Series, IDX};
 use crate::{DbError, DbResult, Value, ValueType};
@@ -295,9 +293,8 @@ impl DataFrame {
 
     /// take cloned rows by an indices array
     pub fn take_rows_by_idx(&self, indices: &[usize]) -> DbResult<DataFrame> {
-        let idx = indices.into_iter().map(|i| *i as u32).collect::<Vec<_>>();
-        let idx = UInt32Chunked::new_from_slice(IDX, &idx);
-        let data = self.data.take(&idx)?;
+        let iter = indices.to_vec().into_iter();
+        let data = self.data.take_iter(iter)?;
 
         Ok(DataFrame {
             data,

@@ -197,3 +197,120 @@ macro_rules! impl_named_from {
 }
 
 pub(crate) use impl_named_from;
+
+/// Series IntoIterator process
+///
+/// for instance:
+/// ```rust
+/// let arr = self.0.bool().unwrap();
+/// SeriesIntoIterator::Bool(
+///     arr.clone(),
+///     Stepper::new(arr.len()),
+/// )
+/// ```
+///
+/// and custom type:
+///
+/// ```rust
+/// let arr = self.0.as_any()
+///     .downcast_ref::<ObjectChunked<ObjectTypeDate>>()
+///     .unwrap();
+/// SeriesIntoIterator::Date(
+///     arr.clone(),
+///     Stepper::new(arr.len()),
+/// )
+/// ```
+macro_rules! sii {
+    ($fn_call:expr, $series_iter_var:ident) => {{
+        let arr = $fn_call.unwrap();
+        $crate::core::SeriesIntoIterator::$series_iter_var(
+            arr.clone(),
+            $crate::core::util::Stepper::new(arr.len()),
+        )
+    }};
+    ($fn_call:expr, $downcast_type:ident, $series_iter_var:ident) => {{
+        let arr = $fn_call
+            .downcast_ref::<polars::prelude::ObjectChunked<$downcast_type>>()
+            .unwrap();
+        $crate::core::SeriesIntoIterator::$series_iter_var(
+            arr.clone(),
+            $crate::core::util::Stepper::new(arr.len()),
+        )
+    }};
+}
+
+pub(crate) use sii;
+
+/// Series Iterator process
+///
+/// for instance:
+/// ```rust
+/// let arr = self.0.bool().unwrap();
+/// SeriesIterator::Bool(
+///     arr,
+///     Stepper::new(arr.len()),
+/// )
+/// ```
+macro_rules! si {
+    ($fn_call:expr, $series_iter_var:ident) => {{
+        let arr = $fn_call.unwrap();
+        $crate::core::SeriesIterator::$series_iter_var(
+            arr,
+            $crate::core::util::Stepper::new(arr.len()),
+        )
+    }};
+    ($fn_call:expr, $downcast_type:ident, $series_iter_var:ident) => {{
+        let arr = $fn_call
+            .downcast_ref::<polars::prelude::ObjectChunked<$downcast_type>>()
+            .unwrap();
+        $crate::core::SeriesIterator::$series_iter_var(
+            arr,
+            $crate::core::util::Stepper::new(arr.len()),
+        )
+    }};
+}
+
+pub(crate) use si;
+
+/// The `next` function for Series iterator
+///
+/// for instance:
+///
+/// ```rust
+/// if s.exhausted() {
+///     None
+/// } else {
+///     let res = match arr.get(s.step) {
+///         Some(v) => value!(v),
+///         None => Value::default(),
+///     };
+///     s.step += 1;
+///     Some(res)
+/// }
+/// ```
+macro_rules! s_fn_next {
+    ($arr:expr, $stepper:expr) => {{
+        if $stepper.exhausted() {
+            None
+        } else {
+            let res = $crate::value!($arr.get($stepper.step));
+            $stepper.forward();
+            Some(res)
+        }
+    }};
+}
+
+macro_rules! sc_fn_next {
+    ($arr:expr, $stepper:expr) => {{
+        if $stepper.exhausted() {
+            None
+        } else {
+            let res = $crate::value!($arr.get($stepper.step).cloned());
+            $stepper.forward();
+            Some(res)
+        }
+    }};
+}
+
+pub(crate) use s_fn_next;
+pub(crate) use sc_fn_next;

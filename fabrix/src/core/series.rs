@@ -45,7 +45,7 @@ use polars::prelude::{
 };
 use polars::prelude::{DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PSeries};
 
-use super::{impl_named_from, oob_err, FieldInfo, Stepper, IDX};
+use super::{impl_named_from, oob_err, s_fn_next, sc_fn_next, si, sii, FieldInfo, Stepper, IDX};
 use crate::core::{
     ObjectTypeDate, ObjectTypeDateTime, ObjectTypeDecimal, ObjectTypeTime, ObjectTypeUuid,
 };
@@ -242,9 +242,8 @@ impl Series {
 
     /// take a cloned slice by an indices array
     pub fn take(&self, indices: &[usize]) -> DbResult<Series> {
-        let indices = indices.into_iter().map(|i| *i as u32).collect::<Vec<_>>();
-        let rng = UInt32Chunked::new_from_slice(IDX, &indices);
-        Ok(Series(self.0.take(&rng)?))
+        let mut iter = indices.to_vec().into_iter();
+        Ok(Series(self.0.take_iter(&mut iter)?))
     }
 
     /// slice the Series
@@ -530,47 +529,6 @@ fn empty_series_from_field(field: Field, nullable: bool) -> DbResult<Series> {
     }
 }
 
-/// Series IntoIterator process
-///
-/// for instance:
-/// ```rust
-/// let arr = self.0.bool().unwrap();
-/// SeriesIntoIterator::Bool(
-///     arr.clone(),
-///     Stepper::new(arr.len()),
-/// )
-/// ```
-///
-/// and custom type:
-///
-/// ```rust
-/// let arr = self.0.as_any()
-///     .downcast_ref::<ObjectChunked<ObjectTypeDate>>()
-///     .unwrap();
-/// SeriesIntoIterator::Date(
-///     arr.clone(),
-///     Stepper::new(arr.len()),
-/// )
-/// ```
-macro_rules! sii {
-    ($fn_call:expr, $series_iter_var:ident) => {{
-        let arr = $fn_call.unwrap();
-        $crate::core::SeriesIntoIterator::$series_iter_var(
-            arr.clone(),
-            $crate::core::util::Stepper::new(arr.len()),
-        )
-    }};
-    ($fn_call:expr, $downcast_type:ident, $series_iter_var:ident) => {{
-        let arr = $fn_call
-            .downcast_ref::<polars::prelude::ObjectChunked<$downcast_type>>()
-            .unwrap();
-        $crate::core::SeriesIntoIterator::$series_iter_var(
-            arr.clone(),
-            $crate::core::util::Stepper::new(arr.len()),
-        )
-    }};
-}
-
 /// Series IntoIterator implementation
 impl IntoIterator for Series {
     type Item = Value;
@@ -622,46 +580,6 @@ pub enum SeriesIntoIterator {
     Uuid(ObjectChunked<Uuid>, Stepper),
 }
 
-/// The `next` function for Series iterator
-///
-/// for instance:
-///
-/// ```rust
-/// if s.exhausted() {
-///     None
-/// } else {
-///     let res = match arr.get(s.step) {
-///         Some(v) => value!(v),
-///         None => Value::default(),
-///     };
-///     s.step += 1;
-///     Some(res)
-/// }
-/// ```
-macro_rules! s_fn_next {
-    ($arr:expr, $stepper:expr) => {{
-        if $stepper.exhausted() {
-            None
-        } else {
-            let res = $crate::value!($arr.get($stepper.step));
-            $stepper.forward();
-            Some(res)
-        }
-    }};
-}
-
-macro_rules! sc_fn_next {
-    ($arr:expr, $stepper:expr) => {{
-        if $stepper.exhausted() {
-            None
-        } else {
-            let res = $crate::value!($arr.get($stepper.step).cloned());
-            $stepper.forward();
-            Some(res)
-        }
-    }};
-}
-
 impl Iterator for SeriesIntoIterator {
     type Item = Value;
 
@@ -687,35 +605,6 @@ impl Iterator for SeriesIntoIterator {
             SeriesIntoIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
         }
     }
-}
-
-/// Series Iterator process
-///
-/// for instance:
-/// ```rust
-/// let arr = self.0.bool().unwrap();
-/// SeriesIterator::Bool(
-///     arr,
-///     Stepper::new(arr.len()),
-/// )
-/// ```
-macro_rules! si {
-    ($fn_call:expr, $series_iter_var:ident) => {{
-        let arr = $fn_call.unwrap();
-        $crate::core::SeriesIterator::$series_iter_var(
-            arr,
-            $crate::core::util::Stepper::new(arr.len()),
-        )
-    }};
-    ($fn_call:expr, $downcast_type:ident, $series_iter_var:ident) => {{
-        let arr = $fn_call
-            .downcast_ref::<polars::prelude::ObjectChunked<$downcast_type>>()
-            .unwrap();
-        $crate::core::SeriesIterator::$series_iter_var(
-            arr,
-            $crate::core::util::Stepper::new(arr.len()),
-        )
-    }};
 }
 
 impl<'a> IntoIterator for &'a Series {

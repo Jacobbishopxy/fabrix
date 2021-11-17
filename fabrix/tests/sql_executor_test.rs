@@ -1,4 +1,14 @@
 //! Sql executor test case
+//!
+//! test case:
+//! 1. create sqlite db at local path
+//! 1. test sql connection
+//! 1. test save: fail_if_exists
+//! 1. test save: replace
+//! 1. test save: append
+//! 1. test save: upsert
+//! 1. test delete
+
 #![feature(assert_matches)]
 use std::assert_matches::assert_matches;
 
