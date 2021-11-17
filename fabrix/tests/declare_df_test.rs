@@ -70,7 +70,8 @@ fn test_df_query() {
 }
 
 /*
-the purpose of this test is to customized type Series is
+The purpose of this test is to check Series consisted by custom-typed value can be taken by index.
+Instead of using `series.take` method, which occurs `not implement` panic, use `series.take_iter` method.
 */
 #[test]
 fn test_obj_chunk() {
@@ -91,8 +92,15 @@ fn test_obj_chunk() {
     println!("{:?}", s.take_iter(&mut it));
 }
 
+/*
+Continue from the above test case, a chunkedArray of custom-typed value can be taken by index as well.
+But explicit type annotation is required for polars `TakeIdx` enum.
+*/
 #[test]
 fn test_obj_chunked_arr_take() {
+    use std::array::IntoIter as ArrayIntoIter;
+    use std::vec::IntoIter as VecIntoIter;
+
     use polars::prelude::{ChunkTake, ChunkedArray, NewChunkedArray, ObjectType, TakeIdx};
 
     let dt = [
@@ -107,12 +115,10 @@ fn test_obj_chunked_arr_take() {
     println!("{:?}", arr);
 
     let ti = [0usize, 2].into_iter();
-    let tk: TakeIdx<std::array::IntoIter<usize, 2>, std::array::IntoIter<Option<usize>, 2>> =
-        TakeIdx::Iter(ti);
+    let tk: TakeIdx<ArrayIntoIter<usize, 2>, ArrayIntoIter<Option<usize>, 2>> = TakeIdx::Iter(ti);
     println!("{:?}", arr.take(tk));
 
     let ti = vec![0usize, 4].into_iter();
-    let tk: TakeIdx<std::vec::IntoIter<usize>, std::vec::IntoIter<Option<usize>>> =
-        TakeIdx::Iter(ti);
+    let tk: TakeIdx<VecIntoIter<usize>, VecIntoIter<Option<usize>>> = TakeIdx::Iter(ti);
     println!("{:?}", arr.take(tk));
 }

@@ -16,7 +16,7 @@ use polars::chunked_array::object::PolarsObjectSafe;
 use polars::prelude::{AnyValue, DataType, Field, ObjectType, PolarsObject};
 use serde::{Deserialize, Serialize};
 
-use super::{impl_custom_value, impl_try_from_value, impl_value_from};
+use super::{impl_custom_value, impl_custom_value2, impl_try_from_value, impl_value_from};
 
 /// pub type D1
 pub type D1 = Vec<Value>;
@@ -32,6 +32,8 @@ pub type ObjectTypeDateTime = ObjectType<DateTime>;
 pub type ObjectTypeUuid = ObjectType<Uuid>;
 /// pub type Decimal
 pub type ObjectTypeDecimal = ObjectType<Decimal>;
+/// pub type Bytes
+pub type ObjectTypeBytes = ObjectType<Bytes>;
 
 /// Custom Value: Date
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
@@ -81,6 +83,12 @@ pub struct Uuid(pub uuid::Uuid);
 
 impl_custom_value!(Uuid, "Uuid");
 
+/// Custom Value: Bytes
+#[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
+pub struct Bytes(pub Vec<u8>);
+
+impl_custom_value2!(Bytes, "Bytes");
+
 /// Value is the fundamental element in Fabrix.
 /// Providing type conversion between Rust/external type and polars `AnyValue`.
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
@@ -102,6 +110,7 @@ pub enum Value {
     DateTime(DateTime),
     Decimal(Decimal),
     Uuid(Uuid),
+    // TODO: `Bytes`
     Null,
 }
 
