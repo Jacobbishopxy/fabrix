@@ -4,7 +4,7 @@
 ///
 /// Equivalent to:
 ///
-/// ```rust
+/// ```rust,ignore
 /// impl SqlTypeTagMarker for SqlTypeTag<bool> {
 ///     fn to_str(&self) -> &str {
 ///         self.0
@@ -43,12 +43,29 @@
 ///             },
 ///         }
 ///     }
+///
+///     fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> DbResult<Option<Value>> {
+///         match sql_row {
+///             SqlRow::Mysql(row) => {
+///                 let v: Option<bool> = row.try_get(idx)?;
+///                 Ok(v.map(|v| v.into()))
+///             }
+///             SqlRow::Pg(row) => {
+///                 let v: Option<bool> = row.try_get(idx)?;
+///                 Ok(v.map(|v| v.into()))
+///             }
+///             SqlRow::Sqlite(row) => {
+///                 let v: Option<bool> = row.try_get(idx)?;
+///                 Ok(v.map(|v| v.into()))
+///             }
+///         }
+///     }
 /// }
 /// ```
 ///
 /// and custom type:
 ///
-/// ```rust
+/// ```rust,ignore
 /// impl SqlTypeTagMarker for SqlTypeTag<Decimal> {
 ///     fn to_str(&self) -> &str {
 ///         self.0
@@ -73,6 +90,20 @@
 ///                     Some(r) => Ok(value!(r)),
 ///                     None => Ok(Value::Null),
 ///                 }
+///             }
+///             _ => Err(DbError::new_common_error(MISMATCHED_SQL_ROW)),
+///         }
+///     }
+///
+///     fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> DbResult<Option<Value>> {
+///         match sql_row {
+///             SqlRow::Mysql(r) => {
+///                 let v: Option<RDecimal> = r.try_get(idx)?;
+///                 Ok(v.map(|v| v.into()))
+///             }
+///             SqlRow::Pg(r) => {
+///                 let v: Option<RDecimal> = r.try_get(idx)?;
+///                 Ok(v.map(|v| v.into()))
 ///             }
 ///             _ => Err(DbError::new_common_error(MISMATCHED_SQL_ROW)),
 ///         }
@@ -110,6 +141,20 @@ macro_rules! impl_sql_type_tag_marker {
                     )?
                 }
             }
+
+            fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> $crate::DbResult<Option<$crate::Value>> {
+                match sql_row {
+                    $(
+                        SqlRow::$sql_row_var(r) => {
+                            let v: Option<$dtype> = r.try_get(idx)?;
+                            Ok(v.map(|v| v.into()))
+                        },
+                    )*
+                    $(
+                        _ => Err($crate::DbError::new_common_error($residual))
+                    )?
+                }
+            }
         }
     };
     ($dtype:ident, $inner_type:ty, $value_type:ident; [$($sql_row_var:ident),*] $(,)* $($residual:expr)?) => {
@@ -135,6 +180,20 @@ macro_rules! impl_sql_type_tag_marker {
                                 Some(r) => Ok($crate::value!(r)),
                                 None => Ok($crate::Value::Null),
                             }
+                        },
+                    )*
+                    $(
+                        _ => Err($crate::DbError::new_common_error($residual))
+                    )?
+                }
+            }
+
+            fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> $crate::DbResult<Option<$crate::Value>> {
+                match sql_row {
+                    $(
+                        SqlRow::$sql_row_var(r) => {
+                            let v: Option<$inner_type> = r.try_get(idx)?;
+                            Ok(v.map(|v| v.into()))
                         },
                     )*
                     $(

@@ -71,6 +71,9 @@ pub(crate) trait SqlTypeTagMarker: Send + Sync {
 
     /// extract Value from sql row
     fn extract_value(&self, sql_row: &SqlRow, idx: usize) -> DbResult<Value>;
+
+    /// extract Option<Value> from sql row
+    fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> DbResult<Option<Value>>;
 }
 
 /// tmap value type
