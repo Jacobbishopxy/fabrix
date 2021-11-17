@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.51"
+anyhow = "1.0.45"
 bigdecimal = "0.3.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 itertools = "0.10.1"
@@ -21,6 +22,11 @@ polars = { version = "0.17.0", features = [
     "object",
 ] }
 rust_decimal = "1.16.0"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.68"
+lazy_static = "1.4.0"
+futures = "0.3.17"
+
 sea-query = { version = "0.18.2", features = [
     "with-chrono",
     "with-json",
@@ -28,8 +34,6 @@ sea-query = { version = "0.18.2", features = [
     "with-bigdecimal",
     "with-uuid"
 ], optional = true }
-serde = { version = "1.0.130", features = ["derive"] }
-serde_json = "1.0.68"
 sqlx = { version = "0.5.9", features = [
     "runtime-tokio-native-tls",
     "postgres",
@@ -43,8 +47,6 @@ sqlx = { version = "0.5.9", features = [
 thiserror = "1.0.29"
 tokio = { version = "1.12.0", features = ["full"] }
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
-lazy_static = "1.4.0"
-futures = "0.3.17"
 quick-xml = { version = "0.22.0", features = ["serialize"], optional = true }
 zip = { version = "0.5.13", optional = true }
 bson2 = { version = "2.0.3", optional = true }

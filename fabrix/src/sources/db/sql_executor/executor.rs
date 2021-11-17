@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use sqlx::{MySqlPool, PgPool, SqlitePool};
 
 use super::{
-    conn_e_err, conn_n_err, loader::LoaderTransaction, types::string_try_into_value_type, ConnInfo,
-    FabrixDatabaseLoader, LoaderPool,
+    conn_e_err, conn_n_err, loader::LoaderTransaction, types::string_try_into_value_type,
+    FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
     adt, DataFrame, DbError, DbResult, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series,
@@ -26,7 +26,7 @@ pub trait Helper {
 
 /// An engin is an interface to describe sql executor's business logic
 #[async_trait]
-pub trait Engine: Helper {
+pub trait SqlEngine: Helper {
     /// connect to the database
     async fn connect(&mut self) -> DbResult<()>;
 
@@ -61,16 +61,16 @@ pub trait Engine: Helper {
 
 /// Executor is the core struct of db mod.
 /// It plays a role of CRUD and provides data manipulation functionality.
-pub struct Executor {
+pub struct SqlExecutor {
     driver: SqlBuilder,
     conn_str: String,
     pool: Option<Box<dyn FabrixDatabaseLoader>>,
 }
 
-impl Executor {
+impl SqlExecutor {
     /// constructor
-    pub fn new(conn_info: ConnInfo) -> Self {
-        Executor {
+    pub fn new(conn_info: SqlConnInfo) -> Self {
+        SqlExecutor {
             driver: conn_info.driver.clone(),
             conn_str: conn_info.to_string(),
             pool: None,
@@ -84,7 +84,7 @@ impl Executor {
             Some(v) => v.into(),
             None => SqlBuilder::Sqlite,
         };
-        Executor {
+        SqlExecutor {
             driver,
             conn_str: conn_str.to_string(),
             pool: None,
@@ -93,7 +93,7 @@ impl Executor {
 }
 
 #[async_trait]
-impl Helper for Executor {
+impl Helper for SqlExecutor {
     async fn get_primary_key(&self, table_name: &str) -> DbResult<String> {
         conn_n_err!(self.pool);
         let que = self.driver.get_primary_key(table_name);
@@ -167,7 +167,7 @@ impl Helper for Executor {
 }
 
 #[async_trait]
-impl Engine for Executor {
+impl SqlEngine for SqlExecutor {
     async fn connect(&mut self) -> DbResult<()> {
         conn_e_err!(self.pool);
         match self.driver {
@@ -383,27 +383,21 @@ mod test_executor {
 
     const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";
-    const CONN3: &'static str = "sqlite:/home/jacob/dev.sqlite";
+    const CONN3: &'static str = "sqlite://dev.sqlite";
 
     // table name
     const TABLE_NAME: &str = "dev";
 
-    #[test]
-    fn test_de1() {
-        println!("{:?}", u64::max_value());
-        println!("{:?}", i64::max_value());
-    }
-
     #[tokio::test]
     async fn test_connection() {
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
 
         exc.connect().await.expect("connection is ok");
     }
 
     #[tokio::test]
     async fn test_get_primary_key() {
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
 
         exc.connect().await.expect("connection is ok");
 
@@ -431,21 +425,21 @@ mod test_executor {
         let save_strategy = adt::SaveStrategy::FailIfExists;
 
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // postgres
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -475,21 +469,21 @@ mod test_executor {
         let save_strategy = adt::SaveStrategy::Replace;
 
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // postgres
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -516,21 +510,21 @@ mod test_executor {
         let save_strategy = adt::SaveStrategy::Append;
 
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // postgres
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -550,21 +544,21 @@ mod test_executor {
         let save_strategy = adt::SaveStrategy::Upsert;
 
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // postgres
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -596,21 +590,21 @@ mod test_executor {
         };
 
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
         println!("{:?}", res);
 
         // postgres
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
         println!("{:?}", res);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
@@ -619,19 +613,19 @@ mod test_executor {
 
     #[tokio::test]
     async fn test_select_primary_key() {
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
         println!("{:?}", res);
 
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
         println!("{:?}", res);
 
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
@@ -659,21 +653,21 @@ mod test_executor {
         };
 
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let df = exc.select(&select).await.unwrap();
         println!("{:?}", df);
 
         // postgres
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let df = exc.select(&select).await.unwrap();
         println!("{:?}", df);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let df = exc.select(&select).await.unwrap();
@@ -695,21 +689,21 @@ mod test_executor {
     #[tokio::test]
     async fn test_get_table_schema() {
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let schema = exc.get_table_schema(TABLE_NAME).await.unwrap();
         println!("{:?}\n", schema);
 
         // pg
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let schema = exc.get_table_schema(TABLE_NAME).await.unwrap();
         println!("{:?}\n", schema);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let schema = exc.get_table_schema(TABLE_NAME).await.unwrap();
@@ -721,21 +715,21 @@ mod test_executor {
         let ids = series!("ord" => [10,11,14,20,21]);
 
         // mysql
-        let mut exc = Executor::from_str(CONN1);
+        let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await.unwrap();
         println!("{:?}", res);
 
         // pg
-        let mut exc = Executor::from_str(CONN2);
+        let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await.unwrap();
         println!("{:?}", res);
 
         // sqlite
-        let mut exc = Executor::from_str(CONN3);
+        let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await.unwrap();

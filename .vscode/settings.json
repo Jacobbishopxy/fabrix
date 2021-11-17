@@ -1,9 +1,4 @@
 {
-	"rust-analyzer.diagnostics.disabled": [
-		"macro-error",
-		"unresolved-import",
-		"unresolved-macro"
-	],
 	"rust-analyzer.linkedProjects": ["fabrix/Cargo.toml"],
 	"cSpell.words": [
 		"BSON",
@@ -20,6 +15,7 @@
 		"hstack",
 		"iloc",
 		"itertools",
+		"nocapture",
 		"Postgres",
 		"rechunk",
 		"Sqlite",

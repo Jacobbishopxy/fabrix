@@ -12,7 +12,6 @@ pub mod macros;
 pub mod prelude;
 pub mod sources;
 
-pub use errors::*;
 pub use prelude::*;
 
 pub(crate) use crate::sources::db::{DdlMutation, DdlQuery, DmlMutation, DmlQuery, SqlBuilder};

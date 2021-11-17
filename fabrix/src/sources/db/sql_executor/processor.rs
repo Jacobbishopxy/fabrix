@@ -133,7 +133,7 @@ mod test_processor {
 
     const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
     // const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";
-    // const CONN3: &'static str = "sqlite:/home/jacob/dev.sqlite";
+    // const CONN3: &'static str = "sqlite://dev.sqlite";
 
     // processor with cache
     #[tokio::test]

@@ -8,7 +8,7 @@ pub mod macros;
 pub mod processor;
 pub mod types;
 
-pub use executor::Executor;
+pub use executor::{SqlEngine, SqlExecutor};
 pub(crate) use loader::{FabrixDatabaseLoader, LoaderPool};
 pub(crate) use macros::*;
 pub(crate) use processor::SqlRowProcessor;
@@ -16,7 +16,7 @@ pub(crate) use processor::SqlRowProcessor;
 use crate::SqlBuilder;
 
 /// Connection information
-pub struct ConnInfo {
+pub struct SqlConnInfo {
     pub driver: SqlBuilder,
     pub username: String,
     pub password: String,
@@ -25,7 +25,7 @@ pub struct ConnInfo {
     pub database: String,
 }
 
-impl ConnInfo {
+impl SqlConnInfo {
     pub fn new(
         driver: SqlBuilder,
         username: &str,
@@ -33,8 +33,8 @@ impl ConnInfo {
         host: &str,
         port: i32,
         database: &str,
-    ) -> ConnInfo {
-        ConnInfo {
+    ) -> SqlConnInfo {
+        SqlConnInfo {
             driver,
             username: username.to_owned(),
             password: password.to_owned(),
@@ -45,7 +45,7 @@ impl ConnInfo {
     }
 }
 
-impl std::fmt::Display for ConnInfo {
+impl std::fmt::Display for SqlConnInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
