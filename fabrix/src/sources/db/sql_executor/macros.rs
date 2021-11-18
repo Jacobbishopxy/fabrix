@@ -157,7 +157,7 @@ macro_rules! impl_sql_type_tag_marker {
             }
         }
     };
-    ($dtype:ident, $inner_type:ty, $value_type:ident; [$($sql_row_var:ident),*] $(,)* $($residual:expr)?) => {
+    ($dtype:ident <= $inner_type:ty, $value_type:ident; [$($sql_row_var:ident),*] $(,)* $($residual:expr)?) => {
         impl SqlTypeTagMarker for SqlTypeTag<$dtype> {
             fn to_str(&self) -> &str {
                 self.0
@@ -208,10 +208,7 @@ macro_rules! impl_sql_type_tag_marker {
 /// tmap pair
 macro_rules! tmap_pair {
     ($key:expr, $value:ident) => {
-        (
-            $key,
-            Box::new(SqlTypeTag::<$value>::new($key)) as SqlTypeTagKind,
-        )
+        ($key, Box::new(SqlTypeTag::<$value>::new($key)) as STTM)
     };
 }
 

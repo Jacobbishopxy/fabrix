@@ -21,6 +21,7 @@
 		"Sqlite",
 		"sqlx",
 		"sqlz",
+		"STTM",
 		"svalue",
 		"TMAP",
 		"Upcasting",

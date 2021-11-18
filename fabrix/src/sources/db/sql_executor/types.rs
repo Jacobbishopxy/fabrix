@@ -77,21 +77,23 @@ pub(crate) trait SqlTypeTagMarker: Send + Sync {
 }
 
 /// tmap value type
-pub(crate) type SqlTypeTagKind = Box<dyn SqlTypeTagMarker>;
+pub(crate) type STTM = Box<dyn SqlTypeTagMarker>;
 
-impl PartialEq<str> for SqlTypeTagKind {
+impl PartialEq<str> for STTM {
     fn eq(&self, other: &str) -> bool {
         self.to_str() == other
     }
 }
 
-impl PartialEq<SqlTypeTagKind> for str {
-    fn eq(&self, other: &SqlTypeTagKind) -> bool {
+impl PartialEq<STTM> for str {
+    fn eq(&self, other: &STTM) -> bool {
         self == other.to_str()
     }
 }
 
 const MISMATCHED_SQL_ROW: &'static str = "mismatched sql row";
+
+// impl SqlTypeTagMarker for SqlTypeTag<T>
 
 impl_sql_type_tag_marker!(bool, Bool; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(u8, U8; [Mysql], MISMATCHED_SQL_ROW);
@@ -105,14 +107,14 @@ impl_sql_type_tag_marker!(i64, I64; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(f32, F32; [Mysql, Pg], MISMATCHED_SQL_ROW);
 impl_sql_type_tag_marker!(f64, F64; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(String, String; [Mysql, Pg, Sqlite]);
-impl_sql_type_tag_marker!(Date, chrono::NaiveDate, Date; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(Time, chrono::NaiveTime, Time; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(DateTime, chrono::NaiveDateTime, DateTime; [Mysql, Pg, Sqlite]);
-impl_sql_type_tag_marker!(Decimal, rust_decimal::Decimal, Decimal; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(Uuid, uuid::Uuid, Uuid; [Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(Date <= chrono::NaiveDate, Date; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(Time <= chrono::NaiveTime, Time; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(DateTime <= chrono::NaiveDateTime, DateTime; [Mysql, Pg, Sqlite]);
+impl_sql_type_tag_marker!(Decimal <= rust_decimal::Decimal, Decimal; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(Uuid <= uuid::Uuid, Uuid; [Pg], MISMATCHED_SQL_ROW);
 
 lazy_static::lazy_static! {
-    /// static Mysql column type mapping
+    /// Mysql Type Mapping: &'static str -> SqlTypeTag instance
     pub(crate) static ref MYSQL_TMAP: HashMap<&'static str, Box<dyn SqlTypeTagMarker>> = {
         HashMap::from([
             tmap_pair!("TINYINT(1)", bool),
@@ -138,7 +140,7 @@ lazy_static::lazy_static! {
         ])
     };
 
-    /// static Pg column type mapping
+    /// Postgres Type Mapping: &'static str -> SqlTypeTag instance
     pub(crate) static ref PG_TMAP: HashMap<&'static str, Box<dyn SqlTypeTagMarker>> = {
         HashMap::from([
             tmap_pair!("BOOL", bool),
@@ -169,7 +171,7 @@ lazy_static::lazy_static! {
         ])
     };
 
-    /// static Sqlite column type mapping
+    /// Sqlite Type Mapping: &'static str -> SqlTypeTag instance
     pub(crate) static ref SQLITE_TMAP: HashMap<&'static str, Box<dyn SqlTypeTagMarker>> = {
         HashMap::from([
             tmap_pair!("BOOLEAN", bool),
