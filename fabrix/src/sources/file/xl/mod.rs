@@ -35,13 +35,13 @@ pub(crate) enum DateSystem {
 #[derive(Debug, PartialEq)]
 pub enum ExcelValue<'a> {
     Bool(bool),
-    Date(chrono::NaiveDate),
-    DateTime(chrono::NaiveDateTime),
-    Error(String),
-    None,
     Number(f64),
     String(std::borrow::Cow<'a, str>),
+    Date(chrono::NaiveDate),
     Time(chrono::NaiveTime),
+    DateTime(chrono::NaiveDateTime),
+    None,
+    Error(String),
 }
 
 impl std::fmt::Display for ExcelValue<'_> {

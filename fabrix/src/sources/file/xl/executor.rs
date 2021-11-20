@@ -11,7 +11,10 @@ use super::{Cell, Workbook};
 /// Any type that implements this trait can be treated as 'source' in a streaming process.
 /// It can either send parsed data to other `source` such as database and file,
 /// or via http or grpc to other services.
-pub trait XlDataConsumer {
+///
+/// CORE is a generic type that is used to distinguish different consumers.
+/// For instance, a database consumer will have a CORE type of `Database`.
+pub trait XlDataConsumer<CORE> {
     type OutType;
     type ErrorType: XlDataConsumerErr;
 
@@ -40,23 +43,25 @@ pub enum XlSource<'a> {
 }
 
 /// Xl executor
-pub struct XlExecutor<E>
+pub struct XlExecutor<E, C>
 where
-    E: XlDataConsumer,
+    E: XlDataConsumer<C>,
 {
     wb: Workbook,
     e: PhantomData<E>,
+    c: PhantomData<C>,
 }
 
-impl<E> XlExecutor<E>
+impl<E, C> XlExecutor<E, C>
 where
-    E: XlDataConsumer,
+    E: XlDataConsumer<C>,
 {
     /// constructor
     pub fn new(workbook: Workbook) -> Self {
         Self {
             wb: workbook,
             e: PhantomData,
+            c: PhantomData,
         }
     }
 
@@ -132,7 +137,7 @@ mod test_xl_executor {
         }
     }
 
-    impl XlDataConsumer for TestExec {
+    impl XlDataConsumer<u8> for TestExec {
         type OutType = String;
         type ErrorType = TestExecErr;
 
@@ -155,7 +160,7 @@ mod test_xl_executor {
     fn test_exec() {
         let file = File::open("test.xlsx").unwrap();
         let wb = Workbook::new(file).unwrap();
-        let mut xle = XlExecutor::<TestExec>::new(wb);
+        let mut xle = XlExecutor::<TestExec, u8>::new(wb);
 
         if let Ok(_) = xle.read_sheet("Sheet1", None) {
             println!("done");

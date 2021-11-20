@@ -8,16 +8,25 @@ use thiserror::Error;
 
 #[cfg(feature = "sql")]
 use crate::DbError;
-
 #[cfg(feature = "file")]
 use crate::FlError;
 
+/// Result type for fabrix
 pub type FabrixResult<T> = Result<T, FabrixError>;
 
 #[derive(Debug)]
 pub enum CommonError {
     Str(&'static str),
     String(String),
+}
+
+impl AsRef<str> for CommonError {
+    fn as_ref(&self) -> &str {
+        match self {
+            CommonError::Str(s) => s,
+            CommonError::String(s) => s.as_str(),
+        }
+    }
 }
 
 impl Display for CommonError {
@@ -56,6 +65,18 @@ pub enum FabrixError {
 
     #[error("unknown error")]
     Unknown,
+}
+
+impl From<&str> for FabrixError {
+    fn from(v: &str) -> Self {
+        FabrixError::Common(CommonError::String(v.to_owned()))
+    }
+}
+
+impl From<String> for FabrixError {
+    fn from(v: String) -> Self {
+        FabrixError::Common(CommonError::String(v))
+    }
 }
 
 impl FabrixError {
