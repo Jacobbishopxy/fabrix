@@ -11,6 +11,66 @@ use zip::read::ZipFile;
 
 use super::{util, DateSystem, ExcelValue, Workbook};
 
+/// a row of cells
+#[derive(Debug)]
+pub struct Row<'a> {
+    pub data: Vec<Cell<'a>>,
+    pub num: usize,
+}
+
+impl<'a> Row<'a> {
+    pub fn new(data: Vec<Cell<'a>>, num: usize) -> Row<'a> {
+        Row { data, num }
+    }
+}
+
+/// minimum Excel unit: cell
+#[derive(Debug)]
+pub struct Cell<'a> {
+    /// The value you get by converting the raw_value (a string) into a Rust value
+    pub value: ExcelValue<'a>,
+    /// The formula (may be "empty") of the cell
+    pub formula: String,
+    /// What cell are we looking at? E.g., B3, A1, etc.
+    pub reference: String,
+    /// The cell style (e.g., the style you see in Excel by hitting Ctrl+1 and going to the
+    /// "Number" tab).
+    pub style: String,
+    /// The type of cell as recorded by Excel (s = string using sharedStrings.xml, str = raw
+    /// string, b = boolean, etc.). This may change from a `String` type to an `Enum` of some sorts
+    /// in the future.
+    pub cell_type: String,
+    /// The raw string value recorded in the xml
+    pub raw_value: String,
+}
+
+impl Cell<'_> {
+    /// return cell's row/column coordinates
+    pub fn coordinates(&self) -> (u16, u32) {
+        // let (col, row) = split_cell_reference(&self.reference);
+        let (col, row) = {
+            let r = &self.reference;
+            let mut end = 0;
+            for (i, c) in r.chars().enumerate() {
+                if !c.is_ascii_alphabetic() {
+                    end = i;
+                    break;
+                }
+            }
+            (&r[..end], &r[end..])
+        };
+        let col = util::col2num(col).unwrap();
+        let row = row.parse().unwrap();
+        (col, row)
+    }
+}
+
+impl std::fmt::Display for Cell<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
 /// Excel worksheet reader
 ///
 /// The `SheetReader` is used in a `RowIter` to navigate a worksheet. It contains a pointer to the
@@ -182,14 +242,14 @@ impl<'a> Iterator for RowIter<'a> {
         // the xml in the xlsx file will not contain elements for empty rows. So
         // we need to "simulate" the empty rows since the user expects to see
         // them when they iterate over the worksheet.
-        if let Some(Row(_, row_num)) = &self.next_row {
+        if let Some(Row { data: _, num }) = &self.next_row {
             // since we are currently buffering a row, we know we will either return it or a
             // "simulated" (i.e., emtpy) row. So we grab the current row and update the fact that
             // we will soon want a new row. We then figure out if we have the row we want or if we
             // need to keep spitting out empty rows.
             let current_row = self.want_row;
             self.want_row += 1;
-            if *row_num == current_row {
+            if *num == current_row {
                 // we finally hit the row we were looking for, so we reset the buffer and return
                 // the row that was sitting in it.
                 let mut r = None;
@@ -336,7 +396,7 @@ impl<'a> Iterator for RowIter<'a> {
                             cell.reference.push_str(&this_row.to_string());
                             row.push(cell);
                         }
-                        let next_row = Some(Row(row, this_row));
+                        let next_row = Some(Row::new(row, this_row));
                         if this_row == self.want_row {
                             break next_row;
                         } else {
@@ -381,7 +441,7 @@ fn empty_row(num_cols: u16, this_row: usize) -> Option<Row<'static>> {
         c.reference.push_str(&this_row.to_string());
         row.push(c);
     }
-    Some(Row(row, this_row))
+    Some(Row::new(row, this_row))
 }
 
 fn is_date(cell: &Cell) -> bool {
@@ -392,55 +452,5 @@ fn is_date(cell: &Cell) -> bool {
         true
     } else {
         cell.style.contains('y')
-    }
-}
-
-#[derive(Debug)]
-pub struct Row<'a>(pub Vec<Cell<'a>>, pub usize);
-
-/// minimum Excel unit: cell
-#[derive(Debug)]
-pub struct Cell<'a> {
-    /// The value you get by converting the raw_value (a string) into a Rust value
-    pub value: ExcelValue<'a>,
-    /// The formula (may be "empty") of the cell
-    pub formula: String,
-    /// What cell are we looking at? E.g., B3, A1, etc.
-    pub reference: String,
-    /// The cell style (e.g., the style you see in Excel by hitting Ctrl+1 and going to the
-    /// "Number" tab).
-    pub style: String,
-    /// The type of cell as recorded by Excel (s = string using sharedStrings.xml, str = raw
-    /// string, b = boolean, etc.). This may change from a `String` type to an `Enum` of some sorts
-    /// in the future.
-    pub cell_type: String,
-    /// The raw string value recorded in the xml
-    pub raw_value: String,
-}
-
-impl Cell<'_> {
-    /// return cell's row/column coordinates
-    pub fn coordinates(&self) -> (u16, u32) {
-        // let (col, row) = split_cell_reference(&self.reference);
-        let (col, row) = {
-            let r = &self.reference;
-            let mut end = 0;
-            for (i, c) in r.chars().enumerate() {
-                if !c.is_ascii_alphabetic() {
-                    end = i;
-                    break;
-                }
-            }
-            (&r[..end], &r[end..])
-        };
-        let col = util::col2num(col).unwrap();
-        let row = row.parse().unwrap();
-        (col, row)
-    }
-}
-
-impl std::fmt::Display for Cell<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.value)
     }
 }

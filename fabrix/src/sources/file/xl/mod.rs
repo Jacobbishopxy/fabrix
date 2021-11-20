@@ -8,7 +8,8 @@ pub mod workbook;
 pub(crate) mod worksheet;
 
 pub use workbook::Workbook;
-pub(crate) use worksheet::{SheetReader, Worksheet};
+pub(crate) use worksheet::SheetReader;
+pub use worksheet::{Cell, Row, Worksheet};
 
 /// Date system, used to determine the date format from an Excel file.
 ///
