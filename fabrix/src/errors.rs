@@ -6,7 +6,7 @@ use std::fmt::Display;
 
 use thiserror::Error;
 
-#[cfg(feature = "db")]
+#[cfg(feature = "sql")]
 use crate::DbError;
 
 #[cfg(feature = "file")]
@@ -46,7 +46,7 @@ pub enum FabrixError {
     #[error("common error {0}")]
     Common(CommonError),
 
-    #[cfg(feature = "db")]
+    #[cfg(feature = "sql")]
     #[error(transparent)]
     DB(#[from] DbError),
 

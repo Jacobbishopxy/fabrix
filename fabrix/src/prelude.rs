@@ -9,12 +9,12 @@ pub use crate::core::{
 };
 
 // sources: db
-#[cfg(feature = "db")]
-pub use crate::sources::db::error::{DbError, DbResult};
-#[cfg(feature = "db")]
-pub use crate::sources::db::sql_builder::adt;
-#[cfg(feature = "db")]
-pub use crate::sources::db::sql_executor::{SqlConnInfo, SqlEngine, SqlExecutor};
+#[cfg(feature = "sql")]
+pub use crate::sources::sql::error::{DbError, DbResult};
+#[cfg(feature = "sql")]
+pub use crate::sources::sql::sql_builder::adt;
+#[cfg(feature = "sql")]
+pub use crate::sources::sql::sql_executor::{SqlConnInfo, SqlEngine, SqlExecutor};
 
 // sources: file
 #[cfg(feature = "file")]

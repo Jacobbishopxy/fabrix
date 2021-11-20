@@ -9,3 +9,4 @@ pub mod parquet;
 pub mod xl;
 
 pub use error::*;
+pub use xl::*;

@@ -14,7 +14,7 @@ Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Seri
 │   └── macros.rs
 │
 ├── sources
-│   ├── db
+│   ├── sql
 │   │   ├── sql_builder                 // SQL builder
 │   │   │   ├── adt.rs                  // algebraic data type
 │   │   │   ├── query_ddl.rs            // ddl query: check table or schema
@@ -34,16 +34,23 @@ Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Seri
 │   │
 │   ├── file
 │   │   ├── xl                          // Excel
-│   │   │   ├── util.rs
-│   │   │   ├── worksheet.rs
-│   │   │   ├── workbook.rs
-│   │   │   └── executor.rs
+│   │   │   ├── util.rs                 // Excel utility
+│   │   │   ├── worksheet.rs            // Excel worksheet
+│   │   │   ├── workbook.rs             // Excel workbook
+│   │   │   └── executor.rs             // Excel executor, business logic implementation
 │   │   │
 │   │   ├── csv                         // CSV
 │   │   │
 │   │   └── parquet                     // Parquet
 │   │
-│   └── bson
+│   ├── bson                            // BSON & JSON
+│   │
+│   └── mgo                             // MongoDB
+│
+├── dispatcher                          // dispatcher for different data source
+│   ├── xl_reader.rs                    // Excel reader
+│   ├── db_reader.rs                    // db reader
+│   └── db_writer.rs                    // db writer
 │
 ├── errors.rs                           // error handling
 │

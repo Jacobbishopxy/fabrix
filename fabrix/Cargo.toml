@@ -53,7 +53,8 @@ zip = { version = "0", optional = true }
 bson2 = { version = "2", optional = true }
 
 [features]
-default = ["db", "file", "bson"]
-db = ["sea-query", "sqlx"]
+default = ["sql", "file", "bson", "mgo"]
+sql = ["sea-query", "sqlx"]
 file = ["quick-xml", "zip"]
 bson = ["bson2"]
+mgo = []
