@@ -26,7 +26,8 @@ pub trait Xl2Db {
     /// we still need customized impl for business logic.
     fn to_dataframe(rows: D2) -> FabrixResult<DataFrame>;
 
-    fn save(data: DataFrame) -> FabrixResult<()>;
+    /// save data
+    fn save(&mut self, data: DataFrame) -> FabrixResult<()>;
 }
 
 impl<T> XlDataConsumer<Db> for T
@@ -50,14 +51,14 @@ where
         }
     }
 
-    fn consume_row(_batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
+    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
         unimplemented!()
     }
 
-    fn consume_batch(batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
+    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
         let df = T::to_dataframe(batch)?;
 
-        T::save(df)?;
+        self.save(df)?;
 
         Ok(())
     }
@@ -66,7 +67,7 @@ where
 pub trait Xl2Json {
     fn to_json(rows: D2) -> FabrixResult<JsonValue>;
 
-    fn save(data: JsonValue) -> FabrixResult<()>;
+    fn save(&mut self, data: JsonValue) -> FabrixResult<()>;
 }
 
 impl<T> XlDataConsumer<Json> for T
@@ -90,15 +91,84 @@ where
         }
     }
 
-    fn consume_row(_batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
+    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
         unimplemented!()
     }
 
-    fn consume_batch(batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
+    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
         let json = serde_json::json!(batch);
 
-        T::save(json)?;
+        self.save(json)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test_xl_reader {
+    use super::*;
+    use crate::{adt, SqlEngine, SqlExecutor};
+
+    const CONN3: &'static str = "sqlite://dev.sqlite";
+
+    pub struct TestXl2Db {
+        conn_str: String,
+        cache: Option<DataFrame>,
+    }
+
+    impl Xl2Db for TestXl2Db {
+        fn to_dataframe(rows: D2) -> FabrixResult<DataFrame> {
+            let df = DataFrame::from_row_values(rows)?;
+
+            Ok(df)
+        }
+
+        fn save(&mut self, data: DataFrame) -> FabrixResult<()> {
+            self.cache = Some(data);
+
+            Ok(())
+        }
+    }
+
+    impl TestXl2Db {
+        fn new(conn_str: &str) -> Self {
+            TestXl2Db {
+                conn_str: conn_str.to_string(),
+                cache: None,
+            }
+        }
+
+        async fn create_table_and_insert(&mut self, table_name: &str) -> FabrixResult<()> {
+            if let Some(d) = self.cache.take() {
+                let mut exc = SqlExecutor::from_str(&self.conn_str);
+                exc.connect().await?;
+
+                exc.save(table_name, d, &adt::SaveStrategy::Replace).await?;
+
+                Ok(())
+            } else {
+                Err(FabrixError::from_common_error("no data"))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_xl2db() {
+        use std::fs::File;
+
+        use crate::sources::file::{Workbook, XlExecutor};
+
+        let file = File::open("test.xlsx").unwrap();
+        let wb = Workbook::new(file).unwrap();
+
+        let test_piper = TestXl2Db::new(CONN3);
+
+        let mut bar = XlExecutor::new(wb, test_piper);
+
+        bar.read_sheet("Sheet1", None).unwrap();
+
+        let foo = bar.consumer().create_table_and_insert("test_table").await;
+
+        println!("{:?}", foo);
     }
 }

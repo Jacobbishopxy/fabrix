@@ -6,6 +6,7 @@ use std::{fs::File, marker::PhantomData};
 
 use super::{Cell, Workbook};
 
+// TODO: rename to XlDataPiper ?
 /// Xl Data Consumer
 /// A public trait that defines the interface for a Xl processor.
 /// Any type that implements this trait can be treated as 'source' in a streaming process.
@@ -22,10 +23,10 @@ pub trait XlDataConsumer<CORE> {
     fn transform(cell: Cell) -> Result<Self::OutType, Self::ErrorType>;
 
     /// consume a single row
-    fn consume_row(batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType>;
+    fn consume_row(&mut self, batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType>;
 
     /// consume a batch of rows
-    fn consume_batch(batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType>;
+    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType>;
 }
 
 pub trait XlDataConsumerErr {
@@ -48,7 +49,7 @@ where
     E: XlDataConsumer<C>,
 {
     wb: Workbook,
-    e: PhantomData<E>,
+    consumer: E,
     c: PhantomData<C>,
 }
 
@@ -57,12 +58,16 @@ where
     E: XlDataConsumer<C>,
 {
     /// constructor
-    pub fn new(workbook: Workbook) -> Self {
+    pub fn new(workbook: Workbook, consumer: E) -> Self {
         Self {
             wb: workbook,
-            e: PhantomData,
+            consumer,
             c: PhantomData,
         }
+    }
+
+    pub fn consumer(&mut self) -> &mut E {
+        &mut self.consumer
     }
 
     /// read a sheet from a workbook
@@ -101,7 +106,7 @@ where
                     let mut cache_batch = Vec::new();
                     std::mem::swap(&mut cache_batch, &mut batch);
                     // consume batch
-                    E::consume_batch(cache_batch)?;
+                    self.consumer.consume_batch(cache_batch)?;
                     sz = 0;
                 } else {
                     continue;
@@ -113,7 +118,7 @@ where
         if batch.len() > 0 {
             let mut cache_batch = Vec::new();
             std::mem::swap(&mut cache_batch, &mut batch);
-            E::consume_batch(cache_batch)?;
+            // E::consume_batch(cache_batch)?;
         }
 
         Ok(())
@@ -145,12 +150,12 @@ mod test_xl_executor {
             Ok(cell.value.to_string())
         }
 
-        fn consume_row(batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
+        fn consume_row(&mut self, batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
             println!("{:?}", batch);
             Ok(())
         }
 
-        fn consume_batch(batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
+        fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
             println!("{:?}", batch);
             Ok(())
         }
@@ -160,7 +165,7 @@ mod test_xl_executor {
     fn test_exec() {
         let file = File::open("test.xlsx").unwrap();
         let wb = Workbook::new(file).unwrap();
-        let mut xle = XlExecutor::<TestExec, u8>::new(wb);
+        let mut xle = XlExecutor::new(wb, TestExec);
 
         if let Ok(_) = xle.read_sheet("Sheet1", None) {
             println!("done");
