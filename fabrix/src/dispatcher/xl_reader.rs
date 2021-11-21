@@ -154,20 +154,17 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db() {
-        use std::fs::File;
+        use crate::sources::file::{XlExecutor, XlSource};
 
-        use crate::sources::file::{Workbook, XlExecutor};
-
-        let file = File::open("test.xlsx").unwrap();
-        let wb = Workbook::new(file).unwrap();
+        let source = XlSource::Path("test.xlsx");
 
         let test_piper = TestXl2Db::new(CONN3);
 
-        let mut bar = XlExecutor::new(wb, test_piper);
+        let mut xle = XlExecutor::new_with_source(test_piper, source).unwrap();
 
-        bar.read_sheet("Sheet1", None).unwrap();
+        xle.read_sheet("Sheet1", None).unwrap();
 
-        let foo = bar.consumer().create_table_and_insert("test_table").await;
+        let foo = xle.consumer().create_table_and_insert("test_table").await;
 
         println!("{:?}", foo);
     }

@@ -55,6 +55,9 @@ pub enum FabrixError {
     #[error("common error {0}")]
     Common(CommonError),
 
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+
     #[cfg(feature = "sql")]
     #[error(transparent)]
     DB(#[from] DbError),

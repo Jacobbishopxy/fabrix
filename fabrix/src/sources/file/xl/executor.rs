@@ -4,9 +4,10 @@
 
 use std::{fs::File, marker::PhantomData};
 
+use crate::FabrixResult;
+
 use super::{Cell, Workbook};
 
-// TODO: rename to XlDataPiper ?
 /// Xl Data Consumer
 /// A public trait that defines the interface for a Xl processor.
 /// Any type that implements this trait can be treated as 'source' in a streaming process.
@@ -29,6 +30,7 @@ pub trait XlDataConsumer<CORE> {
     fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType>;
 }
 
+/// Xl Data Consumer Error
 pub trait XlDataConsumerErr {
     fn new<T>(msg: T) -> Self
     where
@@ -44,13 +46,17 @@ pub enum XlSource<'a> {
 }
 
 /// Xl executor
+///
+/// wb: Workbook
+/// consumer: a concrete type who implemented XlDataConsumer
+/// core: a phantom type to distinguish different consumers
 pub struct XlExecutor<E, C>
 where
     E: XlDataConsumer<C>,
 {
-    wb: Workbook,
     consumer: E,
-    c: PhantomData<C>,
+    workbook: Option<Workbook>,
+    core: PhantomData<C>,
 }
 
 impl<E, C> XlExecutor<E, C>
@@ -58,14 +64,41 @@ where
     E: XlDataConsumer<C>,
 {
     /// constructor
-    pub fn new(workbook: Workbook, consumer: E) -> Self {
-        Self {
-            wb: workbook,
+    pub fn new(consumer: E) -> FabrixResult<Self> {
+        Ok(Self {
+            workbook: None,
             consumer,
-            c: PhantomData,
-        }
+            core: PhantomData,
+        })
     }
 
+    /// constructor
+    pub fn new_with_source<'a>(consumer: E, source: XlSource<'a>) -> FabrixResult<Self> {
+        let wb = match source {
+            XlSource::File(file) => Workbook::new(file)?,
+            XlSource::Path(path) => Workbook::new(File::open(path)?)?,
+            XlSource::Url(_url) => unimplemented!(),
+        };
+        let wb = Some(wb);
+        Ok(Self {
+            workbook: wb,
+            consumer,
+            core: PhantomData,
+        })
+    }
+
+    /// replace or set a new workbook
+    pub fn add_source<'a>(&mut self, source: XlSource<'a>) -> FabrixResult<()> {
+        let wb = match source {
+            XlSource::File(file) => Workbook::new(file)?,
+            XlSource::Path(path) => Workbook::new(File::open(path)?)?,
+            XlSource::Url(_url) => unimplemented!(),
+        };
+        self.workbook = Some(wb);
+        Ok(())
+    }
+
+    /// expose consumer as a mutable reference for external usage, this is a self-mutated method
     pub fn consumer(&mut self) -> &mut E {
         &mut self.consumer
     }
@@ -77,8 +110,13 @@ where
         sheet: &str,
         batch_size: Option<usize>,
     ) -> Result<(), E::ErrorType> {
+        // workbook must be set
+        if let None = self.workbook {
+            return Err(E::ErrorType::new("workbook is not initialized"));
+        }
+
         // select a sheet from workbook
-        let sheets = self.wb.sheets();
+        let sheets = self.workbook.take().unwrap().sheets();
         let sheet = match sheets.get(sheet) {
             Some(ws) => ws,
             None => return Err(E::ErrorType::new("Sheet not found")),
@@ -89,7 +127,7 @@ where
         let mut sz = 0usize;
 
         // iterate over rows
-        for row in sheet.rows(&mut self.wb) {
+        for row in sheet.rows(&mut self.workbook.take().unwrap()) {
             let row_buf = row
                 .data
                 .into_iter()
@@ -118,7 +156,7 @@ where
         if batch.len() > 0 {
             let mut cache_batch = Vec::new();
             std::mem::swap(&mut cache_batch, &mut batch);
-            // E::consume_batch(cache_batch)?;
+            self.consumer.consume_batch(cache_batch)?;
         }
 
         Ok(())
@@ -163,9 +201,8 @@ mod test_xl_executor {
 
     #[test]
     fn test_exec() {
-        let file = File::open("test.xlsx").unwrap();
-        let wb = Workbook::new(file).unwrap();
-        let mut xle = XlExecutor::new(wb, TestExec);
+        let source = XlSource::Path("test.xlsx");
+        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
 
         if let Ok(_) = xle.read_sheet("Sheet1", None) {
             println!("done");
