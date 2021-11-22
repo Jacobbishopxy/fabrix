@@ -4,8 +4,8 @@
 
 pub use super::errors::*;
 pub use crate::core::{
-    DataFrame, Date, DateTime, Decimal, FieldInfo, Row, Series, Time, Uuid, Value, ValueType, D1,
-    D2,
+    CoreError, CoreResult, DataFrame, Date, DateTime, Decimal, FieldInfo, Row, Series, Time, Uuid,
+    Value, ValueType, D1, D2,
 };
 
 // sources: db

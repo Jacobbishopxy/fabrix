@@ -116,7 +116,10 @@ pub(crate) fn try_from_value_to_svalue(
             if nullable {
                 Ok(from_data_type_to_null_svalue(dtype))
             } else {
-                Err(SqlError::new_parse_error(value, dtype))
+                Err(SqlError::new_common_error(format!(
+                    "convert {:?} to {:?} error",
+                    value, dtype
+                )))
             }
         }
     }

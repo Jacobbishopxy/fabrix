@@ -142,12 +142,12 @@ pub(crate) use impl_value_from;
 ///
 /// ```rust,ignore
 /// impl TryFrom<Value> for Option<bool> {
-///     type Error = FabrixError;
+///     type Error = CoreError;
 ///     fn try_from(value: Value) -> Result<Self, Self::Error> {
 ///         match value {
 ///             Value::Null => Ok(None),
 ///             Value::Boolean(v) => Ok(Some(v)),
-///             _ => Err(FabrixError::new_parse_info_error(value, "bool")),
+///             _ => Err(CoreError::new_parse_info_error(value, "bool")),
 ///         }
 ///     }
 /// }
@@ -157,11 +157,11 @@ pub(crate) use impl_value_from;
 ///
 /// ```rust,ignore
 /// impl TryFrom<Value> for bool {
-///     type Error = FabrixError;
+///     type Error = CoreError;
 ///     fn try_from(value: Value) -> Result<Self, Self::Error> {
 ///         match value {
 ///             Value::Boolean(v) => Ok(v),
-///             _ => Err(FabrixError::new_parse_info_error(value, "bool")),
+///             _ => Err(CoreError::new_parse_info_error(value, "bool")),
 ///         }
 ///     }
 /// }
@@ -169,25 +169,25 @@ pub(crate) use impl_value_from;
 macro_rules! impl_try_from_value {
     ($val_var:ident, Option<$ftype:ty>, $hint:expr) => {
         impl TryFrom<$crate::Value> for Option<$ftype> {
-            type Error = $crate::SqlError;
+            type Error = $crate::CoreError;
 
             fn try_from(value: $crate::Value) -> Result<Self, Self::Error> {
                 match value {
                     $crate::Value::Null => Ok(None),
                     $crate::Value::$val_var(v) => Ok(Some(v)),
-                    _ => Err($crate::SqlError::new_parse_info_error(value, $hint)),
+                    _ => Err($crate::CoreError::new_parse_info_error(value, $hint)),
                 }
             }
         }
     };
     ($val_var:ident, $ftype:ty, $hint:expr) => {
         impl TryFrom<$crate::Value> for $ftype {
-            type Error = $crate::SqlError;
+            type Error = $crate::CoreError;
 
             fn try_from(value: $crate::Value) -> Result<Self, Self::Error> {
                 match value {
                     $crate::Value::$val_var(v) => Ok(v),
-                    _ => Err($crate::SqlError::new_parse_info_error(value, $hint)),
+                    _ => Err($crate::CoreError::new_parse_info_error(value, $hint)),
                 }
             }
         }
@@ -222,6 +222,66 @@ macro_rules! impl_named_from {
 }
 
 pub(crate) use impl_named_from;
+
+/// new Series from Vec<Value>
+///
+/// ```rust
+/// let r = values
+///     .into_iter()
+///     .map(|v| bool::try_from(v))
+///     .collect::<DbResult<Vec<_>>>()?;
+/// let s = ChunkedArray::<BooleanType>::new_from_slice(IDX, &r[..]);
+/// Ok(Series(s.into_series()))
+/// ```
+macro_rules! series_from_values {
+    ($name:expr, $values:expr; Option<$ftype:ty>, $polars_type:ident) => {{
+        let r = $values
+            .into_iter()
+            .map(|v| Option::<$ftype>::try_from(v))
+            .collect::<$crate::CoreResult<Vec<_>>>()?;
+
+        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_opt_slice($name, &r[..]);
+        Ok(Series(s.into_series()))
+    }};
+    ($name:expr, $values:expr; $ftype:ty, $polars_type:ident) => {{
+        let r = $values
+            .into_iter()
+            .map(|v| <$ftype>::try_from(v))
+            .collect::<$crate::CoreResult<Vec<_>>>()?;
+
+        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_slice($name, &r[..]);
+        Ok(Series(s.into_series()))
+    }};
+    ($name:expr; Option<$ftype:ty>, $polars_type:ident) => {{
+        let vec: Vec<Option<$ftype>> = vec![];
+        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_opt_slice($name, &vec);
+        Ok(Series(s.into_series()))
+    }};
+    ($name:expr; $ftype:ty, $polars_type:ident) => {{
+        let vec: Vec<$ftype> = vec![];
+        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_slice($name, &vec);
+        Ok(Series(s.into_series()))
+    }};
+}
+
+/// new Series from Vec<Value>, with nullable option
+macro_rules! sfv {
+    ($nullable:expr; $name:expr, $values:expr; $ftype:ty, $polars_type:ident) => {{
+        match $nullable {
+            true => series_from_values!($name, $values; Option<$ftype>, $polars_type),
+            false => series_from_values!($name, $values; $ftype, $polars_type),
+        }
+    }};
+    ($nullable:expr; $name:expr; $ftype:ty, $polars_type:ident) => {{
+        match $nullable {
+            true => series_from_values!($name; Option<$ftype>, $polars_type),
+            false => series_from_values!($name; $ftype, $polars_type),
+        }
+    }};
+}
+
+pub(crate) use series_from_values;
+pub(crate) use sfv;
 
 /// Series IntoIterator process
 ///

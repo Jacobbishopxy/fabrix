@@ -24,7 +24,7 @@ pub enum FlError {
 }
 
 impl FlError {
-    pub fn from_common_error<T>(msg: T) -> FlError
+    pub fn new_common_error<T>(msg: T) -> FlError
     where
         T: Into<CommonError>,
     {

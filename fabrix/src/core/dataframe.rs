@@ -49,7 +49,7 @@ use polars::frame::select::Selection;
 use polars::prelude::{BooleanChunked, DataFrame as PDataFrame, Field, NewChunkedArray};
 
 use super::{cis_err, inf_err, oob_err, FieldInfo, Series, IDX};
-use crate::{SqlError, SqlResult, Value, ValueType};
+use crate::{CoreError, CoreResult, Value, ValueType};
 
 /// DataFrame is a data structure used in Fabrix crate, it wrapped `polars` Series as DF index and
 /// `polars` DataFrame for holding 2 dimensional data. Make sure index series is not nullable.
@@ -70,24 +70,24 @@ impl DataFrame {
         data_fields: Vec<Field>,
         index_field: Field,
         nullable: bool,
-    ) -> SqlResult<Self> {
+    ) -> CoreResult<Self> {
         let data = data_fields
             .into_iter()
             .map(|d| Series::empty_series_from_field(d, nullable))
-            .collect::<SqlResult<Vec<Series>>>()?;
+            .collect::<CoreResult<Vec<Series>>>()?;
         let index = Series::empty_series_from_field(index_field, nullable)?;
 
         DataFrame::from_series(data, index)
     }
 
     /// Create a DataFrame from Vec<Series> (data) and Series (index)
-    pub fn from_series(series: Vec<Series>, index: Series) -> SqlResult<Self> {
+    pub fn from_series(series: Vec<Series>, index: Series) -> CoreResult<Self> {
         let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
         Ok(DataFrame { data, index })
     }
 
     /// Create a DataFrame from Vec<Series> and index name
-    pub fn from_series_with_index(series: Vec<Series>, index_name: &str) -> SqlResult<Self> {
+    pub fn from_series_with_index(series: Vec<Series>, index_name: &str) -> CoreResult<Self> {
         let index;
         let mut series = series;
         match series.iter().position(|s| s.name() == index_name) {
@@ -95,7 +95,7 @@ impl DataFrame {
                 index = series.swap_remove(i);
             }
             None => {
-                return Err(SqlError::new_common_error(format!(
+                return Err(CoreError::new_common_error(format!(
                     "index {:?} does not exist",
                     index_name
                 )))
@@ -109,7 +109,7 @@ impl DataFrame {
     }
 
     /// Create a DataFrame from Vec<Series>, index is automatically generated
-    pub fn from_series_default_index(series: Vec<Series>) -> SqlResult<Self> {
+    pub fn from_series_default_index(series: Vec<Series>) -> CoreResult<Self> {
         let len = series.first().ok_or(cis_err("Vec<Series>"))?.len() as u64;
         let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
         let index = Series::from_integer(&len)?;
@@ -158,7 +158,7 @@ impl DataFrame {
     }
 
     /// set column names
-    pub fn set_column_names<N>(&mut self, names: &[N]) -> SqlResult<&mut Self>
+    pub fn set_column_names<N>(&mut self, names: &[N]) -> CoreResult<&mut Self>
     where
         N: AsRef<str>,
     {
@@ -167,7 +167,7 @@ impl DataFrame {
     }
 
     /// rename
-    pub fn rename(&mut self, origin: &str, new: &str) -> SqlResult<&mut Self> {
+    pub fn rename(&mut self, origin: &str, new: &str) -> CoreResult<&mut Self> {
         self.data.rename(origin, new)?;
         Ok(self)
     }
@@ -236,7 +236,7 @@ impl DataFrame {
     }
 
     /// horizontal stack, return cloned data
-    pub fn hconcat(&self, columns: &[Series]) -> SqlResult<DataFrame> {
+    pub fn hconcat(&self, columns: &[Series]) -> CoreResult<DataFrame> {
         let raw_columns = columns
             .into_iter()
             .cloned()
@@ -248,7 +248,7 @@ impl DataFrame {
     }
 
     /// horizontal stack, self mutation
-    pub fn hconcat_mut(&mut self, columns: &[Series]) -> SqlResult<&mut Self> {
+    pub fn hconcat_mut(&mut self, columns: &[Series]) -> CoreResult<&mut Self> {
         let raw_columns = columns
             .into_iter()
             .cloned()
@@ -262,9 +262,9 @@ impl DataFrame {
 
     // TODO: dtypes safety check is optional?
     /// vertical stack, return cloned data
-    pub fn vconcat(&self, df: &DataFrame) -> SqlResult<DataFrame> {
+    pub fn vconcat(&self, df: &DataFrame) -> CoreResult<DataFrame> {
         if !self.is_dtypes_match(&df) {
-            return Err(SqlError::new_df_dtypes_mismatch_error(
+            return Err(CoreError::new_df_dtypes_mismatch_error(
                 self.dtypes(),
                 df.dtypes(),
             ));
@@ -278,9 +278,9 @@ impl DataFrame {
 
     // TODO: dtypes safety check is optional?
     /// vertical concat, self mutation
-    pub fn vconcat_mut(&mut self, df: &DataFrame) -> SqlResult<&mut Self> {
+    pub fn vconcat_mut(&mut self, df: &DataFrame) -> CoreResult<&mut Self> {
         if !self.is_dtypes_match(&df) {
-            return Err(SqlError::new_df_dtypes_mismatch_error(
+            return Err(CoreError::new_df_dtypes_mismatch_error(
                 self.dtypes(),
                 df.dtypes(),
             ));
@@ -292,7 +292,7 @@ impl DataFrame {
     }
 
     /// take cloned rows by an indices array
-    pub fn take_rows_by_idx(&self, indices: &[usize]) -> SqlResult<DataFrame> {
+    pub fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<DataFrame> {
         let iter = indices.to_vec().into_iter();
         let data = self.data.take_iter(iter)?;
 
@@ -303,14 +303,14 @@ impl DataFrame {
     }
 
     /// take cloned DataFrame by an index Series
-    pub fn take_rows(&self, index: &Series) -> SqlResult<DataFrame> {
+    pub fn take_rows(&self, index: &Series) -> CoreResult<DataFrame> {
         let idx = self.index.find_indices(index);
 
         Ok(self.take_rows_by_idx(&idx[..])?)
     }
 
     /// pop row
-    pub fn pop_row(&mut self) -> SqlResult<&mut Self> {
+    pub fn pop_row(&mut self) -> CoreResult<&mut Self> {
         let len = self.height();
         if len == 0 {
             return Err(cis_err("dataframe"));
@@ -322,7 +322,7 @@ impl DataFrame {
     }
 
     /// remove a row by idx
-    pub fn remove_row_by_idx(&mut self, idx: usize) -> SqlResult<&mut Self> {
+    pub fn remove_row_by_idx(&mut self, idx: usize) -> CoreResult<&mut Self> {
         let len = self.height();
         if idx >= len {
             return Err(oob_err(idx, len));
@@ -336,7 +336,7 @@ impl DataFrame {
     }
 
     /// remove a row
-    pub fn remove_row(&mut self, index: Value) -> SqlResult<&mut Self> {
+    pub fn remove_row(&mut self, index: Value) -> CoreResult<&mut Self> {
         match self.index.find_index(&index) {
             Some(idx) => self.remove_row_by_idx(idx),
             None => Err(inf_err(&index)),
@@ -344,7 +344,7 @@ impl DataFrame {
     }
 
     /// remove rows by idx
-    pub fn remove_rows_by_idx(&mut self, idx: &[usize]) -> SqlResult<&mut Self> {
+    pub fn remove_rows_by_idx(&mut self, idx: &[usize]) -> CoreResult<&mut Self> {
         if idx.is_empty() {
             return Err(cis_err("idx"));
         }
@@ -363,7 +363,7 @@ impl DataFrame {
     }
 
     /// remove rows. expensive
-    pub fn remove_rows<'a>(&mut self, indices: Vec<Value>) -> SqlResult<&mut Self> {
+    pub fn remove_rows<'a>(&mut self, indices: Vec<Value>) -> CoreResult<&mut Self> {
         let idx = Series::from_values_default_name(indices, false)?;
         let idx = self.index.find_indices(&idx);
 
@@ -371,7 +371,7 @@ impl DataFrame {
     }
 
     /// remove a slice of rows from the dataframe
-    pub fn remove_slice(&mut self, offset: i64, length: usize) -> SqlResult<&mut Self> {
+    pub fn remove_slice(&mut self, offset: i64, length: usize) -> CoreResult<&mut Self> {
         let len = self.height();
         let offset = if offset >= 0 {
             offset
@@ -390,7 +390,7 @@ impl DataFrame {
     }
 
     /// popup rows by indices array
-    pub fn popup_rows_by_idx(&mut self, indices: &[usize]) -> SqlResult<DataFrame> {
+    pub fn popup_rows_by_idx(&mut self, indices: &[usize]) -> CoreResult<DataFrame> {
         // get df
         let pop = self.take_rows_by_idx(indices)?;
         // create a `BooleanChunked` and get residual data
@@ -400,7 +400,7 @@ impl DataFrame {
     }
 
     /// popup rows
-    pub fn popup_rows(&mut self, index: &Series) -> SqlResult<DataFrame> {
+    pub fn popup_rows(&mut self, index: &Series) -> CoreResult<DataFrame> {
         let idx = self.index.find_indices(index);
 
         Ok(self.popup_rows_by_idx(&idx)?)
@@ -415,7 +415,7 @@ impl DataFrame {
     }
 
     /// take cloned DataFrame by column names
-    pub fn take_cols<'a, S>(&self, cols: S) -> SqlResult<DataFrame>
+    pub fn take_cols<'a, S>(&self, cols: S) -> CoreResult<DataFrame>
     where
         S: Selection<'a, &'a str>,
     {

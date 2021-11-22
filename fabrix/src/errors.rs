@@ -6,6 +6,7 @@ use std::fmt::Display;
 
 use thiserror::Error;
 
+use crate::CoreError;
 #[cfg(feature = "file")]
 use crate::FlError;
 #[cfg(feature = "sql")]
@@ -57,6 +58,9 @@ pub enum FabrixError {
 
     #[error(transparent)]
     IO(#[from] std::io::Error),
+
+    #[error(transparent)]
+    CORE(#[from] CoreError),
 
     #[cfg(feature = "sql")]
     #[error(transparent)]

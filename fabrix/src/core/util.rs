@@ -2,7 +2,7 @@
 //!
 //! utilities
 
-use crate::{SqlError, Value};
+use crate::{CoreError, Value};
 
 /// Used for counting iteration and determining when to stop yielding
 pub struct Stepper {
@@ -32,16 +32,16 @@ impl Stepper {
 pub const IDX: &'static str = "index";
 
 /// out of boundary error
-pub(crate) fn oob_err(length: usize, len: usize) -> SqlError {
-    SqlError::new_common_error(format!("length {:?} out of len {:?} boundary", length, len))
+pub(crate) fn oob_err(length: usize, len: usize) -> CoreError {
+    CoreError::new_common_error(format!("length {:?} out of len {:?} boundary", length, len))
 }
 
 /// index not found error
-pub(crate) fn inf_err<'a>(index: &Value) -> SqlError {
-    SqlError::new_common_error(format!("index {:?} not found", index))
+pub(crate) fn inf_err<'a>(index: &Value) -> CoreError {
+    CoreError::new_common_error(format!("index {:?} not found", index))
 }
 
 /// content empty error
-pub(crate) fn cis_err(name: &str) -> SqlError {
-    SqlError::new_common_error(format!("{:?} is empty", name))
+pub(crate) fn cis_err(name: &str) -> CoreError {
+    CoreError::new_common_error(format!("{:?} is empty", name))
 }

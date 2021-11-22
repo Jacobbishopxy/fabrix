@@ -17,6 +17,7 @@ There are three main parts in this crate:
 │   ├── dataframe.rs                    // collection of series, with index series
 │   ├── row.rs                          // row-wise data structure
 │   ├── util.rs                         // utility functions
+│   ├── error.rs
 │   └── macros.rs
 │
 ├── sources

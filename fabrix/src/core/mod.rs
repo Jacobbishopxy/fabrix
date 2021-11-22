@@ -1,6 +1,7 @@
 //! Fabrix core
 
 pub mod dataframe;
+pub mod error;
 pub(crate) mod macros;
 pub mod row;
 pub mod series;
@@ -8,6 +9,7 @@ pub mod util;
 pub mod value;
 
 pub use dataframe::*;
+pub use error::*;
 pub use row::*;
 pub use series::*;
 pub use value::*;
