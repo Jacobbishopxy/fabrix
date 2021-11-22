@@ -6,10 +6,10 @@ use std::fmt::Display;
 
 use thiserror::Error;
 
-#[cfg(feature = "sql")]
-use crate::DbError;
 #[cfg(feature = "file")]
 use crate::FlError;
+#[cfg(feature = "sql")]
+use crate::SqlError;
 
 /// Result type for fabrix
 pub type FabrixResult<T> = Result<T, FabrixError>;
@@ -60,7 +60,7 @@ pub enum FabrixError {
 
     #[cfg(feature = "sql")]
     #[error(transparent)]
-    DB(#[from] DbError),
+    DB(#[from] SqlError),
 
     #[cfg(feature = "file")]
     #[error(transparent)]

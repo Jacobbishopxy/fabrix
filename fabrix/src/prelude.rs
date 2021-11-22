@@ -10,7 +10,7 @@ pub use crate::core::{
 
 // sources: db
 #[cfg(feature = "sql")]
-pub use crate::sources::sql::error::{DbError, DbResult};
+pub use crate::sources::sql::error::{SqlError, SqlResult};
 #[cfg(feature = "sql")]
 pub use crate::sources::sql::sql_builder::adt;
 #[cfg(feature = "sql")]

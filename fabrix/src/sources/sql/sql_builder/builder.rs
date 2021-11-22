@@ -2,7 +2,7 @@
 
 use sea_query::Value as SValue;
 
-use crate::{Date, DateTime, DbError, DbResult, Decimal, Time, Uuid, Value, ValueType};
+use crate::{Date, DateTime, Decimal, SqlError, SqlResult, Time, Uuid, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub enum SqlBuilder {
@@ -93,7 +93,7 @@ pub(crate) fn try_from_value_to_svalue(
     value: Value,
     dtype: &ValueType,
     nullable: bool,
-) -> DbResult<SValue> {
+) -> SqlResult<SValue> {
     match value {
         Value::Bool(v) => Ok(SValue::Bool(Some(v))),
         Value::U8(v) => Ok(SValue::TinyUnsigned(Some(v))),
@@ -116,7 +116,7 @@ pub(crate) fn try_from_value_to_svalue(
             if nullable {
                 Ok(from_data_type_to_null_svalue(dtype))
             } else {
-                Err(DbError::new_parse_error(value, dtype))
+                Err(SqlError::new_parse_error(value, dtype))
             }
         }
     }
@@ -130,7 +130,7 @@ macro_rules! sv_2_v {
         } else {
             match $option_value {
                 Some(v) => Ok($crate::value!(v)),
-                None => Err($crate::DbError::new_common_error("unsupported type")),
+                None => Err($crate::SqlError::new_common_error("unsupported type")),
             }
         }
     };
@@ -143,14 +143,14 @@ macro_rules! sv_2_v {
         } else {
             match $option_value {
                 Some(v) => Ok($crate::value!(*v)),
-                None => Err($crate::DbError::new_common_error("unsupported type")),
+                None => Err($crate::SqlError::new_common_error("unsupported type")),
             }
         }
     };
 }
 
 /// Type conversion: from `SeaQuery` Value to Value
-pub(crate) fn _from_svalue_to_value(svalue: SValue, nullable: bool) -> DbResult<Value> {
+pub(crate) fn _from_svalue_to_value(svalue: SValue, nullable: bool) -> SqlResult<Value> {
     match svalue {
         SValue::Bool(ov) => sv_2_v!(ov, nullable),
         SValue::TinyInt(ov) => sv_2_v!(ov, nullable),
@@ -169,6 +169,6 @@ pub(crate) fn _from_svalue_to_value(svalue: SValue, nullable: bool) -> DbResult<
         SValue::DateTime(ov) => sv_2_v!(ov, DateTime, nullable),
         SValue::Decimal(ov) => sv_2_v!(ov, Decimal, nullable),
         SValue::Uuid(ov) => sv_2_v!(ov, Uuid, nullable),
-        _ => Err(DbError::new_common_error("unsupported type")),
+        _ => Err(SqlError::new_common_error("unsupported type")),
     }
 }

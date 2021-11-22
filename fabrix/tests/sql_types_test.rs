@@ -9,7 +9,7 @@ use nom::character::complete::alpha1;
 use nom::sequence::{delimited, separated_pair};
 use nom::IResult;
 
-use fabrix::{DbError, Value, ValueType};
+use fabrix::{SqlError, Value, ValueType};
 
 trait SqlTypeTagMarker: Sync + Send {
     fn to_str(&self) -> &str;
@@ -78,20 +78,20 @@ fn get_sql_type(input: &str) -> IResult<&str, (&str, &str)> {
 // "[MYSQL:BOOLEAN]" -> MYSQL_TMAP["BOOLEAN"]
 // "[PG:BOOL]" -> PG_TMAP["BOOL"]
 impl FromStr for &STTM {
-    type Err = DbError;
+    type Err = SqlError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match get_sql_type(s) {
             Ok((_, (db_type, sql_type))) => match db_type {
                 "MYSQL" => MYSQL_TMAP
                     .get(sql_type)
-                    .ok_or(DbError::new_common_error("MYSQL data type not found")),
+                    .ok_or(SqlError::new_common_error("MYSQL data type not found")),
                 "PG" => PG_TMAP
                     .get(sql_type)
-                    .ok_or(DbError::new_common_error("PG data type not found")),
-                _ => Err(DbError::new_common_error("DB type not found")),
+                    .ok_or(SqlError::new_common_error("PG data type not found")),
+                _ => Err(SqlError::new_common_error("DB type not found")),
             },
-            Err(_) => Err(DbError::new_common_error("parsing error")),
+            Err(_) => Err(SqlError::new_common_error("parsing error")),
         }
     }
 }

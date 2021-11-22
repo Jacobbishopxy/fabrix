@@ -8,36 +8,36 @@ use super::{
     FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
-    adt, DataFrame, DbError, DbResult, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series,
-    SqlBuilder, Value, ValueType, D1,
+    adt, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series, SqlBuilder, SqlError,
+    SqlResult, Value, ValueType, D1,
 };
 
 #[async_trait]
 pub trait Helper {
     /// get primary key from a table
-    async fn get_primary_key(&self, table_name: &str) -> DbResult<String>;
+    async fn get_primary_key(&self, table_name: &str) -> SqlResult<String>;
 
     /// get schema from a table
-    async fn get_table_schema(&self, table_name: &str) -> DbResult<Vec<adt::TableSchema>>;
+    async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<adt::TableSchema>>;
 
     /// get existing ids, supposing that the primary key is a single column, and the value is a string
-    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> DbResult<D1>;
+    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1>;
 }
 
 /// An engin is an interface to describe sql executor's business logic
 #[async_trait]
 pub trait SqlEngine: Helper {
     /// connect to the database
-    async fn connect(&mut self) -> DbResult<()>;
+    async fn connect(&mut self) -> SqlResult<()>;
 
     /// disconnect from the database
-    async fn disconnect(&mut self) -> DbResult<()>;
+    async fn disconnect(&mut self) -> SqlResult<()>;
 
     /// insert data into a table
-    async fn insert(&self, table_name: &str, data: DataFrame) -> DbResult<u64>;
+    async fn insert(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
 
     /// update data in a table
-    async fn update(&self, table_name: &str, data: DataFrame) -> DbResult<u64>;
+    async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
 
     /// save data into a table
     /// saving strategy:
@@ -50,13 +50,13 @@ pub trait SqlEngine: Helper {
         table_name: &str,
         data: DataFrame,
         strategy: &adt::SaveStrategy,
-    ) -> DbResult<usize>;
+    ) -> SqlResult<usize>;
 
     /// delete data from an existing table.
-    async fn delete(&self, delete: &adt::Delete) -> DbResult<u64>;
+    async fn delete(&self, delete: &adt::Delete) -> SqlResult<u64>;
 
     /// get data from db. If the table has primary key, DataFrame's index will be the primary key
-    async fn select(&self, select: &adt::Select) -> DbResult<DataFrame>;
+    async fn select(&self, select: &adt::Select) -> SqlResult<DataFrame>;
 }
 
 /// Executor is the core struct of db mod.
@@ -94,7 +94,7 @@ impl SqlExecutor {
 
 #[async_trait]
 impl Helper for SqlExecutor {
-    async fn get_primary_key(&self, table_name: &str) -> DbResult<String> {
+    async fn get_primary_key(&self, table_name: &str) -> SqlResult<String> {
         conn_n_err!(self.pool);
         let que = self.driver.get_primary_key(table_name);
         let schema = [ValueType::String];
@@ -111,10 +111,10 @@ impl Helper for SqlExecutor {
             }
         }
 
-        Err(DbError::new_common_error("primary key not found"))
+        Err(SqlError::new_common_error("primary key not found"))
     }
 
-    async fn get_table_schema(&self, table_name: &str) -> DbResult<Vec<adt::TableSchema>> {
+    async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<adt::TableSchema>> {
         conn_n_err!(self.pool);
         let que = self.driver.check_table_schema(table_name);
         let schema = [ValueType::String, ValueType::String, ValueType::String];
@@ -143,12 +143,12 @@ impl Helper for SqlExecutor {
 
                 Ok(res)
             })
-            .collect::<DbResult<Vec<adt::TableSchema>>>()?;
+            .collect::<SqlResult<Vec<adt::TableSchema>>>()?;
 
         Ok(res)
     }
 
-    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> DbResult<D1> {
+    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1> {
         conn_n_err!(self.pool);
         let que = self.driver.select_existing_ids(table_name, ids)?;
         let schema = [ids.dtype()];
@@ -168,7 +168,7 @@ impl Helper for SqlExecutor {
 
 #[async_trait]
 impl SqlEngine for SqlExecutor {
-    async fn connect(&mut self) -> DbResult<()> {
+    async fn connect(&mut self) -> SqlResult<()> {
         conn_e_err!(self.pool);
         match self.driver {
             SqlBuilder::Mysql => MySqlPool::connect(&self.conn_str).await.map(|pool| {
@@ -184,13 +184,13 @@ impl SqlEngine for SqlExecutor {
         Ok(())
     }
 
-    async fn disconnect(&mut self) -> DbResult<()> {
+    async fn disconnect(&mut self) -> SqlResult<()> {
         conn_n_err!(self.pool);
         self.pool.as_ref().unwrap().disconnect().await;
         Ok(())
     }
 
-    async fn insert(&self, table_name: &str, data: DataFrame) -> DbResult<u64> {
+    async fn insert(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.insert(table_name, data, false)?;
         let res = self.pool.as_ref().unwrap().execute(&que).await?;
@@ -198,7 +198,7 @@ impl SqlEngine for SqlExecutor {
         Ok(res.rows_affected)
     }
 
-    async fn update(&self, table_name: &str, data: DataFrame) -> DbResult<u64> {
+    async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let index_field = data.index_field();
         let index_option = adt::IndexOption::try_from(&index_field)?;
@@ -220,7 +220,7 @@ impl SqlEngine for SqlExecutor {
         table_name: &str,
         data: DataFrame,
         strategy: &adt::SaveStrategy,
-    ) -> DbResult<usize> {
+    ) -> SqlResult<usize> {
         conn_n_err!(self.pool);
 
         match strategy {
@@ -230,7 +230,7 @@ impl SqlEngine for SqlExecutor {
                 // BEWARE: use fetch_optional instead of fetch_one is because `check_table_exists`
                 // will only return one row or none
                 if let Some(_) = self.pool.as_ref().unwrap().fetch_optional(&ck_str).await? {
-                    return Err(DbError::new_common_error(
+                    return Err(SqlError::new_common_error(
                         "table already exist, table cannot be saved",
                     ));
                 }
@@ -282,7 +282,7 @@ impl SqlEngine for SqlExecutor {
         }
     }
 
-    async fn delete(&self, delete: &adt::Delete) -> DbResult<u64> {
+    async fn delete(&self, delete: &adt::Delete) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.delete(delete);
         let res = self.pool.as_ref().unwrap().execute(&que).await?;
@@ -290,7 +290,7 @@ impl SqlEngine for SqlExecutor {
         Ok(res.rows_affected)
     }
 
-    async fn select(&self, select: &adt::Select) -> DbResult<DataFrame> {
+    async fn select(&self, select: &adt::Select) -> SqlResult<DataFrame> {
         conn_n_err!(self.pool);
 
         // Generally, primary key always exists, and in this case, use it as index.
@@ -323,10 +323,10 @@ fn add_primary_key_to_select(primary_key: &String, select: &mut adt::Select) {
 }
 
 /// `Value` -> String
-fn try_value_into_string(value: &Value) -> DbResult<String> {
+fn try_value_into_string(value: &Value) -> SqlResult<String> {
     match value {
         Value::String(v) => Ok(v.to_owned()),
-        _ => Err(DbError::new_common_error("value is not a string")),
+        _ => Err(SqlError::new_common_error("value is not a string")),
     }
 }
 
@@ -336,7 +336,7 @@ async fn create_and_insert<'a>(
     mut txn: LoaderTransaction<'a>,
     table_name: &str,
     data: DataFrame,
-) -> DbResult<usize> {
+) -> SqlResult<usize> {
     // transaction starts
     let mut affected_rows = 0;
 
@@ -646,10 +646,7 @@ mod test_executor {
                     to: "ID".to_owned(),
                 }),
             ],
-            filter: None,
-            order: None,
-            limit: None,
-            offset: None,
+            ..Default::default()
         };
 
         // mysql

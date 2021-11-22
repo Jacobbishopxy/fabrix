@@ -9,10 +9,10 @@ use thiserror::Error;
 
 use crate::{CommonError, ValueType};
 
-pub type DbResult<T> = Result<T, DbError>;
+pub type SqlResult<T> = Result<T, SqlError>;
 
 #[derive(Error, Debug)]
-pub enum DbError {
+pub enum SqlError {
     #[error("common error {0}")]
     Common(CommonError),
 
@@ -31,43 +31,43 @@ pub enum DbError {
 
 type DataFrameDTypes = (ValueType, Vec<ValueType>);
 
-impl DbError {
-    pub fn new_common_error<T>(msg: T) -> DbError
+impl SqlError {
+    pub fn new_common_error<T>(msg: T) -> SqlError
     where
         T: Into<CommonError>,
     {
-        DbError::Common(msg.into())
+        SqlError::Common(msg.into())
     }
 
-    pub fn new_parse_error<T1, T2>(type1: T1, type2: T2) -> DbError
+    pub fn new_parse_error<T1, T2>(type1: T1, type2: T2) -> SqlError
     where
         T1: Display,
         T2: Display,
     {
-        DbError::Parse(type1.to_string(), type2.to_string())
+        SqlError::Parse(type1.to_string(), type2.to_string())
     }
 
-    pub fn new_parse_info_error<T>(r#type: T, info: &str) -> DbError
+    pub fn new_parse_info_error<T>(r#type: T, info: &str) -> SqlError
     where
         T: Display,
     {
-        DbError::Parse(r#type.to_string(), info.to_string())
+        SqlError::Parse(r#type.to_string(), info.to_string())
     }
 
-    pub fn new_df_dtypes_mismatch_error(d1: DataFrameDTypes, d2: DataFrameDTypes) -> DbError {
-        DbError::new_common_error(format!(
+    pub fn new_df_dtypes_mismatch_error(d1: DataFrameDTypes, d2: DataFrameDTypes) -> SqlError {
+        SqlError::new_common_error(format!(
             "dataframe dtypes mismatch, d1: {:#?}, d2: {:#?}",
             d1, d2
         ))
     }
 
-    pub fn new_empty_error() -> DbError {
-        DbError::new_common_error("empty content")
+    pub fn new_empty_error() -> SqlError {
+        SqlError::new_common_error("empty content")
     }
 
     pub fn turn_into_sqlx_decode_error(self) -> sqlx::Error {
         match self {
-            DbError::Sqlx(se) => se,
+            SqlError::Sqlx(se) => se,
             _ => sqlx::Error::Decode(Box::new(SqlDecodeError::new("sql row decode error"))),
         }
     }

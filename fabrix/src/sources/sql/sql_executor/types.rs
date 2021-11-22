@@ -6,7 +6,7 @@ use itertools::Itertools;
 use sqlx::{mysql::MySqlRow, postgres::PgRow, sqlite::SqliteRow, Row as SRow};
 
 use super::{impl_sql_type_tag_marker, tmap_pair};
-use crate::{Date, DateTime, DbResult, Decimal, SqlBuilder, Time, Uuid, Value, ValueType};
+use crate::{Date, DateTime, Decimal, SqlBuilder, SqlResult, Time, Uuid, Value, ValueType};
 
 /// type alias
 pub(crate) type OptMarker = Option<&'static Box<dyn SqlTypeTagMarker>>;
@@ -70,10 +70,10 @@ pub(crate) trait SqlTypeTagMarker: Send + Sync {
     fn to_dtype(&self) -> ValueType;
 
     /// extract Value from sql row
-    fn extract_value(&self, sql_row: &SqlRow, idx: usize) -> DbResult<Value>;
+    fn extract_value(&self, sql_row: &SqlRow, idx: usize) -> SqlResult<Value>;
 
     /// extract Option<Value> from sql row
-    fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> DbResult<Option<Value>>;
+    fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> SqlResult<Option<Value>>;
 }
 
 /// tmap value type
