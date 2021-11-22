@@ -39,6 +39,10 @@ pub trait Xl2Db {
     /// implementation. If `batch_size` is not none, `consume_batch` could be called several times,
     /// so that this `save` method is in data overridden risk, hence we need to save the data in
     /// a temporary buffer or process it immediately.
+    ///
+    /// The reason why we need a `save` method is because save data into a database is a async
+    /// process, and the function who called it is not async, so we cannot simply put an async
+    /// function in to a sync function.
     fn save(&mut self, data: DataFrame) -> FabrixResult<()>;
 }
 
@@ -117,6 +121,10 @@ where
 }
 
 /// This test case shows a normal process of implement Xl2Db for custom biz logic.
+///
+/// This is actually not a good experience, since streaming process is required when saving
+/// converted data into a database, whereas a sync process is still required for other
+/// use cases, such as writing to another file.
 #[cfg(test)]
 mod test_xl_reader {
     use itertools::Itertools;
