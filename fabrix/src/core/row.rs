@@ -102,43 +102,36 @@ impl DataFrame {
         )?)
     }
 
-    /// create a DataFrame by IntoIter<Vec<Value>>
-    pub fn from_row_iter(mut iter: std::vec::IntoIter<Vec<Value>>) -> CoreResult<Self> {
-        let first = iter.next();
+    /// create a DataFrame by IntoIter<Vec<Value>>, slower than column-wise constructors
+    pub fn from_row_values_iter(iter: std::vec::IntoIter<Vec<Value>>) -> CoreResult<Self> {
+        let mut iter = iter.peekable();
 
-        if first.is_none() {
+        if iter.peek().is_none() {
             return Err(CoreError::new_empty_error());
         }
 
-        let n = first.unwrap().len();
-        let mut series: Vec<Series> = Vec::with_capacity(n);
+        let n = iter.peek().unwrap().len();
+        let mut transposed_values: Vec<Vec<Value>> = vec![vec![]; n];
 
-        // TODO:
+        for row in iter {
+            row.into_iter().enumerate().for_each(|(i, v)| {
+                transposed_values[i].push(v);
+            });
+        }
 
-        todo!()
+        let series = transposed_values
+            .into_iter()
+            .enumerate()
+            .map(|(i, v)| Series::from_values(v, &format!("Column_{:?}", i), true))
+            .collect::<CoreResult<Vec<_>>>()?;
+
+        Ok(DataFrame::from_series_default_index(series)?)
     }
 
     /// create a DataFrame by Vec<Vec<Value>>, slower than column-wise constructors
-    pub fn from_row_values(mut values: Vec<Vec<Value>>) -> CoreResult<Self> {
-        // values length
-        let m = values.len();
-        if m == 0 {
-            return Err(CoreError::new_empty_error());
-        }
-        // values width
-        let n = values.first().unwrap().len();
-        let mut series = Vec::with_capacity(n);
-        for j in 0..n {
-            let mut buf = Vec::with_capacity(m);
-            for i in 0..m {
-                let mut tmp = Value::Null;
-                std::mem::swap(&mut tmp, &mut values[i][j]);
-                buf.push(tmp);
-            }
-            series.push(Series::from_values(buf, &format!("Column_{:?}", j), true)?);
-        }
-
-        Ok(DataFrame::from_series_default_index(series)?)
+    pub fn from_row_values(values: Vec<Vec<Value>>) -> CoreResult<Self> {
+        let iter = values.into_iter();
+        Ok(DataFrame::from_row_values_iter(iter)?)
     }
 
     /// get a row by idx. This method is slower than get a column (`self.data.get_row`).

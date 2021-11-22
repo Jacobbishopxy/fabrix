@@ -162,6 +162,7 @@ mod test_xl_reader {
     impl Xl2Db for TestXl2Db {
         fn to_dataframe(rows: D2) -> FabrixResult<DataFrame> {
             let mut iter = rows.into_iter();
+            // assume the first row is the header, and the data is row-wised
             let column_name = iter
                 .next()
                 .unwrap()
@@ -169,7 +170,7 @@ mod test_xl_reader {
                 .map(|v| v.to_string())
                 .collect_vec();
 
-            let mut df = DataFrame::from_row_iter(iter)?;
+            let mut df = DataFrame::from_row_values_iter(iter)?;
             df.set_column_names(&column_name).unwrap();
 
             Ok(df)
