@@ -72,7 +72,7 @@ where
 pub trait Xl2DbAsync: Send + Sync {
     fn to_dataframe(rows: D2) -> FabrixResult<DataFrame>;
 
-    async fn save(&mut self, data: DataFrame) -> FabrixResult<()>;
+    async fn save(&mut self, df: DataFrame) -> FabrixResult<()>;
 }
 
 #[async_trait]

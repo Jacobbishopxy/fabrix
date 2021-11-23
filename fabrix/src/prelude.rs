@@ -19,7 +19,15 @@ pub use crate::sources::sql::sql_executor::{SqlConnInfo, SqlEngine, SqlExecutor}
 // sources: file
 #[cfg(feature = "file")]
 pub use crate::sources::file::error::{FlError, FlResult};
+#[cfg(feature = "file")]
+pub use crate::sources::file::{
+    XlAsyncExecutor, XlDataAsyncConsumer, XlDataConsumer, XlExecutor, XlSource,
+};
 
 // sources: bson
 #[cfg(feature = "bson")]
 pub use crate::sources::bson::error::{BsError, BsResult};
+
+// dispatcher
+#[cfg(all(feature = "sql", feature = "file"))]
+pub use crate::dispatcher::{Xl2Db, Xl2DbAsync};
