@@ -87,7 +87,7 @@ impl From<String> for FabrixError {
 }
 
 impl FabrixError {
-    pub fn from_common_error<T>(msg: T) -> Self
+    pub fn new_common_error<T>(msg: T) -> Self
     where
         T: Into<CommonError>,
     {

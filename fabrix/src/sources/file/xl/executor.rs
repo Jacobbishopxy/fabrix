@@ -7,12 +7,10 @@ use std::{fs::File, marker::PhantomData};
 use async_trait::async_trait;
 
 use super::{Cell, Workbook};
-use crate::FabrixResult;
-
-// TODO: extract common parts from XlDataConsumer<CORE> & XlDataAsyncConsumer<CORE>
-// TODO: extract common parts from XlExecutor<E, C> & XlAsyncExecutor<E, C>
+use crate::{FabrixError, FabrixResult};
 
 /// Xl Data Consumer
+///
 /// A public trait that defines the interface for a Xl processor.
 /// Any type that implements this trait can be treated as 'source' in a streaming process.
 /// It can either send parsed data to other `source` such as database and file,
@@ -22,41 +20,32 @@ use crate::FabrixResult;
 /// For instance, a database consumer will have a CORE type of `Database`.
 pub trait XlDataConsumer<CORE> {
     type OutType;
-    type ErrorType: XlDataConsumerErr;
 
     /// convert data to output type
-    fn transform(cell: Cell) -> Result<Self::OutType, Self::ErrorType>;
+    fn transform(cell: Cell) -> FabrixResult<Self::OutType>;
 
     /// consume a single row
-    fn consume_row(&mut self, batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType>;
+    fn consume_row(&mut self, batch: Vec<Self::OutType>) -> FabrixResult<()>;
 
     /// consume a batch of rows
-    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType>;
+    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()>;
 }
 
+/// Xl Data Async Consumer
+///
+/// A public trait that defines the interface for an async Xl processor.
 #[async_trait]
 pub trait XlDataAsyncConsumer<CORE> {
     type OutType;
-    type ErrorType: XlDataConsumerErr;
 
     /// convert data to output type
-    fn transform(cell: Cell) -> Result<Self::OutType, Self::ErrorType>;
+    fn transform(cell: Cell) -> FabrixResult<Self::OutType>;
 
     /// consume a single row
-    async fn consume_row(&mut self, batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType>;
+    async fn consume_row(&mut self, batch: Vec<Self::OutType>) -> FabrixResult<()>;
 
     /// consume a batch of rows
-    async fn consume_batch(
-        &mut self,
-        batch: Vec<Vec<Self::OutType>>,
-    ) -> Result<(), Self::ErrorType>;
-}
-
-/// Xl Data Consumer Error
-pub trait XlDataConsumerErr {
-    fn new<T>(msg: T) -> Self
-    where
-        T: AsRef<str>;
+    async fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()>;
 }
 
 /// Xl file source type
@@ -127,61 +116,58 @@ where
 
     /// read a sheet from a workbook
     /// batch size represents the number of rows to process at once
-    pub fn read_sheet(
-        &mut self,
-        sheet: &str,
-        batch_size: Option<usize>,
-    ) -> Result<(), E::ErrorType> {
-        // workbook must be set
-        if let None = self.workbook {
-            return Err(E::ErrorType::new("workbook is not initialized"));
-        }
+    pub fn read_sheet(&mut self, sheet: &str, batch_size: Option<usize>) -> FabrixResult<()> {
+        match &mut self.workbook {
+            Some(wb) => {
+                // select a sheet from workbook
+                let sheets = wb.sheets();
+                let sheet = match sheets.get(sheet) {
+                    Some(ws) => ws,
+                    None => return Err(FabrixError::new_common_error("Sheet not found")),
+                };
 
-        // select a sheet from workbook
-        let sheets = self.workbook.take().unwrap().sheets();
-        let sheet = match sheets.get(sheet) {
-            Some(ws) => ws,
-            None => return Err(E::ErrorType::new("Sheet not found")),
-        };
+                // batch buffer
+                let mut batch = Vec::new();
+                let mut sz = 0usize;
 
-        // batch buffer
-        let mut batch = Vec::new();
-        let mut sz = 0usize;
+                // iterate over rows
+                for row in sheet.rows(wb) {
+                    let row_buf = row
+                        .data
+                        .into_iter()
+                        .map(|c| E::transform(c))
+                        .collect::<Result<Vec<_>, _>>()?;
 
-        // iterate over rows
-        for row in sheet.rows(&mut self.workbook.take().unwrap()) {
-            let row_buf = row
-                .data
-                .into_iter()
-                .map(|c| E::transform(c))
-                .collect::<Result<Vec<_>, _>>()?;
+                    batch.push(row_buf);
+                    sz += 1;
 
-            batch.push(row_buf);
-            sz += 1;
+                    // if batch size is reached, process batch
+                    if let Some(bs) = batch_size {
+                        if sz == bs {
+                            // swap and clear batch buffer
+                            let mut cache_batch = Vec::new();
+                            std::mem::swap(&mut cache_batch, &mut batch);
+                            // consume batch
+                            self.consumer.consume_batch(cache_batch)?;
+                            sz = 0;
+                        } else {
+                            continue;
+                        }
+                    }
+                }
 
-            // if batch size is reached, process batch
-            if let Some(bs) = batch_size {
-                if sz == bs {
-                    // swap and clear batch buffer
+                // consume the remaining batch
+                if batch.len() > 0 {
                     let mut cache_batch = Vec::new();
                     std::mem::swap(&mut cache_batch, &mut batch);
-                    // consume batch
                     self.consumer.consume_batch(cache_batch)?;
-                    sz = 0;
-                } else {
-                    continue;
                 }
+
+                Ok(())
             }
+            // workbook must be set
+            None => return Err(FabrixError::new_common_error("workbook is not initialized")),
         }
-
-        // consume the remaining batch
-        if batch.len() > 0 {
-            let mut cache_batch = Vec::new();
-            std::mem::swap(&mut cache_batch, &mut batch);
-            self.consumer.consume_batch(cache_batch)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -240,61 +226,58 @@ where
 
     /// read a sheet from a workbook
     /// batch size represents the number of rows to process at once
-    pub async fn read_sheet(
-        &mut self,
-        sheet: &str,
-        batch_size: Option<usize>,
-    ) -> Result<(), E::ErrorType> {
-        // workbook must be set
-        if let None = self.workbook {
-            return Err(E::ErrorType::new("workbook is not initialized"));
-        }
+    pub async fn read_sheet(&mut self, sheet: &str, batch_size: Option<usize>) -> FabrixResult<()> {
+        match &mut self.workbook {
+            Some(wb) => {
+                // select a sheet from workbook
+                let sheets = wb.sheets();
+                let sheet = match sheets.get(sheet) {
+                    Some(ws) => ws,
+                    None => return Err(FabrixError::new_common_error("Sheet not found")),
+                };
 
-        // select a sheet from workbook
-        let sheets = self.workbook.take().unwrap().sheets();
-        let sheet = match sheets.get(sheet) {
-            Some(ws) => ws,
-            None => return Err(E::ErrorType::new("Sheet not found")),
-        };
+                // batch buffer
+                let mut batch = Vec::new();
+                let mut sz = 0usize;
 
-        // batch buffer
-        let mut batch = Vec::new();
-        let mut sz = 0usize;
+                // iterate over rows
+                for row in sheet.rows(wb) {
+                    let row_buf = row
+                        .data
+                        .into_iter()
+                        .map(|c| E::transform(c))
+                        .collect::<Result<Vec<_>, _>>()?;
 
-        // iterate over rows
-        for row in sheet.rows(&mut self.workbook.take().unwrap()) {
-            let row_buf = row
-                .data
-                .into_iter()
-                .map(|c| E::transform(c))
-                .collect::<Result<Vec<_>, _>>()?;
+                    batch.push(row_buf);
+                    sz += 1;
 
-            batch.push(row_buf);
-            sz += 1;
+                    // if batch size is reached, process batch
+                    if let Some(bs) = batch_size {
+                        if sz == bs {
+                            // swap and clear batch buffer
+                            let mut cache_batch = Vec::new();
+                            std::mem::swap(&mut cache_batch, &mut batch);
+                            // consume batch
+                            self.consumer.consume_batch(cache_batch).await?;
+                            sz = 0;
+                        } else {
+                            continue;
+                        }
+                    }
+                }
 
-            // if batch size is reached, process batch
-            if let Some(bs) = batch_size {
-                if sz == bs {
-                    // swap and clear batch buffer
+                // consume the remaining batch
+                if batch.len() > 0 {
                     let mut cache_batch = Vec::new();
                     std::mem::swap(&mut cache_batch, &mut batch);
-                    // consume batch
                     self.consumer.consume_batch(cache_batch).await?;
-                    sz = 0;
-                } else {
-                    continue;
                 }
+
+                Ok(())
             }
+            // workbook must be set
+            None => return Err(FabrixError::new_common_error("workbook is not initialized")),
         }
-
-        // consume the remaining batch
-        if batch.len() > 0 {
-            let mut cache_batch = Vec::new();
-            std::mem::swap(&mut cache_batch, &mut batch);
-            self.consumer.consume_batch(cache_batch).await?;
-        }
-
-        Ok(())
     }
 }
 
@@ -304,31 +287,19 @@ mod test_xl_executor {
 
     struct TestExec;
 
-    struct TestExecErr(String);
-
-    impl XlDataConsumerErr for TestExecErr {
-        fn new<T>(msg: T) -> Self
-        where
-            T: AsRef<str>,
-        {
-            Self(msg.as_ref().to_string())
-        }
-    }
-
     impl XlDataConsumer<u8> for TestExec {
         type OutType = String;
-        type ErrorType = TestExecErr;
 
-        fn transform(cell: Cell) -> Result<Self::OutType, Self::ErrorType> {
+        fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
             Ok(cell.value.to_string())
         }
 
-        fn consume_row(&mut self, batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
+        fn consume_row(&mut self, batch: Vec<Self::OutType>) -> FabrixResult<()> {
             println!("{:?}", batch);
             Ok(())
         }
 
-        fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
+        fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
             println!("{:?}", batch);
             Ok(())
         }
@@ -336,10 +307,10 @@ mod test_xl_executor {
 
     #[test]
     fn test_exec() {
-        let source = XlSource::Path("test.xlsx");
+        let source = XlSource::Path("../mock/test.xlsx");
         let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
 
-        if let Ok(_) = xle.read_sheet("Sheet1", None) {
+        if let Ok(_) = xle.read_sheet("data", None) {
             println!("done");
         }
     }

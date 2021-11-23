@@ -2,25 +2,14 @@
 
 use serde_json::Value as JsonValue;
 
-use crate::sources::file::{Cell, ExcelValue, XlDataConsumer, XlDataConsumerErr};
-use crate::{value, DataFrame, FabrixError, FabrixResult, Value, D2};
+use crate::sources::file::{Cell, ExcelValue, XlDataConsumer};
+use crate::{value, DataFrame, FabrixResult, Value, D2};
 
 /// source: database
 pub struct Db;
 
 /// source: json
 pub struct Json;
-
-/// impl XlDataConsumer for FabrixError.
-/// This is used in XlDataConsumer<Db> and XlDataConsumer<Json>.
-impl XlDataConsumerErr for FabrixError {
-    fn new<T>(msg: T) -> Self
-    where
-        T: AsRef<str>,
-    {
-        FabrixError::from_common_error(msg.as_ref().to_string())
-    }
-}
 
 pub trait Xl2Db {
     /// D2 -> dataframe
@@ -52,9 +41,7 @@ where
 {
     type OutType = Value;
 
-    type ErrorType = FabrixError;
-
-    fn transform(cell: Cell) -> Result<Self::OutType, Self::ErrorType> {
+    fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
         match cell.value {
             ExcelValue::Bool(v) => Ok(value!(v)),
             ExcelValue::Number(v) => Ok(value!(v)),
@@ -67,11 +54,11 @@ where
         }
     }
 
-    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
+    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> FabrixResult<()> {
         unimplemented!()
     }
 
-    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
+    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
         let df = T::to_dataframe(batch)?;
 
         self.save(df)?;
@@ -92,9 +79,7 @@ where
 {
     type OutType = JsonValue;
 
-    type ErrorType = FabrixError;
-
-    fn transform(cell: Cell) -> Result<Self::OutType, Self::ErrorType> {
+    fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
         match cell.value {
             ExcelValue::Bool(v) => Ok(serde_json::json!(v)),
             ExcelValue::Number(v) => Ok(serde_json::json!(v)),
@@ -107,11 +92,11 @@ where
         }
     }
 
-    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> Result<(), Self::ErrorType> {
+    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> FabrixResult<()> {
         unimplemented!()
     }
 
-    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> Result<(), Self::ErrorType> {
+    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
         let json = serde_json::json!(batch);
 
         self.save(json)?;
@@ -130,7 +115,7 @@ mod test_xl_reader {
     use itertools::Itertools;
 
     use super::*;
-    use crate::{adt, SqlEngine, SqlExecutor};
+    use crate::{adt, FabrixError, SqlEngine, SqlExecutor};
 
     const CONN3: &'static str = "sqlite://dev.sqlite";
 
@@ -162,7 +147,7 @@ mod test_xl_reader {
 
                 Ok(())
             } else {
-                Err(FabrixError::from_common_error("no data"))
+                Err(FabrixError::new_common_error("no data"))
             }
         }
     }
