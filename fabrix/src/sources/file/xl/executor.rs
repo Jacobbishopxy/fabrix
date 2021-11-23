@@ -281,6 +281,7 @@ where
     }
 }
 
+/// Simplest consumer that prints the data to stdout
 #[cfg(test)]
 mod test_xl_executor {
     use super::*;

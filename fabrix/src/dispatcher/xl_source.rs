@@ -1,8 +1,9 @@
 //!  Xl reader
 
+use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 
-use crate::sources::file::{Cell, ExcelValue, XlDataConsumer};
+use crate::sources::file::{Cell, ExcelValue, XlDataAsyncConsumer, XlDataConsumer};
 use crate::{value, DataFrame, FabrixResult, Value, D2};
 
 /// source: database
@@ -62,6 +63,46 @@ where
         let df = T::to_dataframe(batch)?;
 
         self.save(df)?;
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+pub trait Xl2DbAsync: Send + Sync {
+    fn to_dataframe(rows: D2) -> FabrixResult<DataFrame>;
+
+    async fn save(&mut self, data: DataFrame) -> FabrixResult<()>;
+}
+
+#[async_trait]
+impl<T> XlDataAsyncConsumer<Db> for T
+where
+    T: Xl2DbAsync,
+{
+    type OutType = Value;
+
+    fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
+        match cell.value {
+            ExcelValue::Bool(v) => Ok(value!(v)),
+            ExcelValue::Number(v) => Ok(value!(v)),
+            ExcelValue::String(v) => Ok(value!(v.into_owned())),
+            ExcelValue::Date(v) => Ok(value!(v)),
+            ExcelValue::Time(v) => Ok(value!(v)),
+            ExcelValue::DateTime(v) => Ok(value!(v)),
+            ExcelValue::None => Ok(Value::Null),
+            ExcelValue::Error(v) => Ok(value!(v)),
+        }
+    }
+
+    async fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> FabrixResult<()> {
+        unimplemented!()
+    }
+
+    async fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
+        let df = T::to_dataframe(batch)?;
+
+        self.save(df).await?;
 
         Ok(())
     }
@@ -164,6 +205,7 @@ mod test_xl_reader {
                 .collect_vec();
 
             let mut df = DataFrame::from_row_values_iter(iter)?;
+            dbg!(&df);
             df.set_column_names(&column_name).unwrap();
 
             Ok(df)
@@ -185,7 +227,7 @@ mod test_xl_reader {
         use crate::sources::file::{XlExecutor, XlSource};
 
         // Xl read from a path
-        let source = XlSource::Path("test.xlsx");
+        let source = XlSource::Path("../mock/test.xlsx");
 
         // consumer instance
         let consumer = TestXl2Db::new(CONN3);
@@ -193,8 +235,8 @@ mod test_xl_reader {
         // XlExecutor instance
         let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
 
-        // read sheet, and save in memory
-        xle.read_sheet("Sheet1", None).unwrap();
+        // read sheet, and save converted data into memory
+        xle.read_sheet("data", None).unwrap();
 
         // memory -> db
         let saved2db = xle.consumer().create_table_and_insert("test_table").await;
@@ -205,12 +247,14 @@ mod test_xl_reader {
         let select = adt::Select {
             table: "test_table".into(),
             columns: vec![
-                "name".into(),
-                "title".into(),
-                "note".into(),
-                "apply_date".into(),
-                "submit_date".into(),
-                "department".into(),
+                "id".into(),
+                "first_name".into(),
+                "last_name".into(),
+                "email".into(),
+                "ip_address".into(),
+                "birth".into(),
+                "issued_date".into(),
+                "issued_times".into(),
             ],
             ..Default::default()
         };

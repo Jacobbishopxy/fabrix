@@ -12,6 +12,7 @@
 //!
 //! Methods provided to Dataframe:
 //! 1. from_rows
+//! 1. from_row_values_iter
 //! 1. from_row_values
 //! 1. get_row_by_idx
 //! 1. get_row

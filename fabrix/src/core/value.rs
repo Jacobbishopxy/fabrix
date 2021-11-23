@@ -114,6 +114,15 @@ pub enum Value {
     Null,
 }
 
+impl Value {
+    pub fn is_null(&self) -> bool {
+        match self {
+            Value::Null => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub enum ValueType {
     Bool,

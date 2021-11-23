@@ -122,19 +122,35 @@ pub struct Series(pub(crate) PSeries);
 
 impl Series {
     /// new Series from an integer type (Rust standard type)
-    pub fn from_integer<I>(value: &I) -> CoreResult<Self>
+    pub fn from_integer<I>(value: &I, name: &str) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
     {
-        Ok(from_integer(value.clone().into())?)
+        Ok(from_integer(value.clone().into(), name)?)
+    }
+
+    /// new Series from an integer type (Rust standard type)
+    pub fn from_integer_default_name<I>(value: &I) -> CoreResult<Self>
+    where
+        I: Into<Value> + Copy,
+    {
+        Ok(from_integer(value.clone().into(), IDX)?)
     }
 
     /// new Series from a range
-    pub fn from_range<'a, I>(range: &[I; 2]) -> CoreResult<Self>
+    pub fn from_range<'a, I>(range: &[I; 2], name: &str) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
     {
-        Ok(from_range([range[0].into(), range[1].into()])?)
+        Ok(from_range([range[0].into(), range[1].into()], name)?)
+    }
+
+    /// new Series from a range
+    pub fn from_range_default_name<'a, I>(range: &[I; 2]) -> CoreResult<Self>
+    where
+        I: Into<Value> + Copy,
+    {
+        Ok(from_range([range[0].into(), range[1].into()], IDX)?)
     }
 
     /// new Series from Vec<Value> and name
@@ -373,32 +389,32 @@ impl Series {
 }
 
 /// new Series from an AnyValue (integer specific)
-fn from_integer(val: Value) -> CoreResult<Series> {
+fn from_integer(val: Value, name: &str) -> CoreResult<Series> {
     match val {
-        Value::U8(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        Value::U16(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        Value::U32(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        Value::U64(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        Value::I8(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        Value::I16(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        Value::I32(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
-        Value::I64(v) => Ok(series!(IDX => (0..v).collect::<Vec<_>>())),
+        Value::U8(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
+        Value::U16(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
+        Value::U32(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
+        Value::U64(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
+        Value::I8(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
+        Value::I16(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
+        Value::I32(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
+        Value::I64(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
         _ => Err(CoreError::new_common_error("val is not integer")),
     }
 }
 
 /// new Series from a range of AnyValue (integer specific)
-fn from_range<'a>(rng: [Value; 2]) -> CoreResult<Series> {
+fn from_range<'a>(rng: [Value; 2], name: &str) -> CoreResult<Series> {
     let [r0, r1] = rng;
     match [r0, r1] {
-        [Value::U8(s), Value::U8(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        [Value::U16(s), Value::U16(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        [Value::U32(s), Value::U32(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        [Value::U64(s), Value::U64(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        [Value::I8(s), Value::I8(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        [Value::I16(s), Value::I16(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        [Value::I32(s), Value::I32(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
-        [Value::I64(s), Value::I64(e)] => Ok(series!(IDX => (s..e).collect::<Vec<_>>())),
+        [Value::U8(s), Value::U8(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
+        [Value::U16(s), Value::U16(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
+        [Value::U32(s), Value::U32(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
+        [Value::U64(s), Value::U64(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
+        [Value::I8(s), Value::I8(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
+        [Value::I16(s), Value::I16(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
+        [Value::I32(s), Value::I32(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
+        [Value::I64(s), Value::I64(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
         _ => Err(CoreError::new_common_error(
             "rng is not integer or not the same type of pair",
         )),
@@ -419,34 +435,40 @@ impl From<Series> for PSeries {
     }
 }
 
-/// series from values, series type is determined by the first value, if it is null value
-/// then use u64 as the default type. If values are not the same type, then return error.
+/// Series from values, series type is determined by the first not-null value,
+/// if the who vectors are null then use u64 as the default type.
+///
+/// if nullable is true, mismatched types will be converted to null.
 fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Series> {
     if values.len() == 0 {
         return Err(CoreError::new_common_error("values' length is 0!"));
     }
 
-    let dtype = ValueType::from(&values[0]);
+    // iterate until get the first non-null value
+    let opt_dtype = values.iter().skip_while(|v| v.is_null()).next();
 
-    match dtype {
-        ValueType::Bool => sfv!(nullable; name, values; bool, BooleanType),
-        ValueType::String => sfv!(nullable; name, values; String, Utf8Type),
-        ValueType::U8 => sfv!(nullable; name, values; u8, UInt8Type),
-        ValueType::U16 => sfv!(nullable; name, values; u16, UInt16Type),
-        ValueType::U32 => sfv!(nullable; name, values; u32, UInt32Type),
-        ValueType::U64 => sfv!(nullable; name, values; u64, UInt64Type),
-        ValueType::I8 => sfv!(nullable; name, values; i8, Int8Type),
-        ValueType::I16 => sfv!(nullable; name, values; i16, Int16Type),
-        ValueType::I32 => sfv!(nullable; name, values; i32, Int32Type),
-        ValueType::I64 => sfv!(nullable; name, values; i64, Int64Type),
-        ValueType::F32 => sfv!(nullable; name, values; f32, Float32Type),
-        ValueType::F64 => sfv!(nullable; name, values; f64, Float64Type),
-        ValueType::Date => sfv!(nullable; name, values; Date, ObjectTypeDate),
-        ValueType::Time => sfv!(nullable; name, values; Time, ObjectTypeTime),
-        ValueType::DateTime => sfv!(nullable; name, values; DateTime, ObjectTypeDateTime),
-        ValueType::Decimal => sfv!(nullable; name, values; Decimal, ObjectTypeDecimal),
-        ValueType::Uuid => sfv!(nullable; name, values; Uuid, ObjectTypeUuid),
-        ValueType::Null => Ok(Series::from_integer(&(values.len() as u64))?),
+    match opt_dtype {
+        Some(v) => match ValueType::from(v) {
+            ValueType::Bool => sfv!(nullable; name, values; bool, BooleanType),
+            ValueType::String => sfv!(nullable; name, values; String, Utf8Type),
+            ValueType::U8 => sfv!(nullable; name, values; u8, UInt8Type),
+            ValueType::U16 => sfv!(nullable; name, values; u16, UInt16Type),
+            ValueType::U32 => sfv!(nullable; name, values; u32, UInt32Type),
+            ValueType::U64 => sfv!(nullable; name, values; u64, UInt64Type),
+            ValueType::I8 => sfv!(nullable; name, values; i8, Int8Type),
+            ValueType::I16 => sfv!(nullable; name, values; i16, Int16Type),
+            ValueType::I32 => sfv!(nullable; name, values; i32, Int32Type),
+            ValueType::I64 => sfv!(nullable; name, values; i64, Int64Type),
+            ValueType::F32 => sfv!(nullable; name, values; f32, Float32Type),
+            ValueType::F64 => sfv!(nullable; name, values; f64, Float64Type),
+            ValueType::Date => sfv!(nullable; name, values; Date, ObjectTypeDate),
+            ValueType::Time => sfv!(nullable; name, values; Time, ObjectTypeTime),
+            ValueType::DateTime => sfv!(nullable; name, values; DateTime, ObjectTypeDateTime),
+            ValueType::Decimal => sfv!(nullable; name, values; Decimal, ObjectTypeDecimal),
+            ValueType::Uuid => sfv!(nullable; name, values; Uuid, ObjectTypeUuid),
+            ValueType::Null => Ok(Series::from_integer(&(values.len() as u64), name)?),
+        },
+        None => Ok(Series::from_integer(&(values.len() as u64), name)?),
     }
 }
 
@@ -641,14 +663,14 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_creation() {
-        let s = Series::from_integer(&10u32).unwrap();
+        let s = Series::from_integer_default_name(&10u32).unwrap();
 
         println!("{:?}", s);
         println!("{:?}", s.dtype());
         println!("{:?}", s.get(9));
         println!("{:?}", s.take(&[0, 3, 9]).unwrap());
 
-        let s = Series::from_range(&[3u8, 9]).unwrap();
+        let s = Series::from_range_default_name(&[3u8, 9]).unwrap();
 
         println!("{:?}", s);
         println!("{:?}", s.dtype());
@@ -667,6 +689,38 @@ mod test_fabrix_series {
 
         println!("{:?}", s);
         println!("{:?}", s.dtype());
+    }
+
+    #[test]
+    fn test_series_creation2() {
+        // `Series::from_values` & `Series::from_values_default_name`
+        // if nullable is false, it will be in a strict mode, any type who mismatched will
+        // return an error.
+        let s = Series::from_values_default_name(
+            vec![
+                // this will turn to be `Value::Null`, where `&str` is no longer a type annotation
+                value!(None::<&str>),
+                value!(Some(10)),
+                value!(Some(20)),
+                value!(Some(30)),
+            ],
+            true,
+        );
+
+        println!("{:?}", s);
+
+        let s = Series::from_values_default_name(
+            vec![
+                // this will turn to be `Value::Null`, where `&str` is no longer a type annotation
+                Value::Null,
+                Value::I16(8),
+                Value::I16(5),
+                Value::I16(3),
+            ],
+            true,
+        );
+
+        println!("{:?}", s);
     }
 
     #[test]

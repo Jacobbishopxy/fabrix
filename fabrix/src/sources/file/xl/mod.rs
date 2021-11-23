@@ -7,7 +7,7 @@ mod util;
 pub mod workbook;
 pub(crate) mod worksheet;
 
-pub use executor::{XlDataConsumer, XlExecutor, XlSource};
+pub use executor::{XlAsyncExecutor, XlDataAsyncConsumer, XlDataConsumer, XlExecutor, XlSource};
 pub use workbook::Workbook;
 pub(crate) use worksheet::SheetReader;
 pub use worksheet::{Cell, Row, Worksheet};

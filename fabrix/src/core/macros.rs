@@ -1,4 +1,8 @@
 //! Fabrix core macros
+//!
+//! This module contains macros used by the Fabrix core:
+//! 1. impl_custom_value
+//! 1. impl_custom_value2
 
 /// impl custom object type value. Used in `value.rs`.
 ///
@@ -237,10 +241,10 @@ macro_rules! series_from_values {
     ($name:expr, $values:expr; Option<$ftype:ty>, $polars_type:ident) => {{
         let r = $values
             .into_iter()
-            .map(|v| Option::<$ftype>::try_from(v))
-            .collect::<$crate::CoreResult<Vec<_>>>()?;
-
+            .map(|v| Option::<$ftype>::try_from(v).unwrap_or(None))
+            .collect::<Vec<_>>();
         let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_opt_slice($name, &r[..]);
+
         Ok(Series(s.into_series()))
     }};
     ($name:expr, $values:expr; $ftype:ty, $polars_type:ident) => {{
@@ -248,18 +252,20 @@ macro_rules! series_from_values {
             .into_iter()
             .map(|v| <$ftype>::try_from(v))
             .collect::<$crate::CoreResult<Vec<_>>>()?;
-
         let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_slice($name, &r[..]);
+
         Ok(Series(s.into_series()))
     }};
     ($name:expr; Option<$ftype:ty>, $polars_type:ident) => {{
         let vec: Vec<Option<$ftype>> = vec![];
         let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_opt_slice($name, &vec);
+
         Ok(Series(s.into_series()))
     }};
     ($name:expr; $ftype:ty, $polars_type:ident) => {{
         let vec: Vec<$ftype> = vec![];
         let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_slice($name, &vec);
+
         Ok(Series(s.into_series()))
     }};
 }
@@ -399,3 +405,29 @@ macro_rules! sc_fn_next {
 
 pub(crate) use s_fn_next;
 pub(crate) use sc_fn_next;
+
+#[cfg(test)]
+mod test_polars_dev {
+
+    use polars::prelude::*;
+
+    #[test]
+    fn test_chunked_arr_from_iter() {
+        let v = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+        let iter = v.into_iter().map(|i| i as f32);
+
+        let foo = ChunkedArray::<Float32Type>::new_from_iter("a", iter);
+
+        println!("{:?}", foo);
+    }
+
+    #[test]
+    fn test_iterator_peek() {
+        let a = vec![1, 2, 3, 4, 5];
+
+        let mut iter = a.into_iter().skip_while(|x| *x < 3);
+
+        println!("{:?}", iter.next());
+    }
+}

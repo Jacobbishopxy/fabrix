@@ -112,7 +112,7 @@ impl DataFrame {
     pub fn from_series_default_index(series: Vec<Series>) -> CoreResult<Self> {
         let len = series.first().ok_or(cis_err("Vec<Series>"))?.len() as u64;
         let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
-        let index = Series::from_integer(&len)?;
+        let index = Series::from_integer_default_name(&len)?;
 
         Ok(DataFrame { data, index })
     }
