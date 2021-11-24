@@ -8,7 +8,7 @@ use super::{
     FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
-    adt, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series, SqlBuilder, SqlError,
+    sql_adt, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series, SqlBuilder, SqlError,
     SqlResult, Value, ValueType, D1,
 };
 
@@ -18,7 +18,7 @@ pub trait Helper {
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String>;
 
     /// get schema from a table
-    async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<adt::TableSchema>>;
+    async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<sql_adt::TableSchema>>;
 
     /// get existing ids, supposing that the primary key is a single column, and the value is a string
     async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1>;
@@ -49,14 +49,14 @@ pub trait SqlEngine: Helper {
         &self,
         table_name: &str,
         data: DataFrame,
-        strategy: &adt::SaveStrategy,
+        strategy: &sql_adt::SaveStrategy,
     ) -> SqlResult<usize>;
 
     /// delete data from an existing table.
-    async fn delete(&self, delete: &adt::Delete) -> SqlResult<u64>;
+    async fn delete(&self, delete: &sql_adt::Delete) -> SqlResult<u64>;
 
     /// get data from db. If the table has primary key, DataFrame's index will be the primary key
-    async fn select(&self, select: &adt::Select) -> SqlResult<DataFrame>;
+    async fn select(&self, select: &sql_adt::Select) -> SqlResult<DataFrame>;
 }
 
 /// Executor is the core struct of db mod.
@@ -114,7 +114,7 @@ impl Helper for SqlExecutor {
         Err(SqlError::new_common_error("primary key not found"))
     }
 
-    async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<adt::TableSchema>> {
+    async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<sql_adt::TableSchema>> {
         conn_n_err!(self.pool);
         let que = self.driver.check_table_schema(table_name);
         let schema = [ValueType::String, ValueType::String, ValueType::String];
@@ -135,7 +135,7 @@ impl Helper for SqlExecutor {
                     false
                 };
 
-                let res = adt::TableSchema {
+                let res = sql_adt::TableSchema {
                     name: try_value_into_string(&v[0])?,
                     dtype,
                     is_nullable,
@@ -143,7 +143,7 @@ impl Helper for SqlExecutor {
 
                 Ok(res)
             })
-            .collect::<SqlResult<Vec<adt::TableSchema>>>()?;
+            .collect::<SqlResult<Vec<sql_adt::TableSchema>>>()?;
 
         Ok(res)
     }
@@ -201,7 +201,7 @@ impl SqlEngine for SqlExecutor {
     async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let index_field = data.index_field();
-        let index_option = adt::IndexOption::try_from(&index_field)?;
+        let index_option = sql_adt::IndexOption::try_from(&index_field)?;
         let que = self.driver.update(table_name, data, &index_option)?;
 
         let res = self
@@ -219,12 +219,12 @@ impl SqlEngine for SqlExecutor {
         &self,
         table_name: &str,
         data: DataFrame,
-        strategy: &adt::SaveStrategy,
+        strategy: &sql_adt::SaveStrategy,
     ) -> SqlResult<usize> {
         conn_n_err!(self.pool);
 
         match strategy {
-            adt::SaveStrategy::FailIfExists => {
+            sql_adt::SaveStrategy::FailIfExists => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
                 // BEWARE: use fetch_optional instead of fetch_one is because `check_table_exists`
@@ -240,7 +240,7 @@ impl SqlEngine for SqlExecutor {
 
                 create_and_insert(&self.driver, txn, table_name, data).await
             }
-            adt::SaveStrategy::Replace => {
+            sql_adt::SaveStrategy::Replace => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
@@ -256,7 +256,7 @@ impl SqlEngine for SqlExecutor {
 
                 create_and_insert(&self.driver, txn, table_name, data).await
             }
-            adt::SaveStrategy::Append => {
+            sql_adt::SaveStrategy::Append => {
                 // insert to an existing table and ignore primary key
                 // this action is supposed that primary key can be auto generated
                 let que = self.driver.insert(table_name, data, true)?;
@@ -264,7 +264,7 @@ impl SqlEngine for SqlExecutor {
 
                 Ok(res.rows_affected as usize)
             }
-            adt::SaveStrategy::Upsert => {
+            sql_adt::SaveStrategy::Upsert => {
                 // get existing ids from selected table
                 let existing_ids = self.get_existing_ids(table_name, data.index()).await?;
                 let existing_ids = Series::from_values_default_name(existing_ids, false)?;
@@ -282,7 +282,7 @@ impl SqlEngine for SqlExecutor {
         }
     }
 
-    async fn delete(&self, delete: &adt::Delete) -> SqlResult<u64> {
+    async fn delete(&self, delete: &sql_adt::Delete) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.delete(delete);
         let res = self.pool.as_ref().unwrap().execute(&que).await?;
@@ -290,7 +290,7 @@ impl SqlEngine for SqlExecutor {
         Ok(res.rows_affected)
     }
 
-    async fn select(&self, select: &adt::Select) -> SqlResult<DataFrame> {
+    async fn select(&self, select: &sql_adt::Select) -> SqlResult<DataFrame> {
         conn_n_err!(self.pool);
 
         // Generally, primary key always exists, and in this case, use it as index.
@@ -316,10 +316,10 @@ impl SqlEngine for SqlExecutor {
 }
 
 /// select primary key and other columns from a table
-fn add_primary_key_to_select(primary_key: &String, select: &mut adt::Select) {
+fn add_primary_key_to_select(primary_key: &String, select: &mut sql_adt::Select) {
     select
         .columns
-        .insert(0, adt::ColumnAlias::Simple(primary_key.to_owned()));
+        .insert(0, sql_adt::ColumnAlias::Simple(primary_key.to_owned()));
 }
 
 /// `Value` -> String
@@ -342,7 +342,7 @@ async fn create_and_insert<'a>(
 
     // create table string
     let fi = data.index_field();
-    let index_option = adt::IndexOption::try_from(&fi)?;
+    let index_option = sql_adt::IndexOption::try_from(&fi)?;
     let create_str = driver.create_table(table_name, &data.fields(), Some(&index_option));
 
     // create table
@@ -422,7 +422,7 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = adt::SaveStrategy::FailIfExists;
+        let save_strategy = sql_adt::SaveStrategy::FailIfExists;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1);
@@ -466,7 +466,7 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = adt::SaveStrategy::Replace;
+        let save_strategy = sql_adt::SaveStrategy::Replace;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1);
@@ -507,7 +507,7 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = adt::SaveStrategy::Append;
+        let save_strategy = sql_adt::SaveStrategy::Append;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1);
@@ -541,7 +541,7 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = adt::SaveStrategy::Upsert;
+        let save_strategy = sql_adt::SaveStrategy::Upsert;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1);
@@ -567,23 +567,23 @@ mod test_executor {
 
     #[tokio::test]
     async fn test_delete() {
-        let delete = adt::Delete {
+        let delete = sql_adt::Delete {
             table: TABLE_NAME.to_owned(),
             filter: vec![
-                adt::Expression::Simple(adt::Condition {
+                sql_adt::Expression::Simple(sql_adt::Condition {
                     column: "ord".to_owned(),
-                    equation: adt::Equation::Equal(value!(15)),
+                    equation: sql_adt::Equation::Equal(value!(15)),
                 }),
-                adt::Expression::Conjunction(adt::Conjunction::OR),
-                adt::Expression::Nest(vec![
-                    adt::Expression::Simple(adt::Condition {
+                sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
+                sql_adt::Expression::Nest(vec![
+                    sql_adt::Expression::Simple(sql_adt::Condition {
                         column: "names".to_owned(),
-                        equation: adt::Equation::Equal(value!("Livia")),
+                        equation: sql_adt::Equation::Equal(value!("Livia")),
                     }),
-                    adt::Expression::Conjunction(adt::Conjunction::AND),
-                    adt::Expression::Simple(adt::Condition {
+                    sql_adt::Expression::Conjunction(sql_adt::Conjunction::AND),
+                    sql_adt::Expression::Simple(sql_adt::Condition {
                         column: "val".to_owned(),
-                        equation: adt::Equation::Greater(value!(10.0)),
+                        equation: sql_adt::Equation::Greater(value!(10.0)),
                     }),
                 ]),
             ],
@@ -634,14 +634,14 @@ mod test_executor {
 
     #[tokio::test]
     async fn test_select() {
-        let select = adt::Select {
+        let select = sql_adt::Select {
             table: "dev".to_owned(),
             columns: vec![
-                adt::ColumnAlias::Simple("names".to_owned()),
-                adt::ColumnAlias::Simple("val".to_owned()),
-                adt::ColumnAlias::Simple("note".to_owned()),
-                adt::ColumnAlias::Simple("dt".to_owned()),
-                adt::ColumnAlias::Alias(adt::NameAlias {
+                sql_adt::ColumnAlias::Simple("names".to_owned()),
+                sql_adt::ColumnAlias::Simple("val".to_owned()),
+                sql_adt::ColumnAlias::Simple("note".to_owned()),
+                sql_adt::ColumnAlias::Simple("dt".to_owned()),
+                sql_adt::ColumnAlias::Alias(sql_adt::NameAlias {
                     from: "ord".to_owned(),
                     to: "ID".to_owned(),
                 }),

@@ -3,8 +3,8 @@
 //! # Examples
 
 use async_trait::async_trait;
-
 use fabrix::prelude::*;
+use futures::future::BoxFuture;
 
 const CONN3: &'static str = "sqlite://dev.sqlite";
 
@@ -28,6 +28,14 @@ impl TestXl2DbAsync {
     ) -> FabrixResult<()> {
         todo!()
     }
+
+    async fn append_to_existed_table(
+        &mut self,
+        table_name: &str,
+        data: DataFrame,
+    ) -> FabrixResult<()> {
+        todo!()
+    }
 }
 
 // TODO: neither `Xl2DbAsync` nor `Xl2Db` can handle uncertain input params
@@ -39,9 +47,10 @@ impl Xl2DbAsync for TestXl2DbAsync {
         todo!()
     }
 
-    async fn save(&mut self, data: DataFrame) -> FabrixResult<()> {
-        self.create_table_and_append("test", data).await?;
-        Ok(())
+    async fn save_fn(&mut self, df: DataFrame) -> BoxFuture<'static, FabrixResult<()>> {
+        let f = self.create_table_and_append("test_table", df).await;
+
+        Box::pin(async move { f })
     }
 }
 
@@ -57,7 +66,7 @@ async fn test_xl2db_async() {
 
     println!("{:?}", res);
 
-    let select = adt::Select {
+    let select = sql_adt::Select {
         table: "test_table".into(),
         columns: vec![
             "id".into(),

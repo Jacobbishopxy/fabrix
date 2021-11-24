@@ -1,6 +1,6 @@
 //! Sql builder interface
 
-use crate::{adt, DataFrame, FieldInfo, Series, SqlResult};
+use crate::{sql_adt, DataFrame, FieldInfo, Series, SqlResult};
 
 // DDL Query
 pub trait DdlQuery {
@@ -19,7 +19,7 @@ pub trait DdlMutation {
         &self,
         table_name: &str,
         columns: &[FieldInfo],
-        index_option: Option<&adt::IndexOption>,
+        index_option: Option<&sql_adt::IndexOption>,
     ) -> String;
 
     fn delete_table(&self, table_name: &str) -> String;
@@ -45,7 +45,7 @@ pub trait DdlMutation {
 pub trait DmlQuery {
     fn select_existing_ids(&self, table_name: &str, index: &Series) -> SqlResult<String>;
 
-    fn select(&self, select: &adt::Select) -> String;
+    fn select(&self, select: &sql_adt::Select) -> String;
 }
 
 // DML Mutation
@@ -56,8 +56,8 @@ pub trait DmlMutation {
         &self,
         table_name: &str,
         df: DataFrame,
-        index_option: &adt::IndexOption,
+        index_option: &sql_adt::IndexOption,
     ) -> SqlResult<Vec<String>>;
 
-    fn delete(&self, delete: &adt::Delete) -> String;
+    fn delete(&self, delete: &sql_adt::Delete) -> String;
 }

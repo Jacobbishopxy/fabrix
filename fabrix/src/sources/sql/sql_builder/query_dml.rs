@@ -2,7 +2,7 @@
 
 use sea_query::{Expr, Order, Query};
 
-use super::{adt, alias, filter_builder, statement, try_from_value_to_svalue, DeleteOrSelect};
+use super::{alias, filter_builder, sql_adt, statement, try_from_value_to_svalue, DeleteOrSelect};
 use crate::{DmlQuery, Series, SqlBuilder, SqlResult};
 
 impl DmlQuery for SqlBuilder {
@@ -24,7 +24,7 @@ impl DmlQuery for SqlBuilder {
     }
 
     /// select from an existing table
-    fn select(&self, select: &adt::Select) -> String {
+    fn select(&self, select: &sql_adt::Select) -> String {
         let mut statement = Query::select();
 
         for c in &select.columns {
@@ -40,10 +40,10 @@ impl DmlQuery for SqlBuilder {
         if let Some(ord) = &select.order {
             ord.iter().for_each(|o| match &o.order {
                 Some(ot) => match ot {
-                    adt::OrderType::Asc => {
+                    sql_adt::OrderType::Asc => {
                         statement.order_by(alias!(&o.name), Order::Asc);
                     }
-                    adt::OrderType::Desc => {
+                    sql_adt::OrderType::Desc => {
                         statement.order_by(alias!(&o.name), Order::Desc);
                     }
                 },

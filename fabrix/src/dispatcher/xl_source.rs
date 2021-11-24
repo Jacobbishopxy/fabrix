@@ -1,6 +1,7 @@
 //!  Xl reader
 
 use async_trait::async_trait;
+use futures::future::BoxFuture;
 use serde_json::Value as JsonValue;
 
 use crate::sources::file::{Cell, ExcelValue, XlDataAsyncConsumer, XlDataConsumer};
@@ -72,7 +73,7 @@ where
 pub trait Xl2DbAsync: Send + Sync {
     fn to_dataframe(rows: D2) -> FabrixResult<DataFrame>;
 
-    async fn save(&mut self, df: DataFrame) -> FabrixResult<()>;
+    async fn save_fn(&mut self, df: DataFrame) -> BoxFuture<'static, FabrixResult<()>>;
 }
 
 #[async_trait]
@@ -102,9 +103,7 @@ where
     async fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
         let df = T::to_dataframe(batch)?;
 
-        self.save(df).await?;
-
-        Ok(())
+        Box::pin(self.save_fn(df).await).await
     }
 }
 
@@ -156,7 +155,7 @@ mod test_xl_reader {
     use itertools::Itertools;
 
     use super::*;
-    use crate::{adt, FabrixError, SqlEngine, SqlExecutor};
+    use crate::{sql_adt, FabrixError, SqlEngine, SqlExecutor};
 
     const CONN3: &'static str = "sqlite://dev.sqlite";
 
@@ -183,7 +182,7 @@ mod test_xl_reader {
                 self.sql_executor.connect().await?;
 
                 self.sql_executor
-                    .save(table_name, d, &adt::SaveStrategy::Replace)
+                    .save(table_name, d, &sql_adt::SaveStrategy::Replace)
                     .await?;
 
                 Ok(())
@@ -244,7 +243,7 @@ mod test_xl_reader {
         println!("{:?}", saved2db);
 
         // sql selection
-        let select = adt::Select {
+        let select = sql_adt::Select {
             table: "test_table".into(),
             columns: vec![
                 "id".into(),

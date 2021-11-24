@@ -3,7 +3,7 @@
 use sea_query::{Expr, Query};
 
 use super::{alias, filter_builder, statement, try_from_value_to_svalue, DeleteOrSelect};
-use crate::{adt, DataFrame, DmlMutation, SqlBuilder, SqlResult};
+use crate::{sql_adt, DataFrame, DmlMutation, SqlBuilder, SqlResult};
 
 impl DmlMutation for SqlBuilder {
     /// given a `Dataframe`, insert it into an existing table
@@ -51,7 +51,7 @@ impl DmlMutation for SqlBuilder {
         &self,
         table_name: &str,
         df: DataFrame,
-        index_option: &adt::IndexOption,
+        index_option: &sql_adt::IndexOption,
     ) -> SqlResult<Vec<String>> {
         let column_info = df.fields();
         let indices_type = df.index_dtype().clone();
@@ -85,7 +85,7 @@ impl DmlMutation for SqlBuilder {
     }
 
     /// delete from an existing table
-    fn delete(&self, delete: &adt::Delete) -> String {
+    fn delete(&self, delete: &sql_adt::Delete) -> String {
         let mut statement = Query::delete();
         statement.from_table(alias!(&delete.table));
 
@@ -102,27 +102,27 @@ mod test_mutation_dml {
 
     #[test]
     fn test_delete() {
-        let delete = adt::Delete {
+        let delete = sql_adt::Delete {
             table: "test".to_string(),
             filter: vec![
-                adt::Expression::Simple(adt::Condition {
+                sql_adt::Expression::Simple(sql_adt::Condition {
                     column: "ord".to_owned(),
-                    equation: adt::Equation::Equal(value!(15)),
+                    equation: sql_adt::Equation::Equal(value!(15)),
                 }),
-                adt::Expression::Conjunction(adt::Conjunction::OR),
-                adt::Expression::Nest(vec![
-                    adt::Expression::Simple(adt::Condition {
+                sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
+                sql_adt::Expression::Nest(vec![
+                    sql_adt::Expression::Simple(sql_adt::Condition {
                         column: "names".to_owned(),
-                        equation: adt::Equation::Equal(value!("X")),
+                        equation: sql_adt::Equation::Equal(value!("X")),
                     }),
-                    adt::Expression::Conjunction(adt::Conjunction::AND),
-                    adt::Expression::Simple(adt::Condition {
+                    sql_adt::Expression::Conjunction(sql_adt::Conjunction::AND),
+                    sql_adt::Expression::Simple(sql_adt::Condition {
                         column: "val".to_owned(),
-                        equation: adt::Equation::GreaterEqual(value!(10.0)),
+                        equation: sql_adt::Equation::GreaterEqual(value!(10.0)),
                     }),
                 ]),
                 // this is not a correct syntax, but it works and should only be used for testing
-                adt::Expression::Conjunction(adt::Conjunction::OR),
+                sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
             ],
         };
 

@@ -12,7 +12,7 @@ pub use crate::core::{
 #[cfg(feature = "sql")]
 pub use crate::sources::sql::error::{SqlError, SqlResult};
 #[cfg(feature = "sql")]
-pub use crate::sources::sql::sql_builder::adt;
+pub use crate::sources::sql::sql_builder::sql_adt;
 #[cfg(feature = "sql")]
 pub use crate::sources::sql::sql_executor::{SqlConnInfo, SqlEngine, SqlExecutor};
 

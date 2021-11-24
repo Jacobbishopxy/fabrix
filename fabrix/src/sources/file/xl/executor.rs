@@ -224,6 +224,9 @@ where
         &mut self.consumer
     }
 
+    // TODO: consider turning this function' result into a iterator.
+    // So we no longer have to provide two XlExecutor, one for sync and one for async!
+
     /// read a sheet from a workbook
     /// batch size represents the number of rows to process at once
     pub async fn read_sheet(&mut self, sheet: &str, batch_size: Option<usize>) -> FabrixResult<()> {

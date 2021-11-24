@@ -3,7 +3,7 @@
 use sea_query::{ColumnDef, Table};
 
 use super::{alias, statement};
-use crate::{adt, DdlMutation, FieldInfo, SqlBuilder, ValueType};
+use crate::{sql_adt, DdlMutation, FieldInfo, SqlBuilder, ValueType};
 
 impl DdlMutation for SqlBuilder {
     /// given a `Dataframe` columns, generate SQL create_table string
@@ -11,7 +11,7 @@ impl DdlMutation for SqlBuilder {
         &self,
         table_name: &str,
         columns: &[FieldInfo],
-        index_option: Option<&adt::IndexOption>,
+        index_option: Option<&sql_adt::IndexOption>,
     ) -> String {
         let mut statement = Table::create();
         statement.table(alias!(table_name)).if_not_exists();
@@ -37,13 +37,13 @@ impl DdlMutation for SqlBuilder {
 }
 
 /// generate a primary column
-fn gen_primary_col(index_option: &adt::IndexOption) -> ColumnDef {
+fn gen_primary_col(index_option: &sql_adt::IndexOption) -> ColumnDef {
     let mut cd = ColumnDef::new(alias!(&index_option.name));
 
     match index_option.index_type {
-        adt::IndexType::Int => cd.integer(),
-        adt::IndexType::BigInt => cd.big_integer(),
-        adt::IndexType::Uuid => cd.uuid(),
+        sql_adt::IndexType::Int => cd.integer(),
+        sql_adt::IndexType::BigInt => cd.big_integer(),
+        sql_adt::IndexType::Uuid => cd.uuid(),
     };
 
     cd.not_null().auto_increment().primary_key();

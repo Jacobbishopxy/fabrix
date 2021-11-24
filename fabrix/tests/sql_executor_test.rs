@@ -12,7 +12,7 @@
 #![feature(assert_matches)]
 use std::assert_matches::assert_matches;
 
-use fabrix::{adt, df, value, DateTime, SqlEngine, SqlExecutor};
+use fabrix::{df, sql_adt, value, DateTime, SqlEngine, SqlExecutor};
 
 const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";
@@ -82,7 +82,7 @@ async fn test_save_fail_if_exists() {
     ]
     .unwrap();
 
-    let save_strategy = adt::SaveStrategy::FailIfExists;
+    let save_strategy = sql_adt::SaveStrategy::FailIfExists;
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1);
@@ -129,7 +129,7 @@ async fn test_save_replace() {
     ]
     .unwrap();
 
-    let save_strategy = adt::SaveStrategy::Replace;
+    let save_strategy = sql_adt::SaveStrategy::Replace;
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1);
@@ -173,7 +173,7 @@ async fn test_save_append() {
     ]
     .unwrap();
 
-    let save_strategy = adt::SaveStrategy::Append;
+    let save_strategy = sql_adt::SaveStrategy::Append;
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1);
@@ -210,7 +210,7 @@ async fn test_save_upsert() {
     ]
     .unwrap();
 
-    let save_strategy = adt::SaveStrategy::Upsert;
+    let save_strategy = sql_adt::SaveStrategy::Upsert;
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1);
@@ -239,23 +239,23 @@ cargo test --package fabrix --test sql_executor_test -- test_delete --exact --no
 */
 #[tokio::test]
 async fn test_delete() {
-    let delete = adt::Delete {
+    let delete = sql_adt::Delete {
         table: TABLE_NAME.to_owned(),
         filter: vec![
-            adt::Expression::Simple(adt::Condition {
+            sql_adt::Expression::Simple(sql_adt::Condition {
                 column: "ord".to_owned(),
-                equation: adt::Equation::Equal(value!(15)),
+                equation: sql_adt::Equation::Equal(value!(15)),
             }),
-            adt::Expression::Conjunction(adt::Conjunction::OR),
-            adt::Expression::Nest(vec![
-                adt::Expression::Simple(adt::Condition {
+            sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
+            sql_adt::Expression::Nest(vec![
+                sql_adt::Expression::Simple(sql_adt::Condition {
                     column: "names".to_owned(),
-                    equation: adt::Equation::Equal(value!("Livia")),
+                    equation: sql_adt::Equation::Equal(value!("Livia")),
                 }),
-                adt::Expression::Conjunction(adt::Conjunction::AND),
-                adt::Expression::Simple(adt::Condition {
+                sql_adt::Expression::Conjunction(sql_adt::Conjunction::AND),
+                sql_adt::Expression::Simple(sql_adt::Condition {
                     column: "val".to_owned(),
-                    equation: adt::Equation::Greater(value!(10.0)),
+                    equation: sql_adt::Equation::Greater(value!(10.0)),
                 }),
             ]),
         ],
