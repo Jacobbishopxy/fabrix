@@ -2,7 +2,9 @@
 //!
 //! Executor
 
-use std::{fmt::Display, fs::File, marker::PhantomData};
+use std::{fmt::Display, fs::File};
+
+use async_trait::async_trait;
 
 use super::{Cell, RowIter, Workbook};
 use crate::{FabrixError, FabrixResult};
@@ -20,13 +22,21 @@ pub trait XlDataConsumer<CORE> {
     type OutType;
 
     /// convert data to output type
-    fn transform(cell: Cell) -> FabrixResult<Self::OutType>;
-
-    /// consume a single row
-    fn consume_row(&mut self, batch: Vec<Self::OutType>) -> FabrixResult<()>;
+    fn transform(cell: Cell) -> Self::OutType;
 
     /// consume a batch of rows
     fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()>;
+}
+
+#[async_trait]
+pub trait XlDataConsumerAsync<CORE> {
+    type OutType;
+
+    /// convert data to output type
+    fn transform(cell: Cell) -> Self::OutType;
+
+    /// consume a batch of rows
+    async fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()>;
 }
 
 /// Xl file source type
@@ -45,8 +55,8 @@ pub struct XlSheetWorker<'a, FN, OUT>
 where
     FN: Fn(Cell) -> OUT,
 {
+    transform_fn: FN,
     batch_size: Option<usize>,
-    transform_fn: PhantomData<FN>,
     buffer: RowIter<'a>,
 }
 
@@ -55,6 +65,7 @@ where
     FN: Fn(Cell) -> OUT,
 {
     pub fn new(
+        transform_fn: FN,
         batch_size: Option<usize>,
         workbook: &'a mut Workbook,
         sheet_name: &str,
@@ -69,22 +80,35 @@ where
 
         Ok(Self {
             batch_size,
-            transform_fn: PhantomData,
+            transform_fn,
             buffer,
         })
     }
 }
 
 /// Xl sheet iter
-///
 pub struct XlSheetIter<'a, FN, OUT>
 where
     FN: Fn(Cell) -> OUT,
     OUT: Display,
 {
-    batch_size: Option<usize>,
     transform_fn: FN,
+    batch_size: Option<usize>,
     buffer: RowIter<'a>,
+}
+
+impl<'a, FN, OUT> XlSheetIter<'a, FN, OUT>
+where
+    FN: Fn(Cell) -> OUT,
+    OUT: Display,
+{
+    fn new(transform_fn: FN, batch_size: Option<usize>, buffer: RowIter<'a>) -> Self {
+        Self {
+            transform_fn,
+            batch_size,
+            buffer,
+        }
+    }
 }
 
 impl<'a, FN, OUT> Iterator for XlSheetIter<'a, FN, OUT>
@@ -140,7 +164,7 @@ where
     type IntoIter = XlSheetIter<'a, FN, OUT>;
 
     fn into_iter(self) -> Self::IntoIter {
-        todo!()
+        XlSheetIter::new(self.transform_fn, self.batch_size, self.buffer)
     }
 }
 
@@ -149,45 +173,29 @@ where
 /// wb: Workbook
 /// consumer: a concrete type who implemented XlDataConsumer
 /// core: a phantom type to distinguish different consumers
-pub struct XlExecutor<CONSUMER, TYPE>
-where
-    CONSUMER: XlDataConsumer<TYPE>,
-{
-    consumer: CONSUMER,
+pub struct XlExecutor {
     workbook: Option<Workbook>,
-    core: PhantomData<TYPE>,
 }
 
-impl<CONSUMER, TYPE> XlExecutor<CONSUMER, TYPE>
-where
-    CONSUMER: XlDataConsumer<TYPE>,
-{
+impl XlExecutor {
     /// constructor
-    pub fn new(consumer: CONSUMER) -> FabrixResult<Self> {
-        Ok(Self {
-            workbook: None,
-            consumer,
-            core: PhantomData,
-        })
+    pub fn new() -> Self {
+        Self { workbook: None }
     }
 
     /// constructor
-    pub fn new_with_source<'a>(consumer: CONSUMER, source: XlSource<'a>) -> FabrixResult<Self> {
+    pub fn new_with_source<'a>(source: XlSource<'a>) -> FabrixResult<Self> {
         let wb = match source {
             XlSource::File(file) => Workbook::new(file)?,
             XlSource::Path(path) => Workbook::new(File::open(path)?)?,
             XlSource::Url(_url) => unimplemented!(),
         };
         let wb = Some(wb);
-        Ok(Self {
-            workbook: wb,
-            consumer,
-            core: PhantomData,
-        })
+        Ok(Self { workbook: wb })
     }
 
     /// replace or set a new workbook
-    pub fn add_source<'a>(&mut self, source: XlSource<'a>) -> FabrixResult<()> {
+    pub fn add_source(&mut self, source: XlSource) -> FabrixResult<()> {
         let wb = match source {
             XlSource::File(file) => Workbook::new(file)?,
             XlSource::Path(path) => Workbook::new(File::open(path)?)?,
@@ -197,64 +205,19 @@ where
         Ok(())
     }
 
-    /// expose consumer as a mutable reference for external usage, this is a self-mutated method
-    pub fn consumer(&mut self) -> &mut CONSUMER {
-        &mut self.consumer
-    }
-
-    /// read a sheet from a workbook
-    /// batch size represents the number of rows to process at once
-    pub fn read_sheet(&mut self, sheet: &str, batch_size: Option<usize>) -> FabrixResult<()> {
+    pub fn iter_sheet<FN, OUT>(
+        &mut self,
+        f: FN,
+        batch_size: Option<usize>,
+        sheet_name: &str,
+    ) -> FabrixResult<XlSheetIter<FN, OUT>>
+    where
+        FN: Fn(Cell) -> OUT,
+        OUT: Display,
+    {
         match &mut self.workbook {
-            Some(wb) => {
-                // select a sheet from workbook
-                let sheets = wb.sheets();
-                let sheet = match sheets.get(sheet) {
-                    Some(ws) => ws,
-                    None => return Err(FabrixError::new_common_error("Sheet not found")),
-                };
-
-                // batch buffer
-                let mut batch = Vec::new();
-                let mut sz = 0usize;
-
-                // iterate over rows
-                for row in sheet.rows(wb) {
-                    let row_buf = row
-                        .data
-                        .into_iter()
-                        .map(|c| CONSUMER::transform(c))
-                        .collect::<Result<Vec<_>, _>>()?;
-
-                    batch.push(row_buf);
-                    sz += 1;
-
-                    // if batch size is reached, process batch
-                    if let Some(bs) = batch_size {
-                        if sz == bs {
-                            // swap and clear batch buffer
-                            let mut cache_batch = Vec::new();
-                            std::mem::swap(&mut cache_batch, &mut batch);
-                            // consume batch
-                            self.consumer.consume_batch(cache_batch)?;
-                            sz = 0;
-                        } else {
-                            continue;
-                        }
-                    }
-                }
-
-                // consume the remaining batch
-                if batch.len() > 0 {
-                    let mut cache_batch = Vec::new();
-                    std::mem::swap(&mut cache_batch, &mut batch);
-                    self.consumer.consume_batch(cache_batch)?;
-                }
-
-                Ok(())
-            }
-            // workbook must be set
-            None => return Err(FabrixError::new_common_error("workbook is not initialized")),
+            Some(wb) => Ok(XlSheetWorker::new(f, batch_size, wb, sheet_name)?.into_iter()),
+            None => Err(FabrixError::new_common_error("Workbook not found")),
         }
     }
 }
@@ -266,31 +229,15 @@ mod test_xl_executor {
 
     struct TestExec;
 
-    impl XlDataConsumer<u8> for TestExec {
-        type OutType = String;
-
-        fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
-            Ok(cell.value.to_string())
-        }
-
-        fn consume_row(&mut self, batch: Vec<Self::OutType>) -> FabrixResult<()> {
-            println!("{:?}", batch);
-            Ok(())
-        }
-
-        fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
-            println!("{:?}", batch);
-            Ok(())
-        }
-    }
-
     #[test]
     fn test_exec() {
         let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+        let mut xle = XlExecutor::new_with_source(source).unwrap();
 
-        if let Ok(_) = xle.read_sheet("data", None) {
-            println!("done");
+        let foo = xle.iter_sheet(|c| c.to_string(), None, "data").unwrap();
+
+        for chunk in foo {
+            println!("{:?}", chunk);
         }
     }
 }

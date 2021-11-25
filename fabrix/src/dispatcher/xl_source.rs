@@ -4,7 +4,8 @@ use async_trait::async_trait;
 use futures::future::BoxFuture;
 use serde_json::Value as JsonValue;
 
-use crate::sources::file::{Cell, ExcelValue, XlDataConsumer};
+use crate::sources::file::executor::XlDataConsumer;
+use crate::sources::file::{Cell, ExcelValue};
 use crate::{value, DataFrame, FabrixResult, Value, D2};
 
 /// source: database
@@ -43,21 +44,17 @@ where
 {
     type OutType = Value;
 
-    fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
+    fn transform(cell: Cell) -> Self::OutType {
         match cell.value {
-            ExcelValue::Bool(v) => Ok(value!(v)),
-            ExcelValue::Number(v) => Ok(value!(v)),
-            ExcelValue::String(v) => Ok(value!(v.into_owned())),
-            ExcelValue::Date(v) => Ok(value!(v)),
-            ExcelValue::Time(v) => Ok(value!(v)),
-            ExcelValue::DateTime(v) => Ok(value!(v)),
-            ExcelValue::None => Ok(Value::Null),
-            ExcelValue::Error(v) => Ok(value!(v)),
+            ExcelValue::Bool(v) => value!(v),
+            ExcelValue::Number(v) => value!(v),
+            ExcelValue::String(v) => value!(v.into_owned()),
+            ExcelValue::Date(v) => value!(v),
+            ExcelValue::Time(v) => value!(v),
+            ExcelValue::DateTime(v) => value!(v),
+            ExcelValue::None => Value::Null,
+            ExcelValue::Error(v) => value!(v),
         }
-    }
-
-    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> FabrixResult<()> {
-        unimplemented!()
     }
 
     fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
@@ -88,21 +85,17 @@ where
 {
     type OutType = JsonValue;
 
-    fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
+    fn transform(cell: Cell) -> Self::OutType {
         match cell.value {
-            ExcelValue::Bool(v) => Ok(serde_json::json!(v)),
-            ExcelValue::Number(v) => Ok(serde_json::json!(v)),
-            ExcelValue::String(v) => Ok(serde_json::json!(v.into_owned())),
-            ExcelValue::Date(v) => Ok(serde_json::json!(v)),
-            ExcelValue::Time(v) => Ok(serde_json::json!(v)),
-            ExcelValue::DateTime(v) => Ok(serde_json::json!(v)),
-            ExcelValue::None => Ok(serde_json::json!(null)),
+            ExcelValue::Bool(v) => serde_json::json!(v),
+            ExcelValue::Number(v) => serde_json::json!(v),
+            ExcelValue::String(v) => serde_json::json!(v.into_owned()),
+            ExcelValue::Date(v) => serde_json::json!(v),
+            ExcelValue::Time(v) => serde_json::json!(v),
+            ExcelValue::DateTime(v) => serde_json::json!(v),
+            ExcelValue::None => serde_json::json!(null),
             ExcelValue::Error(_) => todo!(),
         }
-    }
-
-    fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> FabrixResult<()> {
-        unimplemented!()
     }
 
     fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
@@ -201,15 +194,15 @@ mod test_xl_reader {
         let consumer = TestXl2Db::new(CONN3);
 
         // XlExecutor instance
-        let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
+        let mut xle = XlExecutor::new_with_source(source).unwrap();
 
         // read sheet, and save converted data into memory
-        xle.read_sheet("data", None).unwrap();
+        let iter = xle.iter_sheet(|c| c.to_string(), None, "data").unwrap();
 
         // memory -> db
-        let saved2db = xle.consumer().create_table_and_insert("test_table").await;
+        // let saved2db = xle.consumer().create_table_and_insert("test_table").await;
 
-        println!("{:?}", saved2db);
+        // println!("{:?}", saved2db);
 
         // sql selection
         let select = sql_adt::Select {
@@ -228,8 +221,8 @@ mod test_xl_reader {
         };
 
         // selected result
-        let res = xle.consumer().sql_executor().select(&select).await;
+        // let res = xle.consumer().sql_executor().select(&select).await;
 
-        println!("{:?}", res);
+        // println!("{:?}", res);
     }
 }

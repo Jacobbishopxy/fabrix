@@ -55,11 +55,11 @@ async fn test_xl2db_async() {
 
     let consumer = TestXl2Db::new(CONN3).await.unwrap();
 
-    let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
+    let mut xle = XlExecutor::new_with_source(source).unwrap();
 
-    let res = xle.read_sheet("data", None);
+    let iter = xle.iter_sheet(|c| c.to_string(), None, "data");
 
-    println!("{:?}", res);
+    // println!("{:?}", res);
 
     let select = sql_adt::Select {
         table: "test_table".into(),
@@ -76,7 +76,7 @@ async fn test_xl2db_async() {
         ..Default::default()
     };
 
-    let res = xle.consumer().sql_executor().select(&select).await;
+    // let res = xle.consumer().sql_executor().select(&select).await;
 
-    println!("{:?}", res);
+    // println!("{:?}", res);
 }
