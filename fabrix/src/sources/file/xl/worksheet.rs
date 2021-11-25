@@ -11,6 +11,10 @@ use zip::read::ZipFile;
 
 use super::{util, DateSystem, ExcelValue, Workbook};
 
+// type alias
+pub type VecCell<'a> = Vec<Cell<'a>>;
+pub type ChunkCell<'a> = Vec<VecCell<'a>>;
+
 /// a row of cells
 #[derive(Debug)]
 pub struct Row<'a> {

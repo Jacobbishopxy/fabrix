@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use futures::future::BoxFuture;
 use serde_json::Value as JsonValue;
 
-use crate::sources::file::{Cell, ExcelValue, XlDataAsyncConsumer, XlDataConsumer};
+use crate::sources::file::{Cell, ExcelValue, XlDataConsumer};
 use crate::{value, DataFrame, FabrixResult, Value, D2};
 
 /// source: database
@@ -74,37 +74,6 @@ pub trait Xl2DbAsync: Send + Sync {
     fn to_dataframe(rows: D2) -> FabrixResult<DataFrame>;
 
     async fn save_fn(&mut self, df: DataFrame) -> BoxFuture<'static, FabrixResult<()>>;
-}
-
-#[async_trait]
-impl<T> XlDataAsyncConsumer<Db> for T
-where
-    T: Xl2DbAsync,
-{
-    type OutType = Value;
-
-    fn transform(cell: Cell) -> FabrixResult<Self::OutType> {
-        match cell.value {
-            ExcelValue::Bool(v) => Ok(value!(v)),
-            ExcelValue::Number(v) => Ok(value!(v)),
-            ExcelValue::String(v) => Ok(value!(v.into_owned())),
-            ExcelValue::Date(v) => Ok(value!(v)),
-            ExcelValue::Time(v) => Ok(value!(v)),
-            ExcelValue::DateTime(v) => Ok(value!(v)),
-            ExcelValue::None => Ok(Value::Null),
-            ExcelValue::Error(v) => Ok(value!(v)),
-        }
-    }
-
-    async fn consume_row(&mut self, _batch: Vec<Self::OutType>) -> FabrixResult<()> {
-        unimplemented!()
-    }
-
-    async fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
-        let df = T::to_dataframe(batch)?;
-
-        Box::pin(self.save_fn(df).await).await
-    }
 }
 
 pub trait Xl2Json {

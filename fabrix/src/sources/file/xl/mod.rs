@@ -7,10 +7,10 @@ mod util;
 pub mod workbook;
 pub(crate) mod worksheet;
 
-pub use executor::{XlAsyncExecutor, XlDataAsyncConsumer, XlDataConsumer, XlExecutor, XlSource};
+pub use executor::{XlDataConsumer, XlExecutor, XlSource};
 pub use workbook::Workbook;
 pub(crate) use worksheet::SheetReader;
-pub use worksheet::{Cell, Row, Worksheet};
+pub use worksheet::{Cell, ChunkCell, Row, RowIter, VecCell, Worksheet};
 
 /// Date system, used to determine the date format from an Excel file.
 ///
