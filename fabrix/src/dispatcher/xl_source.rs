@@ -56,14 +56,6 @@ where
             ExcelValue::Error(v) => value!(v),
         }
     }
-
-    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
-        let df = T::to_dataframe(batch)?;
-
-        self.save(df)?;
-
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -96,14 +88,6 @@ where
             ExcelValue::None => serde_json::json!(null),
             ExcelValue::Error(_) => todo!(),
         }
-    }
-
-    fn consume_batch(&mut self, batch: Vec<Vec<Self::OutType>>) -> FabrixResult<()> {
-        let json = serde_json::json!(batch);
-
-        self.save(json)?;
-
-        Ok(())
     }
 }
 
@@ -194,10 +178,10 @@ mod test_xl_reader {
         let consumer = TestXl2Db::new(CONN3);
 
         // XlExecutor instance
-        let mut xle = XlExecutor::new_with_source(source).unwrap();
+        // let mut xle = XlExecutor::new_with_source(source).unwrap();
 
         // read sheet, and save converted data into memory
-        let iter = xle.iter_sheet(|c| c.to_string(), None, "data").unwrap();
+        // let iter = xle.iter_sheet(|c| c.to_string(), None, "data").unwrap();
 
         // memory -> db
         // let saved2db = xle.consumer().create_table_and_insert("test_table").await;

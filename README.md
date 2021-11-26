@@ -6,7 +6,7 @@ There are three main parts in this crate:
 
 - core: defines the fundamental data structures and provides the basic functions to manipulate them. `Value`, `Series`, `DataFrame` and `row` represent unit data, 1D, 2D and cross-sectional data respectively.
 - sources: defines the data sources, such as Sql, File, BSON/JSON, etc.
-- dispatcher: a compositional data source dispatcher, which is capable to dispatch data from one source to another source. Additionally, it can process data as a streaming pipeline.
+- dispatcher: a compositional data source dispatcher, which is capable to dispatch data from one source to another. Additionally, it can process data as a streaming pipeline.
 
 ## Structure
 

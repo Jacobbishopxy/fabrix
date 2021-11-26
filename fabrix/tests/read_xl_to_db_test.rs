@@ -55,9 +55,9 @@ async fn test_xl2db_async() {
 
     let consumer = TestXl2Db::new(CONN3).await.unwrap();
 
-    let mut xle = XlExecutor::new_with_source(source).unwrap();
+    let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
 
-    let iter = xle.iter_sheet(|c| c.to_string(), None, "data");
+    let iter = xle.iter_sheet(None, "data");
 
     // println!("{:?}", res);
 
