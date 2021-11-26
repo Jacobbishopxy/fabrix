@@ -427,6 +427,12 @@ impl DataFrame {
     }
 }
 
+impl std::fmt::Display for DataFrame {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
 #[cfg(test)]
 mod test_fabrix_dataframe {
 

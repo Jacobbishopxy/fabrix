@@ -5,13 +5,23 @@
 use std::{fmt::Display, fs::File, marker::PhantomData};
 
 use async_trait::async_trait;
+use futures::future::BoxFuture;
 
 use super::{Cell, RowIter, Workbook};
 use crate::{FabrixError, FabrixResult};
 
-/// Xl Data Consumer
+/// A convert function pointer used for converting `ChunkCell` into type parameter `OUT`.
+pub type ConvertFn<IN, OUT> = fn(IN) -> FabrixResult<OUT>;
+
+/// A synchronous convert function pointer used for consuming type parameter `OUT`
+pub type SyncConsumeFn<OUT> = fn(OUT) -> FabrixResult<()>;
+
+/// A asynchronous convert function pointer used for consuming type parameter `OUT`
+pub type AsyncConsumeFn<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
+
+/// Xl Consumer
 ///
-/// A public trait that defines the interface for a Xl processor.
+/// A public trait that defines the interface for a Xl consumer.
 /// Any type that implements this trait can be treated as 'source' in a streaming process.
 /// It can either send parsed data to other `source` such as database and file,
 /// or via http or grpc to other services.
@@ -19,13 +29,28 @@ use crate::{FabrixError, FabrixResult};
 /// CORE is a generic type that is used to distinguish different consumers.
 /// For instance, a database consumer will have a CORE type of `Database`.
 #[async_trait]
-pub trait XlDataConsumer<CORE> {
-    type OutType: Display;
+pub trait XlConsumer<CORE> {
+    type UnitType: Display + Send;
+    type OutType: Display + Send;
 
     /// convert data to output type
-    fn transform(cell: Cell) -> Self::OutType;
+    fn transform(cell: Cell) -> Self::UnitType;
 
-    // TODO: consume data
+    fn consume<'a>(
+        &mut self,
+        _chunked_data: Self::OutType,
+        _csm_fn: &'a SyncConsumeFn<Self::OutType>,
+    ) -> FabrixResult<()> {
+        unimplemented!()
+    }
+
+    async fn consume_async<'a>(
+        &mut self,
+        _chunked_data: Self::OutType,
+        _csm_fn: &'a AsyncConsumeFn<Self::OutType>,
+    ) -> FabrixResult<()> {
+        unimplemented!()
+    }
 }
 
 /// Xl file source type
@@ -36,13 +61,13 @@ pub enum XlSource<'a> {
     Url(&'a str),
 }
 
-/// Xl sheet worker
+/// Xl worker
 ///
-/// used for processing a single sheet, who accepts a batch_size and
+/// A private struct used for processing a single sheet, who accepts a batch_size and
 /// transform_fn to iterate over a worksheet
-struct XlSheetWorker<'a, CONSUMER, CORE>
+struct XlWorker<'a, CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE>,
 {
     batch_size: Option<usize>,
     buffer: RowIter<'a>,
@@ -50,9 +75,9 @@ where
     core: PhantomData<CORE>,
 }
 
-impl<'a, CONSUMER, CORE> XlSheetWorker<'a, CONSUMER, CORE>
+impl<'a, CONSUMER, CORE> XlWorker<'a, CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE>,
 {
     fn new(
         batch_size: Option<usize>,
@@ -79,7 +104,7 @@ where
 /// Xl sheet iter
 pub struct XlSheetIter<'a, CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE>,
 {
     batch_size: Option<usize>,
     buffer: RowIter<'a>,
@@ -89,7 +114,7 @@ where
 
 impl<'a, CONSUMER, CORE> XlSheetIter<'a, CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE>,
 {
     fn new(batch_size: Option<usize>, buffer: RowIter<'a>) -> Self {
         Self {
@@ -103,9 +128,9 @@ where
 
 impl<'a, CONSUMER, CORE> Iterator for XlSheetIter<'a, CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE>,
 {
-    type Item = Vec<Vec<CONSUMER::OutType>>;
+    type Item = Vec<Vec<CONSUMER::UnitType>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut chunk = Vec::new();
@@ -148,11 +173,11 @@ where
     }
 }
 
-impl<'a, CONSUMER, CORE> IntoIterator for XlSheetWorker<'a, CONSUMER, CORE>
+impl<'a, CONSUMER, CORE> IntoIterator for XlWorker<'a, CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE>,
 {
-    type Item = Vec<Vec<CONSUMER::OutType>>;
+    type Item = Vec<Vec<CONSUMER::UnitType>>;
     type IntoIter = XlSheetIter<'a, CONSUMER, CORE>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -167,7 +192,7 @@ where
 /// core: a phantom type to distinguish different consumers
 pub struct XlExecutor<CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE> + Send,
 {
     consumer: CONSUMER,
     workbook: Option<Workbook>,
@@ -176,7 +201,7 @@ where
 
 impl<CONSUMER, CORE> XlExecutor<CONSUMER, CORE>
 where
-    CONSUMER: XlDataConsumer<CORE>,
+    CONSUMER: XlConsumer<CORE> + Send,
 {
     /// constructor
     pub fn new(consumer: CONSUMER) -> Self {
@@ -213,6 +238,7 @@ where
         Ok(())
     }
 
+    /// iterate over a sheet
     pub fn iter_sheet(
         &mut self,
         batch_size: Option<usize>,
@@ -220,12 +246,62 @@ where
     ) -> FabrixResult<XlSheetIter<CONSUMER, CORE>> {
         match &mut self.workbook {
             Some(wb) => {
-                let worker = XlSheetWorker::new(batch_size, wb, sheet_name)?;
+                let worker = XlWorker::new(batch_size, wb, sheet_name)?;
 
                 Ok(worker.into_iter())
             }
             None => Err(FabrixError::new_common_error("Workbook not found")),
         }
+    }
+
+    // TODO: test
+    pub fn consume(
+        &mut self,
+        batch_size: Option<usize>,
+        sheet_name: &str,
+        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitType>>, CONSUMER::OutType>,
+        consume_fn: &SyncConsumeFn<CONSUMER::OutType>,
+    ) -> FabrixResult<()> {
+        let iter = match &mut self.workbook {
+            Some(wb) => {
+                let worker = XlWorker::<CONSUMER, CORE>::new(batch_size, wb, sheet_name)?;
+
+                Ok(worker.into_iter())
+            }
+            None => Err(FabrixError::new_common_error("Workbook not found")),
+        }?;
+
+        for d in iter {
+            let cd = convert_fn(d)?;
+            self.consumer.consume(cd, consume_fn)?;
+        }
+
+        Ok(())
+    }
+
+    // TODO: test
+    pub async fn consume_async<'a>(
+        &mut self,
+        batch_size: Option<usize>,
+        sheet_name: &str,
+        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitType>>, CONSUMER::OutType>,
+        consume_fn: &AsyncConsumeFn<'a, CONSUMER::OutType>,
+    ) -> FabrixResult<()> {
+        let iter = match &mut self.workbook {
+            Some(wb) => {
+                let worker = XlWorker::<CONSUMER, CORE>::new(batch_size, wb, sheet_name)?;
+
+                Ok(worker.into_iter())
+            }
+            None => Err(FabrixError::new_common_error("Workbook not found")),
+        }?;
+
+        for d in iter {
+            let cd = convert_fn(d)?;
+            self.consumer.consume_async(cd, consume_fn).await?
+        }
+
+        Ok(())
     }
 }
 
@@ -236,10 +312,11 @@ mod test_xl_executor {
 
     struct TestExec;
 
-    impl XlDataConsumer<()> for TestExec {
+    impl XlConsumer<()> for TestExec {
+        type UnitType = String;
         type OutType = String;
 
-        fn transform(cell: Cell) -> Self::OutType {
+        fn transform(cell: Cell) -> Self::UnitType {
             cell.value.to_string()
         }
     }

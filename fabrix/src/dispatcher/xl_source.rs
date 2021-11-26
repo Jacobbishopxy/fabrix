@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use futures::future::BoxFuture;
 use serde_json::Value as JsonValue;
 
-use crate::sources::file::executor::XlDataConsumer;
+use crate::sources::file::executor::XlConsumer;
 use crate::sources::file::{Cell, ExcelValue};
 use crate::{value, DataFrame, FabrixResult, Value, D2};
 
@@ -38,13 +38,14 @@ pub trait Xl2Db {
     fn save(&mut self, data: DataFrame) -> FabrixResult<()>;
 }
 
-impl<T> XlDataConsumer<Db> for T
+impl<T> XlConsumer<Db> for T
 where
     T: Xl2Db,
 {
-    type OutType = Value;
+    type UnitType = Value;
+    type OutType = DataFrame;
 
-    fn transform(cell: Cell) -> Self::OutType {
+    fn transform(cell: Cell) -> Self::UnitType {
         match cell.value {
             ExcelValue::Bool(v) => value!(v),
             ExcelValue::Number(v) => value!(v),
@@ -71,13 +72,14 @@ pub trait Xl2Json {
     fn save(&mut self, data: JsonValue) -> FabrixResult<()>;
 }
 
-impl<T> XlDataConsumer<Json> for T
+impl<T> XlConsumer<Json> for T
 where
     T: Xl2Json,
 {
+    type UnitType = JsonValue;
     type OutType = JsonValue;
 
-    fn transform(cell: Cell) -> Self::OutType {
+    fn transform(cell: Cell) -> Self::UnitType {
         match cell.value {
             ExcelValue::Bool(v) => serde_json::json!(v),
             ExcelValue::Number(v) => serde_json::json!(v),
