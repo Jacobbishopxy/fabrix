@@ -4,8 +4,7 @@ use async_trait::async_trait;
 use futures::future::BoxFuture;
 use serde_json::Value as JsonValue;
 
-use crate::sources::file::executor::XlConsumer;
-use crate::sources::file::{Cell, ExcelValue};
+use crate::sources::file::{Cell, ExcelValue, XlConsumer};
 use crate::{value, DataFrame, FabrixResult, Value, D2};
 
 /// source: database
@@ -42,10 +41,10 @@ impl<T> XlConsumer<Db> for T
 where
     T: Xl2Db,
 {
-    type UnitType = Value;
-    type OutType = DataFrame;
+    type UnitOut = Value;
+    type FinalOut = DataFrame;
 
-    fn transform(cell: Cell) -> Self::UnitType {
+    fn transform(cell: Cell) -> Self::UnitOut {
         match cell.value {
             ExcelValue::Bool(v) => value!(v),
             ExcelValue::Number(v) => value!(v),
@@ -76,10 +75,10 @@ impl<T> XlConsumer<Json> for T
 where
     T: Xl2Json,
 {
-    type UnitType = JsonValue;
-    type OutType = JsonValue;
+    type UnitOut = JsonValue;
+    type FinalOut = JsonValue;
 
-    fn transform(cell: Cell) -> Self::UnitType {
+    fn transform(cell: Cell) -> Self::UnitOut {
         match cell.value {
             ExcelValue::Bool(v) => serde_json::json!(v),
             ExcelValue::Number(v) => serde_json::json!(v),

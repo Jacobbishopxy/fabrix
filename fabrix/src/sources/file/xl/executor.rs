@@ -22,7 +22,20 @@ pub type AsyncConsumeFn<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
 /// Xl Consumer
 ///
 /// A public trait that defines the interface for a Xl consumer.
-/// Any type that implements this trait can be treated as 'source' in a streaming process.
+///
+/// To implement this trait:
+/// - `UnitOut` which represents the converted type of the `Cell`,
+/// - `FinalOut` which represents the output of the converted `ChunkCell`.
+/// - `transform` which converts the `Cell` into `UnitOut`.
+///
+/// Notice `consume_sync` and `consume_async` already has default implementation,
+/// so normally we don't have to implement them. The purpose of these two methods
+/// is to consume the `FinalOut`, but the `FinalOut` cannot be known until the
+/// `ConvertFn<IN, OUT>` is given. That is to say, the `Vec<Vec<UnitOut>>` -> `FinalOut`
+/// process is plug-able, and we can use different `ConvertFn` to make data
+/// transformation more flexible.
+///
+/// Any type who implements this trait can be treated as the 'source' of a stream.
 /// It can either send parsed data to other `source` such as database and file,
 /// or via http or grpc to other services.
 ///
@@ -30,26 +43,28 @@ pub type AsyncConsumeFn<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
 /// For instance, a database consumer will have a CORE type of `Database`.
 #[async_trait]
 pub trait XlConsumer<CORE> {
-    type UnitType: Display + Send;
-    type OutType: Display + Send;
+    type UnitOut: Display + Send;
+    type FinalOut: Display + Send;
 
     /// convert data to output type
-    fn transform(cell: Cell) -> Self::UnitType;
+    fn transform(cell: Cell) -> Self::UnitOut;
 
+    /// consume `FinalOut` synchronously
     fn consume<'a>(
         &mut self,
-        _chunked_data: Self::OutType,
-        _csm_fn: &'a SyncConsumeFn<Self::OutType>,
+        chunked_data: Self::FinalOut,
+        csm_fn: &'a SyncConsumeFn<Self::FinalOut>,
     ) -> FabrixResult<()> {
-        unimplemented!()
+        csm_fn(chunked_data)
     }
 
+    /// consume `FinalOut` asynchronously
     async fn consume_async<'a>(
         &mut self,
-        _chunked_data: Self::OutType,
-        _csm_fn: &'a AsyncConsumeFn<Self::OutType>,
+        chunked_data: Self::FinalOut,
+        csm_fn: &'a AsyncConsumeFn<Self::FinalOut>,
     ) -> FabrixResult<()> {
-        unimplemented!()
+        csm_fn(chunked_data).await
     }
 }
 
@@ -102,6 +117,8 @@ where
 }
 
 /// Xl sheet iter
+///
+/// A public struct used for iterating over a worksheet.
 pub struct XlSheetIter<'a, CONSUMER, CORE>
 where
     CONSUMER: XlConsumer<CORE>,
@@ -130,7 +147,7 @@ impl<'a, CONSUMER, CORE> Iterator for XlSheetIter<'a, CONSUMER, CORE>
 where
     CONSUMER: XlConsumer<CORE>,
 {
-    type Item = Vec<Vec<CONSUMER::UnitType>>;
+    type Item = Vec<Vec<CONSUMER::UnitOut>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut chunk = Vec::new();
@@ -173,11 +190,12 @@ where
     }
 }
 
+/// impl IntoIterator for XlSheetIter
 impl<'a, CONSUMER, CORE> IntoIterator for XlWorker<'a, CONSUMER, CORE>
 where
     CONSUMER: XlConsumer<CORE>,
 {
-    type Item = Vec<Vec<CONSUMER::UnitType>>;
+    type Item = Vec<Vec<CONSUMER::UnitOut>>;
     type IntoIter = XlSheetIter<'a, CONSUMER, CORE>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -187,8 +205,8 @@ where
 
 /// Xl executor
 ///
-/// wb: Workbook
 /// consumer: a concrete type who implemented XlDataConsumer
+/// workbook: working resource
 /// core: a phantom type to distinguish different consumers
 pub struct XlExecutor<CONSUMER, CORE>
 where
@@ -238,7 +256,7 @@ where
         Ok(())
     }
 
-    /// iterate over a sheet
+    /// return an iterator of xl sheet data
     pub fn iter_sheet(
         &mut self,
         batch_size: Option<usize>,
@@ -254,13 +272,13 @@ where
         }
     }
 
-    // TODO: test
+    /// consume a sheet synchronously
     pub fn consume(
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitType>>, CONSUMER::OutType>,
-        consume_fn: &SyncConsumeFn<CONSUMER::OutType>,
+        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitOut>>, CONSUMER::FinalOut>,
+        consume_fn: &SyncConsumeFn<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter = match &mut self.workbook {
             Some(wb) => {
@@ -279,13 +297,13 @@ where
         Ok(())
     }
 
-    // TODO: test
-    pub async fn consume_async<'a>(
+    /// consume a sheet asynchronously
+    pub async fn async_consume<'a>(
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitType>>, CONSUMER::OutType>,
-        consume_fn: &AsyncConsumeFn<'a, CONSUMER::OutType>,
+        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitOut>>, CONSUMER::FinalOut>,
+        consume_fn: &AsyncConsumeFn<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter = match &mut self.workbook {
             Some(wb) => {
@@ -306,23 +324,41 @@ where
 }
 
 /// Simplest consumer that prints the data to stdout
+///
+/// - `iter_sheet`
+/// - `consume`
+/// - `async_consume`
 #[cfg(test)]
 mod test_xl_executor {
     use super::*;
 
     struct TestExec;
 
-    impl XlConsumer<()> for TestExec {
-        type UnitType = String;
-        type OutType = String;
+    struct Fo(Vec<Vec<String>>);
 
-        fn transform(cell: Cell) -> Self::UnitType {
+    impl std::fmt::Display for Fo {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            for row in &self.0 {
+                for cell in row {
+                    write!(f, "{} \t|", cell)?;
+                }
+                write!(f, "\n")?;
+            }
+            Ok(())
+        }
+    }
+
+    impl XlConsumer<()> for TestExec {
+        type UnitOut = String;
+        type FinalOut = Fo;
+
+        fn transform(cell: Cell) -> Self::UnitOut {
             cell.value.to_string()
         }
     }
 
     #[test]
-    fn test_exec() {
+    fn test_exec_iter_sheet() {
         let source = XlSource::Path("../mock/test.xlsx");
         let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
 
@@ -331,5 +367,53 @@ mod test_xl_executor {
         for chunk in foo {
             println!("{:?}", chunk);
         }
+    }
+
+    fn convert_fn(data: Vec<Vec<String>>) -> FabrixResult<Fo> {
+        Ok(Fo(data))
+    }
+
+    fn consume_fn(fo: Fo) -> FabrixResult<()> {
+        println!("{}\n\n", fo);
+        Ok(())
+    }
+
+    async fn async_consume_fn(fo: Fo) -> FabrixResult<()> {
+        println!("{}\n\n", fo);
+        Ok(())
+    }
+
+    // consume synchronously
+    #[test]
+    fn test_exec_consume() {
+        let source = XlSource::Path("../mock/test.xlsx");
+        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+
+        let foo = xle.consume(
+            Some(20),
+            "data",
+            &(convert_fn as ConvertFn<Vec<Vec<String>>, Fo>),
+            &(consume_fn as SyncConsumeFn<Fo>),
+        );
+
+        println!("{:?}", foo);
+    }
+
+    // consume synchronously
+    #[tokio::test]
+    async fn test_exec_async_consume() {
+        let source = XlSource::Path("../mock/test.xlsx");
+        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+
+        let foo = xle
+            .async_consume(
+                Some(20),
+                "data",
+                &(convert_fn as ConvertFn<Vec<Vec<String>>, Fo>),
+                &((|fo| Box::pin(async_consume_fn(fo))) as AsyncConsumeFn<Fo>),
+            )
+            .await;
+
+        println!("{:?}", foo);
     }
 }
