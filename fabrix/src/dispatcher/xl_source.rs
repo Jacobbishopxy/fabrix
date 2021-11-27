@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use futures::future::BoxFuture;
 use serde_json::Value as JsonValue;
 
-use crate::sources::file::{Cell, ExcelValue, XlConsumer};
+use crate::sources::xl::{Cell, ExcelValue, XlConsumer};
 use crate::{value, DataFrame, FabrixResult, Value, D2};
 
 /// source: database
@@ -170,7 +170,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db() {
-        use crate::sources::file::{XlExecutor, XlSource};
+        use crate::sources::xl::{XlExecutor, XlSource};
 
         // Xl read from a path
         let source = XlSource::Path("../mock/test.xlsx");

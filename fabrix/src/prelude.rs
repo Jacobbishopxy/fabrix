@@ -18,9 +18,9 @@ pub use crate::sources::sql::sql_executor::{SqlConnInfo, SqlEngine, SqlExecutor}
 
 // sources: file
 #[cfg(feature = "file")]
-pub use crate::sources::file::error::{FlError, FlResult};
-#[cfg(feature = "file")]
-pub use crate::sources::file::{XlExecutor, XlSource};
+pub use crate::sources::error::{FlError, FlResult};
+#[cfg(feature = "xl")]
+pub use crate::sources::xl::{XlExecutor, XlSource};
 
 // sources: bson
 #[cfg(feature = "bson")]

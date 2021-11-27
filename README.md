@@ -21,6 +21,7 @@ There are three main parts in this crate:
 │   └── macros.rs
 │
 ├── sources
+│   │
 │   ├── sql
 │   │   ├── sql_builder                 // SQL builder
 │   │   │   ├── adt.rs                  // algebraic data type
@@ -39,16 +40,15 @@ There are three main parts in this crate:
 │   │       ├── executor.rs             // Sql executor, business logic implementation
 │   │       └── macros.rs
 │   │
-│   ├── file
-│   │   ├── xl                          // Excel
-│   │   │   ├── util.rs                 // Excel utility
-│   │   │   ├── worksheet.rs            // Excel worksheet
-│   │   │   ├── workbook.rs             // Excel workbook
-│   │   │   └── executor.rs             // Excel executor, business logic implementation
-│   │   │
-│   │   ├── csv                         // CSV
-│   │   │
-│   │   └── parquet                     // Parquet
+│   ├── xl                              // Excel
+│   │   ├── util.rs                     // Excel utility
+│   │   ├── worksheet.rs                // Excel worksheet
+│   │   ├── workbook.rs                 // Excel workbook
+│   │   └── executor.rs                 // Excel executor, business logic implementation
+│   │
+│   ├── csv                             // CSV
+│   │
+│   ├── parquet                         // Parquet
 │   │
 │   ├── bson                            // BSON & JSON
 │   │
