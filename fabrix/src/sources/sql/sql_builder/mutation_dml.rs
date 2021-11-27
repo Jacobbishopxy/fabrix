@@ -2,8 +2,8 @@
 
 use sea_query::{Expr, Query};
 
-use super::{alias, filter_builder, statement, try_from_value_to_svalue, DeleteOrSelect};
-use crate::{sql_adt, DataFrame, DmlMutation, SqlBuilder, SqlResult};
+use super::{alias, filter_builder, sql_adt, statement, try_from_value_to_svalue, DeleteOrSelect};
+use crate::{DataFrame, DmlMutation, SqlBuilder, SqlResult};
 
 impl DmlMutation for SqlBuilder {
     /// given a `Dataframe`, insert it into an existing table

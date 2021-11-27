@@ -2,8 +2,8 @@
 
 use sea_query::{ColumnDef, Table};
 
-use super::{alias, statement};
-use crate::{sql_adt, DdlMutation, FieldInfo, SqlBuilder, ValueType};
+use super::{alias, sql_adt, statement};
+use crate::{DdlMutation, FieldInfo, SqlBuilder, ValueType};
 
 impl DdlMutation for SqlBuilder {
     /// given a `Dataframe` columns, generate SQL create_table string

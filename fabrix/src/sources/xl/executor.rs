@@ -245,6 +245,10 @@ where
         })
     }
 
+    pub fn consumer(&mut self) -> &mut CONSUMER {
+        &mut self.consumer
+    }
+
     /// replace or set a new workbook
     pub fn add_source(&mut self, source: XlSource) -> FabrixResult<()> {
         let wb = match source {
@@ -262,14 +266,7 @@ where
         batch_size: Option<usize>,
         sheet_name: &str,
     ) -> FabrixResult<XlSheetIter<CONSUMER, CORE>> {
-        match &mut self.workbook {
-            Some(wb) => {
-                let worker = XlWorker::new(batch_size, wb, sheet_name)?;
-
-                Ok(worker.into_iter())
-            }
-            None => Err(FabrixError::new_common_error("Workbook not found")),
-        }
+        gen_worksheet_iter(&mut self.workbook, batch_size, sheet_name)
     }
 
     /// consume a sheet synchronously
@@ -280,14 +277,8 @@ where
         convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitOut>>, CONSUMER::FinalOut>,
         consume_fn: &SyncConsumeFn<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
-        let iter = match &mut self.workbook {
-            Some(wb) => {
-                let worker = XlWorker::<CONSUMER, CORE>::new(batch_size, wb, sheet_name)?;
-
-                Ok(worker.into_iter())
-            }
-            None => Err(FabrixError::new_common_error("Workbook not found")),
-        }?;
+        let iter =
+            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -305,14 +296,8 @@ where
         convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitOut>>, CONSUMER::FinalOut>,
         consume_fn: &AsyncConsumeFn<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
-        let iter = match &mut self.workbook {
-            Some(wb) => {
-                let worker = XlWorker::<CONSUMER, CORE>::new(batch_size, wb, sheet_name)?;
-
-                Ok(worker.into_iter())
-            }
-            None => Err(FabrixError::new_common_error("Workbook not found")),
-        }?;
+        let iter =
+            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -320,6 +305,28 @@ where
         }
 
         Ok(())
+    }
+}
+
+/// Generate a worksheet iterator
+///
+/// The purpose of this function is to simplify the construction of XlSheetIter,
+/// since it will be used in `iter_sheet`, `consume` and `async_consume` methods.
+fn gen_worksheet_iter<'a, CONSUMER, CORE>(
+    workbook: &'a mut Option<Workbook>,
+    batch_size: Option<usize>,
+    sheet_name: &str,
+) -> FabrixResult<XlSheetIter<'a, CONSUMER, CORE>>
+where
+    CONSUMER: XlConsumer<CORE>,
+{
+    match workbook {
+        Some(wb) => {
+            let worker = XlWorker::<CONSUMER, CORE>::new(batch_size, wb, sheet_name)?;
+
+            Ok(worker.into_iter())
+        }
+        None => Err(FabrixError::new_common_error("Workbook not found")),
     }
 }
 
@@ -332,6 +339,7 @@ where
 mod test_xl_executor {
     use super::*;
 
+    // A test struct to implement XlConsumer
     struct TestExec;
 
     struct Fo(Vec<Vec<String>>);

@@ -52,7 +52,7 @@ There are three main parts in this crate:
 │   │
 │   ├── bson                            // BSON & JSON
 │   │
-│   └── mgo                             // MongoDB
+│   └── mongo                           // MongoDB
 │
 ├── dispatcher                          // dispatcher for different data source
 │   ├── xl_source.rs                    // Excel as stream source

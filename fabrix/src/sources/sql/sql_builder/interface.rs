@@ -1,6 +1,7 @@
 //! Sql builder interface
 
-use crate::{sql_adt, DataFrame, FieldInfo, Series, SqlResult};
+use super::sql_adt;
+use crate::{DataFrame, FieldInfo, Series, SqlResult};
 
 // DDL Query
 pub trait DdlQuery {

@@ -1,6 +1,7 @@
 //! Fabrix Pipes
 
-pub mod db_source;
-pub mod xl_source;
+pub mod xl_to_db;
+pub mod xl_to_json;
 
-pub use xl_source::{Xl2Db, Xl2DbAsync};
+/// source: database
+pub struct DispatcherDB;

@@ -10,22 +10,21 @@ pub use crate::core::{
 
 // sources: db
 #[cfg(feature = "sql")]
-pub use crate::sources::sql::error::{SqlError, SqlResult};
-#[cfg(feature = "sql")]
-pub use crate::sources::sql::sql_builder::sql_adt;
-#[cfg(feature = "sql")]
-pub use crate::sources::sql::sql_executor::{SqlConnInfo, SqlEngine, SqlExecutor};
+pub use crate::sources::sql::{
+    self,
+    error::{SqlError, SqlResult},
+};
 
-// sources: file
+// sources: file and its sub-modules
 #[cfg(feature = "file")]
-pub use crate::sources::error::{FlError, FlResult};
+pub use crate::sources::file_error::{FlError, FlResult};
+// sources: xl
 #[cfg(feature = "xl")]
-pub use crate::sources::xl::{XlExecutor, XlSource};
-
+pub use crate::sources::xl;
 // sources: bson
 #[cfg(feature = "bson")]
-pub use crate::sources::bson::error::{BsError, BsResult};
+pub use crate::sources::bson;
 
 // dispatcher
-#[cfg(all(feature = "sql", feature = "file"))]
-pub use crate::dispatcher::{Xl2Db, Xl2DbAsync};
+#[cfg(feature = "sql")]
+pub use crate::dispatcher::DispatcherDB;

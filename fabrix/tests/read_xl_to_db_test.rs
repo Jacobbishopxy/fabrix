@@ -3,6 +3,7 @@
 //! # Examples
 
 use fabrix::prelude::*;
+use fabrix::sql::*;
 
 const CONN3: &'static str = "sqlite://dev.sqlite";
 
@@ -36,28 +37,11 @@ impl TestXl2Db {
     }
 }
 
-// TODO: neither `Xl2DbAsync` nor `Xl2Db` can handle uncertain input params
-// for example, in the following case `tale_name` and `index_name` can not
-// be placed in `to_dataframe` and `save` respectively
-impl Xl2Db for TestXl2Db {
-    fn to_dataframe(rows: D2) -> FabrixResult<DataFrame> {
-        todo!()
-    }
-
-    fn save(&mut self, data: DataFrame) -> FabrixResult<()> {
-        todo!()
-    }
-}
-
 #[tokio::test]
 async fn test_xl2db_async() {
-    let source = XlSource::Path("../mock/test.xlsx");
+    let source = xl::XlSource::Path("../mock/test.xlsx");
 
     let consumer = TestXl2Db::new(CONN3).await.unwrap();
-
-    let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
-
-    let iter = xle.iter_sheet(None, "data");
 
     // println!("{:?}", res);
 
@@ -75,8 +59,4 @@ async fn test_xl2db_async() {
         ],
         ..Default::default()
     };
-
-    // let res = xle.consumer().sql_executor().select(&select).await;
-
-    // println!("{:?}", res);
 }

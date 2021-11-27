@@ -8,8 +8,8 @@ use super::{
     FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
-    sql_adt, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series, SqlBuilder, SqlError,
-    SqlResult, Value, ValueType, D1,
+    sql::sql_adt, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series, SqlBuilder,
+    SqlError, SqlResult, Value, ValueType, D1,
 };
 
 #[async_trait]

@@ -12,7 +12,8 @@
 #![feature(assert_matches)]
 use std::assert_matches::assert_matches;
 
-use fabrix::{df, sql_adt, value, DateTime, SqlEngine, SqlExecutor};
+use fabrix::sql::{sql_adt, SqlEngine, SqlExecutor};
+use fabrix::{df, value, DateTime};
 
 const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";

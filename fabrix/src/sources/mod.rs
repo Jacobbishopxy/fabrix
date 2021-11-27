@@ -1,13 +1,13 @@
 //! Fabrix sources
 
-pub mod error;
+pub mod file_error;
 
 #[cfg(feature = "bson")]
 pub mod bson;
 #[cfg(feature = "csv")]
 pub mod csv;
-#[cfg(feature = "mgo")]
-pub mod mgo;
+#[cfg(feature = "mongo")]
+pub mod mongo;
 #[cfg(feature = "parquet")]
 pub mod parquet;
 #[cfg(feature = "sql")]
