@@ -1,10 +1,10 @@
 //!  xl -> db
 
-use super::DispatcherDB;
+use super::XlToDb;
 use crate::xl::{Cell, ExcelValue, XlConsumer};
 use crate::{sql::SqlExecutor, value, DataFrame, Value};
 
-impl XlConsumer<DispatcherDB> for SqlExecutor {
+impl XlConsumer<XlToDb> for SqlExecutor {
     type UnitOut = Value;
     type FinalOut = DataFrame;
 
@@ -21,6 +21,8 @@ impl XlConsumer<DispatcherDB> for SqlExecutor {
         }
     }
 }
+
+// TODO: provide some default adaptors `convert_fn` & `consume_fn` functions
 
 /// This test case shows a normal process of implement Xl2Db for custom biz logic.
 #[cfg(test)]
@@ -48,7 +50,7 @@ mod test_xl_reader {
         let source = XlSource::Path("../mock/test.xlsx");
 
         // consumer instance
-        let mut consumer = SqlExecutor::from_str(CONN3);
+        let consumer = SqlExecutor::from_str(CONN3);
         // consumer.connect().await.unwrap();
 
         // XlExecutor instance
@@ -68,7 +70,6 @@ mod test_xl_reader {
 
         println!("{:?}", foo);
 
-        // TODO: redo sql_adt
         // sql selection
         let select = sql_adt::Select {
             table: "test_table".into(),

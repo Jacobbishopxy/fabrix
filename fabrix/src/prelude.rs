@@ -26,5 +26,7 @@ pub use crate::sources::xl;
 pub use crate::sources::bson;
 
 // dispatcher
-#[cfg(feature = "sql")]
-pub use crate::dispatcher::DispatcherDB;
+#[cfg(all(feature = "xl", feature = "sql"))]
+pub use crate::dispatcher::XlToDb;
+#[cfg(all(feature = "xl", feature = "bson"))]
+pub use crate::dispatcher::XlToJson;
