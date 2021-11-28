@@ -8,15 +8,15 @@ use async_trait::async_trait;
 use futures::future::BoxFuture;
 
 use super::{Cell, RowIter, Workbook};
-use crate::{FabrixError, FabrixResult};
+use crate::{FabrixError, FabrixResult, D2};
 
-/// A convert function pointer used for converting `ChunkCell` into type parameter `OUT`.
+/// A convert function pointer used for converting `D2<UnitOut>` into type parameter `FinalOut`.
 pub type ConvertFn<IN, OUT> = fn(IN) -> FabrixResult<OUT>;
 
-/// A synchronous convert function pointer used for consuming type parameter `OUT`
+/// A synchronous convert function pointer used for consuming type parameter `FinalOut`
 pub type SyncConsumeFn<OUT> = fn(OUT) -> FabrixResult<()>;
 
-/// A asynchronous convert function pointer used for consuming type parameter `OUT`
+/// A asynchronous convert function pointer used for consuming type parameter `FinalOut`
 pub type AsyncConsumeFn<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
 
 /// Xl Consumer
@@ -31,7 +31,7 @@ pub type AsyncConsumeFn<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
 /// Notice `consume_sync` and `consume_async` already has default implementation,
 /// so normally we don't have to implement them. The purpose of these two methods
 /// is to consume the `FinalOut`, but the `FinalOut` cannot be known until the
-/// `ConvertFn<IN, OUT>` is given. That is to say, the `Vec<Vec<UnitOut>>` -> `FinalOut`
+/// `ConvertFn<IN, OUT>` is given. That is to say, the `D2<UnitOut>` -> `FinalOut`
 /// process is plug-able, and we can use different `ConvertFn` to make data
 /// transformation more flexible.
 ///
@@ -147,7 +147,7 @@ impl<'a, CONSUMER, CORE> Iterator for XlSheetIter<'a, CONSUMER, CORE>
 where
     CONSUMER: XlConsumer<CORE>,
 {
-    type Item = Vec<Vec<CONSUMER::UnitOut>>;
+    type Item = D2<CONSUMER::UnitOut>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut chunk = Vec::new();
@@ -195,7 +195,7 @@ impl<'a, CONSUMER, CORE> IntoIterator for XlWorker<'a, CONSUMER, CORE>
 where
     CONSUMER: XlConsumer<CORE>,
 {
-    type Item = Vec<Vec<CONSUMER::UnitOut>>;
+    type Item = D2<CONSUMER::UnitOut>;
     type IntoIter = XlSheetIter<'a, CONSUMER, CORE>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -274,7 +274,7 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitOut>>, CONSUMER::FinalOut>,
+        convert_fn: &ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: &SyncConsumeFn<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
@@ -293,7 +293,7 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: &ConvertFn<Vec<Vec<CONSUMER::UnitOut>>, CONSUMER::FinalOut>,
+        convert_fn: &ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: &AsyncConsumeFn<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
@@ -342,7 +342,7 @@ mod test_xl_executor {
     // A test struct to implement XlConsumer
     struct TestExec;
 
-    struct Fo(Vec<Vec<String>>);
+    struct Fo(D2<String>);
 
     impl std::fmt::Display for Fo {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -377,7 +377,7 @@ mod test_xl_executor {
         }
     }
 
-    fn convert_fn(data: Vec<Vec<String>>) -> FabrixResult<Fo> {
+    fn convert_fn(data: D2<String>) -> FabrixResult<Fo> {
         Ok(Fo(data))
     }
 
@@ -400,7 +400,7 @@ mod test_xl_executor {
         let foo = xle.consume(
             Some(20),
             "data",
-            &(convert_fn as ConvertFn<Vec<Vec<String>>, Fo>),
+            &(convert_fn as ConvertFn<D2<String>, Fo>),
             &(consume_fn as SyncConsumeFn<Fo>),
         );
 
@@ -417,7 +417,7 @@ mod test_xl_executor {
             .async_consume(
                 Some(20),
                 "data",
-                &(convert_fn as ConvertFn<Vec<Vec<String>>, Fo>),
+                &(convert_fn as ConvertFn<D2<String>, Fo>),
                 &((|fo| Box::pin(async_consume_fn(fo))) as AsyncConsumeFn<Fo>),
             )
             .await;

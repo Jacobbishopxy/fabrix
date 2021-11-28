@@ -1,10 +1,7 @@
 //! Fabrix Pipes
 
-pub mod xl_to_db;
-pub mod xl_to_json;
+pub mod xl_db;
+pub mod xl_json;
 
-/// source: database
-pub struct XlToDb;
-
-/// source: json
-pub struct XlToJson;
+pub use xl_db::XlToDb;
+pub use xl_json::XlToJson;

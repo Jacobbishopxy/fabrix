@@ -2,8 +2,10 @@
 
 use serde_json::Value as JsonValue;
 
-use super::XlToJson;
 use crate::sources::xl::{Cell, ExcelValue, XlConsumer};
+
+/// xl -> json
+pub struct XlToJson;
 
 // TODO: need a bson/json executor
 // impl XlConsumer<XlToJson> for u8 {

@@ -26,7 +26,7 @@ use itertools::Itertools;
 use polars::prelude::Field;
 
 use super::{inf_err, oob_err, util::Stepper, SeriesIntoIterator};
-use crate::{CoreError, CoreResult, DataFrame, Series, Value, ValueType};
+use crate::{CoreError, CoreResult, D2Value, DataFrame, Series, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub struct Row {
@@ -112,7 +112,7 @@ impl DataFrame {
         }
 
         let n = iter.peek().unwrap().len();
-        let mut transposed_values: Vec<Vec<Value>> = vec![vec![]; n];
+        let mut transposed_values: D2Value = vec![vec![]; n];
 
         for row in iter {
             row.into_iter().enumerate().for_each(|(i, v)| {
@@ -129,8 +129,8 @@ impl DataFrame {
         Ok(DataFrame::from_series_default_index(series)?)
     }
 
-    /// create a DataFrame by Vec<Vec<Value>>, slower than column-wise constructors
-    pub fn from_row_values(values: Vec<Vec<Value>>) -> CoreResult<Self> {
+    /// create a DataFrame by D2Value, slower than column-wise constructors
+    pub fn from_row_values(values: D2Value) -> CoreResult<Self> {
         let iter = values.into_iter();
         Ok(DataFrame::from_row_values_iter(iter)?)
     }

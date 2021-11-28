@@ -18,10 +18,14 @@ use serde::{Deserialize, Serialize};
 
 use super::{impl_custom_value, impl_custom_value2, impl_try_from_value, impl_value_from};
 
+/// pub type D1<T>
+pub type D1<T> = Vec<T>;
+/// pub type D1<T>
+pub type D2<T> = Vec<Vec<T>>;
 /// pub type D1
-pub type D1 = Vec<Value>;
+pub type D1Value = D1<Value>;
 /// pub type D2
-pub type D2 = Vec<D1>;
+pub type D2Value = D2<Value>;
 /// pub type Date
 pub type ObjectTypeDate = ObjectType<Date>;
 /// pub type Time

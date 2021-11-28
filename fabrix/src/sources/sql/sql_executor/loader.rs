@@ -9,7 +9,9 @@ use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{Executor, MySql, MySqlPool, PgPool, Postgres, Sqlite, SqlitePool, Transaction};
 
 use super::{fetch_process, fetch_process_cst, types::SqlRow, SqlRowProcessor};
-use crate::{sql::sql_adt::ExecutionResult, Row, SqlBuilder, SqlResult, ValueType, D1, D2};
+use crate::{
+    sql::sql_adt::ExecutionResult, D1Value, D2Value, Row, SqlBuilder, SqlResult, ValueType,
+};
 
 /// turn MySqlQueryResult into ExecutionResult
 impl From<MySqlQueryResult> for ExecutionResult {
@@ -89,7 +91,7 @@ pub(crate) enum ExecutionResultOrData {
 }
 
 /// customized sql row processor fn
-type CstPrc = Box<dyn Fn(SqlRow) -> SqlResult<D1> + Sync + Send>;
+type CstPrc = Box<dyn Fn(SqlRow) -> SqlResult<D1Value> + Sync + Send>;
 
 /// database loader interface
 #[async_trait]
@@ -98,38 +100,47 @@ pub(crate) trait FabrixDatabaseLoader: Send + Sync {
     async fn disconnect(&self);
 
     /// fetch all and return 2d Value Vec
-    async fn fetch_all(&self, query: &str) -> SqlResult<D2>;
+    async fn fetch_all(&self, query: &str) -> SqlResult<D2Value>;
 
     /// fetch all with schema
-    async fn fetch_all_with_schema(&self, query: &str, value_types: &[ValueType]) -> SqlResult<D2>;
+    async fn fetch_all_with_schema(
+        &self,
+        query: &str,
+        value_types: &[ValueType],
+    ) -> SqlResult<D2Value>;
 
     /// fetch all, customized processing method
-    async fn fetch_all_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<D2>;
+    async fn fetch_all_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<D2Value>;
 
     /// fetch all with primary key. Make sure the first select column is always the primary key
     async fn fetch_all_to_rows(&self, query: &str) -> SqlResult<Vec<Row>>;
 
     /// fetch one and return 1d Value Vec
-    async fn fetch_one(&self, query: &str) -> SqlResult<D1>;
+    async fn fetch_one(&self, query: &str) -> SqlResult<D1Value>;
 
     /// fetch one with schema
-    async fn fetch_one_with_schema(&self, query: &str, value_types: &[ValueType]) -> SqlResult<D1>;
+    async fn fetch_one_with_schema(
+        &self,
+        query: &str,
+        value_types: &[ValueType],
+    ) -> SqlResult<D1Value>;
 
     /// fetch one, customized processing method
-    async fn fetch_one_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<D1>;
+    async fn fetch_one_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<D1Value>;
 
     /// fetch optional
-    async fn fetch_optional(&self, query: &str) -> SqlResult<Option<D1>>;
+    async fn fetch_optional(&self, query: &str) -> SqlResult<Option<D1Value>>;
 
     /// fetch optional with schema
     async fn fetch_optional_with_schema(
         &self,
         query: &str,
         value_types: &[ValueType],
-    ) -> SqlResult<Option<D1>>;
+    ) -> SqlResult<Option<D1Value>>;
 
     /// fetch optional, customized processing method
-    async fn fetch_optional_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<Option<D1>>;
+    async fn fetch_optional_cst_prc_fn(&self, query: &str, f: CstPrc)
+        -> SqlResult<Option<D1Value>>;
 
     // TODO: necessary?
     /// fetch many
@@ -180,7 +191,7 @@ impl FabrixDatabaseLoader for LoaderPool {
         }
     }
 
-    async fn fetch_all(&self, query: &str) -> SqlResult<D2> {
+    async fn fetch_all(&self, query: &str) -> SqlResult<D2Value> {
         let mut srp = SqlRowProcessor::new();
         let res = match self {
             Self::Mysql(pool) => fetch_process!(pool, query, &mut srp, process, fetch_all),
@@ -191,7 +202,11 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_all_with_schema(&self, query: &str, value_types: &[ValueType]) -> SqlResult<D2> {
+    async fn fetch_all_with_schema(
+        &self,
+        query: &str,
+        value_types: &[ValueType],
+    ) -> SqlResult<D2Value> {
         let res = match self {
             Self::Mysql(pool) => {
                 let mut srp = SqlRowProcessor::new_with_cache(&SqlBuilder::Mysql, value_types);
@@ -213,8 +228,8 @@ impl FabrixDatabaseLoader for LoaderPool {
     async fn fetch_all_cst_prc_fn(
         &self,
         query: &str,
-        f: Box<dyn Fn(SqlRow) -> SqlResult<D1> + Sync + Send>,
-    ) -> SqlResult<D2> {
+        f: Box<dyn Fn(SqlRow) -> SqlResult<D1Value> + Sync + Send>,
+    ) -> SqlResult<D2Value> {
         let srp = SqlRowProcessor::new();
 
         let res = match self {
@@ -237,7 +252,7 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_one(&self, query: &str) -> SqlResult<D1> {
+    async fn fetch_one(&self, query: &str) -> SqlResult<D1Value> {
         let mut srp = SqlRowProcessor::new();
         let res = match self {
             Self::Mysql(pool) => fetch_process!(pool, query, &mut srp, process, fetch_one),
@@ -248,7 +263,11 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_one_with_schema(&self, query: &str, value_types: &[ValueType]) -> SqlResult<D1> {
+    async fn fetch_one_with_schema(
+        &self,
+        query: &str,
+        value_types: &[ValueType],
+    ) -> SqlResult<D1Value> {
         let res = match self {
             Self::Mysql(pool) => {
                 let mut srp = SqlRowProcessor::new_with_cache(&SqlBuilder::Mysql, value_types);
@@ -267,7 +286,7 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_one_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<D1> {
+    async fn fetch_one_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<D1Value> {
         let srp = SqlRowProcessor::new();
         let res = match self {
             Self::Mysql(pool) => fetch_process_cst!(pool, query, &srp, &f, fetch_one),
@@ -278,7 +297,7 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_optional(&self, query: &str) -> SqlResult<Option<D1>> {
+    async fn fetch_optional(&self, query: &str) -> SqlResult<Option<D1Value>> {
         let mut srp = SqlRowProcessor::new();
 
         let res = match self {
@@ -294,7 +313,7 @@ impl FabrixDatabaseLoader for LoaderPool {
         &self,
         query: &str,
         value_types: &[ValueType],
-    ) -> SqlResult<Option<D1>> {
+    ) -> SqlResult<Option<D1Value>> {
         let res = match self {
             Self::Mysql(pool) => {
                 let mut srp = SqlRowProcessor::new_with_cache(&SqlBuilder::Mysql, value_types);
@@ -313,7 +332,11 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_optional_cst_prc_fn(&self, query: &str, f: CstPrc) -> SqlResult<Option<D1>> {
+    async fn fetch_optional_cst_prc_fn(
+        &self,
+        query: &str,
+        f: CstPrc,
+    ) -> SqlResult<Option<D1Value>> {
         let srp = SqlRowProcessor::new();
 
         let res = match self {

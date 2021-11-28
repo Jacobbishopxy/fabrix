@@ -6,7 +6,7 @@ use sqlx::{Column, Row as SRow};
 use super::types::{
     value_type_try_into_marker, OptMarker, SqlRow, MYSQL_TMAP, PG_TMAP, SQLITE_TMAP,
 };
-use crate::{Row, SqlBuilder, SqlResult, Value, ValueType, D1};
+use crate::{D1Value, Row, SqlBuilder, SqlResult, Value, ValueType};
 
 /// SqlRowProcessor is the core struct for processing different types of SqlRow
 pub(crate) struct SqlRowProcessor {
@@ -68,7 +68,11 @@ impl SqlRowProcessor {
     }
 
     /// customize processing fn, without using cache
-    pub fn process_by_fn<R>(&self, sql_row: R, f: &dyn Fn(SqlRow) -> SqlResult<D1>) -> SqlResult<D1>
+    pub fn process_by_fn<R>(
+        &self,
+        sql_row: R,
+        f: &dyn Fn(SqlRow) -> SqlResult<D1Value>,
+    ) -> SqlResult<D1Value>
     where
         R: Into<SqlRow>,
     {
@@ -169,7 +173,7 @@ mod test_processor {
         let processor = SqlRowProcessor::new();
 
         // apply a new function instead of using default `process` method
-        let box_f = |row| -> SqlResult<D1> {
+        let box_f = |row| -> SqlResult<D1Value> {
             let id = MYSQL_TMAP
                 .get("VARCHAR")
                 .unwrap()

@@ -8,8 +8,8 @@ use super::{
     FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
-    sql::sql_adt, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series, SqlBuilder,
-    SqlError, SqlResult, Value, ValueType, D1,
+    sql::sql_adt, D1Value, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series,
+    SqlBuilder, SqlError, SqlResult, Value, ValueType,
 };
 
 #[async_trait]
@@ -21,7 +21,7 @@ pub trait Helper {
     async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<sql_adt::TableSchema>>;
 
     /// get existing ids, supposing that the primary key is a single column, and the value is a string
-    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1>;
+    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1Value>;
 }
 
 /// An engin is an interface to describe sql executor's business logic
@@ -148,7 +148,7 @@ impl Helper for SqlExecutor {
         Ok(res)
     }
 
-    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1> {
+    async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1Value> {
         conn_n_err!(self.pool);
         let que = self.driver.select_existing_ids(table_name, ids)?;
         let schema = [ids.dtype()];

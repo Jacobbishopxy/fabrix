@@ -22,7 +22,7 @@ There are three main parts in this crate:
 │
 ├── sources
 │   │
-│   ├── sql
+│   ├── sql                             // Sql data source
 │   │   ├── sql_builder                 // SQL builder
 │   │   │   ├── adt.rs                  // algebraic data type
 │   │   │   ├── query_ddl.rs            // ddl query: check table or schema
@@ -32,31 +32,30 @@ There are three main parts in this crate:
 │   │   │   ├── interface.rs            // SQL builder & ddl/dml logic interface
 │   │   │   ├── builder.rs              // SQL builder & ddl/dml logic implement
 │   │   │   └── macros.rs
-│   │   │
-│   │   └── sql_executor
+│   │   └── sql_executor                // SQL executor
 │   │       ├── types.rs                // Conversion between Sql data type and Fabrix `Value`
 │   │       ├── processor.rs            // Sql row process, turn raw sql row into `Vec<Value>` or `Row`
 │   │       ├── loader.rs               // Database loader, CRUD logic implementation
 │   │       ├── executor.rs             // Sql executor, business logic implementation
 │   │       └── macros.rs
 │   │
-│   ├── xl                              // Excel
+│   ├── xl                              // Excel data source
 │   │   ├── util.rs                     // Excel utility
 │   │   ├── worksheet.rs                // Excel worksheet
 │   │   ├── workbook.rs                 // Excel workbook
 │   │   └── executor.rs                 // Excel executor, business logic implementation
 │   │
-│   ├── csv                             // CSV
+│   ├── csv                             // CSV data source
 │   │
-│   ├── parquet                         // Parquet
+│   ├── parquet                         // Parquet data source
 │   │
-│   ├── bson                            // BSON & JSON
+│   ├── bson                            // BSON & JSON data source
 │   │
-│   └── mongo                           // MongoDB
+│   └── mongo                           // MongoDB data source
 │
 ├── dispatcher                          // dispatcher for different data source
-│   ├── xl_source.rs                    // Excel as stream source
-│   └── db_source.rs                    // DB as stream source
+│   ├── xl_db.rs                        // Excel as stream source
+│   └── xl_json.rs                      // DB as stream source
 │
 ├── errors.rs                           // error handling
 │
