@@ -291,12 +291,50 @@ where
         Ok(())
     }
 
+    /// consume a sheet synchronously
+    pub fn consume_fn(
+        &mut self,
+        batch_size: Option<usize>,
+        sheet_name: &str,
+        convert_fn: impl Fn(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
+        consume_fn: SyncConsumeFn<CONSUMER::FinalOut>,
+    ) -> FabrixResult<()> {
+        let iter =
+            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+
+        for d in iter {
+            let cd = convert_fn(d)?;
+            self.consumer.consume(cd, consume_fn)?;
+        }
+
+        Ok(())
+    }
+
     /// consume a sheet asynchronously
     pub async fn async_consume<'a>(
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
         convert_fn: ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
+        consume_fn: AsyncConsumeFn<'a, CONSUMER::FinalOut>,
+    ) -> FabrixResult<()> {
+        let iter =
+            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+
+        for d in iter {
+            let cd = convert_fn(d)?;
+            self.consumer.consume_async(cd, consume_fn).await?
+        }
+
+        Ok(())
+    }
+
+    /// consume a sheet asynchronously
+    pub async fn async_consume_fn<'a>(
+        &mut self,
+        batch_size: Option<usize>,
+        sheet_name: &str,
+        convert_fn: impl Fn(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
         consume_fn: AsyncConsumeFn<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
@@ -420,8 +458,8 @@ mod test_xl_executor {
             .async_consume(
                 Some(20),
                 "data",
-                convert_fn as ConvertFn<D2<String>, Fo>,
-                (|fo| Box::pin(async_consume_fn(fo))) as AsyncConsumeFn<Fo>,
+                |d| convert_fn(d),
+                |fo| Box::pin(async_consume_fn(fo)),
             )
             .await;
 

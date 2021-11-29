@@ -8,7 +8,7 @@ use crate::{sql::SqlExecutor, value, D2Value, DataFrame, Value};
 // we need an another struct other than `XlToDb`
 // TODO: `consume_fn` however, needs to cache all the data (assuming the 1st column is the header)
 /// xl -> database
-pub struct XlToDb;
+pub struct XlToDb {}
 
 impl XlConsumer<XlToDb> for SqlExecutor {
     type UnitOut = Value;
@@ -28,6 +28,7 @@ impl XlConsumer<XlToDb> for SqlExecutor {
     }
 }
 
+// TODO: &mut self for these methods
 impl XlToDb {
     pub fn convert_row_wised_with_index(data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
@@ -77,13 +78,17 @@ mod test_xl_reader {
         // Connect to the database
         xle.consumer().connect().await.unwrap();
 
+        let mut xl2db = XlToDb {};
+
+        // let cvt_fn = |d| &mut xl2db.convert_row_wised_with_index(d);
+
         // read sheet, and save converted data into memory
         let foo = xle
-            .async_consume(
+            .async_consume_fn(
                 Some(50),
                 "data",
-                XlToDb::convert_row_wised_no_index as xl::ConvertFn<D2Value, DataFrame>,
-                (|fo| Box::pin(async_consume_fn(fo))) as xl::AsyncConsumeFn<DataFrame>,
+                |d| XlToDb::convert_row_wised_with_index(d),
+                |fo| Box::pin(async_consume_fn(fo)),
             )
             .await;
 
@@ -105,9 +110,9 @@ mod test_xl_reader {
             ..Default::default()
         };
 
-        // selected result
-        let res = xle.consumer().select(&select).await.unwrap();
+        // // selected result
+        // let res = xle.consumer().select(&select).await.unwrap();
 
-        println!("{:?}", res);
+        // println!("{:?}", res);
     }
 }
