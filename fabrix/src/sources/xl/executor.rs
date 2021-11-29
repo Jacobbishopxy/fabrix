@@ -53,18 +53,21 @@ pub trait XlConsumer<CORE> {
     fn consume<'a>(
         &mut self,
         chunked_data: Self::FinalOut,
-        csm_fn: &'a SyncConsumeFn<Self::FinalOut>,
+        consume_fn: SyncConsumeFn<Self::FinalOut>,
     ) -> FabrixResult<()> {
-        csm_fn(chunked_data)
+        consume_fn(chunked_data)
     }
 
     /// consume `FinalOut` asynchronously
     async fn consume_async<'a>(
         &mut self,
         chunked_data: Self::FinalOut,
-        csm_fn: &'a AsyncConsumeFn<Self::FinalOut>,
-    ) -> FabrixResult<()> {
-        csm_fn(chunked_data).await
+        consume_fn: AsyncConsumeFn<'a, Self::FinalOut>,
+    ) -> FabrixResult<()>
+    where
+        Self::FinalOut: 'a,
+    {
+        Box::pin(async { consume_fn(chunked_data).await }).await
     }
 }
 
@@ -274,8 +277,8 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: &ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
-        consume_fn: &SyncConsumeFn<CONSUMER::FinalOut>,
+        convert_fn: ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
+        consume_fn: SyncConsumeFn<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
             gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
@@ -293,8 +296,8 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: &ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
-        consume_fn: &AsyncConsumeFn<'a, CONSUMER::FinalOut>,
+        convert_fn: ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
+        consume_fn: AsyncConsumeFn<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
             gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
@@ -400,8 +403,8 @@ mod test_xl_executor {
         let foo = xle.consume(
             Some(20),
             "data",
-            &(convert_fn as ConvertFn<D2<String>, Fo>),
-            &(consume_fn as SyncConsumeFn<Fo>),
+            convert_fn as ConvertFn<D2<String>, Fo>,
+            consume_fn as SyncConsumeFn<Fo>,
         );
 
         println!("{:?}", foo);
@@ -417,8 +420,8 @@ mod test_xl_executor {
             .async_consume(
                 Some(20),
                 "data",
-                &(convert_fn as ConvertFn<D2<String>, Fo>),
-                &((|fo| Box::pin(async_consume_fn(fo))) as AsyncConsumeFn<Fo>),
+                convert_fn as ConvertFn<D2<String>, Fo>,
+                (|fo| Box::pin(async_consume_fn(fo))) as AsyncConsumeFn<Fo>,
             )
             .await;
 

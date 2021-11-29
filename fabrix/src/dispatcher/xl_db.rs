@@ -82,8 +82,8 @@ mod test_xl_reader {
             .async_consume(
                 Some(50),
                 "data",
-                &(XlToDb::convert_row_wised_no_index as xl::ConvertFn<D2Value, DataFrame>),
-                &((|fo| Box::pin(async_consume_fn(fo))) as xl::AsyncConsumeFn<DataFrame>),
+                XlToDb::convert_row_wised_no_index as xl::ConvertFn<D2Value, DataFrame>,
+                (|fo| Box::pin(async_consume_fn(fo))) as xl::AsyncConsumeFn<DataFrame>,
             )
             .await;
 

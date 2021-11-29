@@ -54,8 +54,8 @@ There are three main parts in this crate:
 │   └── mongo                           // MongoDB data source
 │
 ├── dispatcher                          // dispatcher for different data source
-│   ├── xl_db.rs                        // Excel as stream source
-│   └── xl_json.rs                      // DB as stream source
+│   ├── xl_db.rs                        // Excel -> Database
+│   └── xl_json.rs                      // Excel -> JSON
 │
 ├── errors.rs                           // error handling
 │
