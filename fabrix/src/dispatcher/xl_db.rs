@@ -30,19 +30,24 @@ impl XlConsumer<XlToDb> for SqlExecutor {
 
 // TODO: &mut self for these methods
 impl XlToDb {
-    pub fn convert_row_wised_with_index(data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_row_wised_with_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
     }
 
-    pub fn convert_row_wised_no_index(data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_row_wised_no_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
     }
 
-    pub fn convert_col_wised_with_index(data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_col_wised_with_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
     }
 
-    pub fn convert_col_wised_no_index(data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_col_wised_no_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
+        todo!()
+    }
+
+    // test fn
+    pub async fn consume(&mut self, data: DataFrame) -> FabrixResult<()> {
         todo!()
     }
 }
@@ -56,11 +61,6 @@ mod test_xl_reader {
     use crate::{sql, xl, D2Value, DataFrame, FabrixResult};
 
     const CONN3: &'static str = "sqlite://dev.sqlite";
-
-    async fn async_consume_fn(fo: DataFrame) -> FabrixResult<()> {
-        println!("{}\n\n", fo);
-        Ok(())
-    }
 
     #[tokio::test]
     async fn test_xl2db() {
@@ -76,23 +76,35 @@ mod test_xl_reader {
         // XlExecutor instance
         let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
         // Connect to the database
-        xle.consumer().connect().await.unwrap();
+        xle.consumer_mut().connect().await.unwrap();
 
         let mut xl2db = XlToDb {};
 
-        // let cvt_fn = |d| &mut xl2db.convert_row_wised_with_index(d);
+        let cvt = |d| xl2db.convert_col_wised_no_index(d);
+        // let csm = |data| {
+        //     Box::pin(async {
+        //         xle.consumer()
+        //             .save("test_table", data, &sql::sql_adt::SaveStrategy::Append)
+        //             .await?;
 
-        // read sheet, and save converted data into memory
-        let foo = xle
-            .async_consume_fn(
-                Some(50),
-                "data",
-                |d| XlToDb::convert_row_wised_with_index(d),
-                |fo| Box::pin(async_consume_fn(fo)),
-            )
+        //         Ok(())
+        //     })
+        // };
+
+        let res = xle
+            .async_consume_fn_mut(Some(30), "test_table", cvt, |data| {
+                Box::pin(async {
+                    // TODO: borrow checker issue
+                    // xle.consumer()
+                    //     .save("test_table", data, &sql::sql_adt::SaveStrategy::Append)
+                    //     .await?;
+
+                    Ok(())
+                })
+            })
             .await;
 
-        println!("{:?}", foo);
+        println!("{:?}", res);
 
         // sql selection
         let select = sql::sql_adt::Select {
@@ -110,9 +122,9 @@ mod test_xl_reader {
             ..Default::default()
         };
 
-        // // selected result
-        // let res = xle.consumer().select(&select).await.unwrap();
+        // selected result
+        let res = xle.consumer().select(&select).await.unwrap();
 
-        // println!("{:?}", res);
+        println!("{:?}", res);
     }
 }

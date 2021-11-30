@@ -11,13 +11,13 @@ use super::{Cell, RowIter, Workbook};
 use crate::{FabrixError, FabrixResult, D2};
 
 /// A convert function pointer used for converting `D2<UnitOut>` into type parameter `FinalOut`.
-pub type ConvertFn<IN, OUT> = fn(IN) -> FabrixResult<OUT>;
+pub type ConvertFP<IN, OUT> = fn(IN) -> FabrixResult<OUT>;
 
 /// A synchronous convert function pointer used for consuming type parameter `FinalOut`
-pub type SyncConsumeFn<OUT> = fn(OUT) -> FabrixResult<()>;
+pub type SyncConsumeFP<OUT> = fn(OUT) -> FabrixResult<()>;
 
 /// A asynchronous convert function pointer used for consuming type parameter `FinalOut`
-pub type AsyncConsumeFn<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
+pub type AsyncConsumeFP<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
 
 /// Xl Consumer
 ///
@@ -53,7 +53,15 @@ pub trait XlConsumer<CORE> {
     fn consume<'a>(
         &mut self,
         chunked_data: Self::FinalOut,
-        consume_fn: SyncConsumeFn<Self::FinalOut>,
+        consume_fn: SyncConsumeFP<Self::FinalOut>,
+    ) -> FabrixResult<()> {
+        consume_fn(chunked_data)
+    }
+    /// consume `FinalOut` synchronously
+    fn consume_mut<'a>(
+        &mut self,
+        chunked_data: Self::FinalOut,
+        mut consume_fn: impl FnMut(Self::FinalOut) -> FabrixResult<()> + 'a,
     ) -> FabrixResult<()> {
         consume_fn(chunked_data)
     }
@@ -62,12 +70,26 @@ pub trait XlConsumer<CORE> {
     async fn consume_async<'a>(
         &mut self,
         chunked_data: Self::FinalOut,
-        consume_fn: AsyncConsumeFn<'a, Self::FinalOut>,
+        consume_fn: AsyncConsumeFP<'a, Self::FinalOut>,
     ) -> FabrixResult<()>
     where
         Self::FinalOut: 'a,
     {
-        Box::pin(async { consume_fn(chunked_data).await }).await
+        Box::pin(consume_fn(chunked_data)).await
+    }
+
+    /// consume `FinalOut` asynchronously, with mutable reference `consume_fn`
+    async fn consume_async_mut<'a>(
+        &mut self,
+        chunked_data: Self::FinalOut,
+        mut consume_fn: impl FnMut(Self::FinalOut) -> BoxFuture<'a, FabrixResult<()>>
+            + Send
+            + 'async_trait,
+    ) -> FabrixResult<()>
+    where
+        Self::FinalOut: 'a,
+    {
+        Box::pin(consume_fn(chunked_data)).await
     }
 }
 
@@ -248,8 +270,14 @@ where
         })
     }
 
-    pub fn consumer(&mut self) -> &mut CONSUMER {
+    /// return mutable consumer from an XlExecutor
+    pub fn consumer_mut(&mut self) -> &mut CONSUMER {
         &mut self.consumer
+    }
+
+    /// return consumer reference from an XlExecutor
+    pub fn consumer(&self) -> &CONSUMER {
+        &self.consumer
     }
 
     /// replace or set a new workbook
@@ -277,8 +305,8 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
-        consume_fn: SyncConsumeFn<CONSUMER::FinalOut>,
+        convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
+        consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
             gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
@@ -297,7 +325,26 @@ where
         batch_size: Option<usize>,
         sheet_name: &str,
         convert_fn: impl Fn(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
-        consume_fn: SyncConsumeFn<CONSUMER::FinalOut>,
+        consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
+    ) -> FabrixResult<()> {
+        let iter =
+            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+
+        for d in iter {
+            let cd = convert_fn(d)?;
+            self.consumer.consume(cd, consume_fn)?;
+        }
+
+        Ok(())
+    }
+
+    /// consume a sheet synchronously
+    pub fn consume_fn_mut(
+        &mut self,
+        batch_size: Option<usize>,
+        sheet_name: &str,
+        mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
+        consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
             gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
@@ -315,8 +362,8 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: ConvertFn<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
-        consume_fn: AsyncConsumeFn<'a, CONSUMER::FinalOut>,
+        convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
+        consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
             gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
@@ -334,8 +381,8 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: impl Fn(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
-        consume_fn: AsyncConsumeFn<'a, CONSUMER::FinalOut>,
+        convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
+        consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
             gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
@@ -343,6 +390,29 @@ where
         for d in iter {
             let cd = convert_fn(d)?;
             self.consumer.consume_async(cd, consume_fn).await?
+        }
+
+        Ok(())
+    }
+
+    pub async fn async_consume_fn_mut<'a>(
+        &mut self,
+        batch_size: Option<usize>,
+        sheet_name: &str,
+        mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
+        mut consume_fn: impl FnMut(CONSUMER::FinalOut) -> BoxFuture<'a, FabrixResult<()>> + Send,
+    ) -> FabrixResult<()>
+    where
+        CONSUMER::FinalOut: 'a,
+    {
+        let iter =
+            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+
+        let csm = &mut consume_fn;
+
+        for d in iter {
+            let cd = convert_fn(d)?;
+            self.consumer.consume_async_mut(cd, &mut *csm).await?
         }
 
         Ok(())
@@ -438,12 +508,7 @@ mod test_xl_executor {
         let source = XlSource::Path("../mock/test.xlsx");
         let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
 
-        let foo = xle.consume(
-            Some(20),
-            "data",
-            convert_fn as ConvertFn<D2<String>, Fo>,
-            consume_fn as SyncConsumeFn<Fo>,
-        );
+        let foo = xle.consume(Some(20), "data", convert_fn, consume_fn);
 
         println!("{:?}", foo);
     }
