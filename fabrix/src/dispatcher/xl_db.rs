@@ -115,23 +115,13 @@ mod test_xl_reader {
         let mut xl2db = XlToDb {};
         let mut pc = PowerConsumer::new(CONN3).await.unwrap();
 
-        let res = xle
-            .async_consume_fn_mut(
-                Some(30),
-                "test_table",
-                |d| xl2db.convert_col_wised_no_index(d),
-                |data| {
-                    Box::pin(async {
-                        // TODO: captured variable cannot escape `FnMut` closure body
-                        // pc.save("test_table", data).await?;
+        let iter = xle.iter_sheet(Some(50), "test_table").unwrap();
 
-                        Ok(())
-                    })
-                },
-            )
-            .await;
-
-        println!("{:?}", res);
+        for (i, row) in iter.enumerate() {
+            let df = xl2db.convert_row_wised_no_index(row).unwrap();
+            let res = pc.save("test_table", df).await;
+            println!("{:?} : {:?}", i, res);
+        }
 
         // sql selection
         let select = sql::sql_adt::Select {

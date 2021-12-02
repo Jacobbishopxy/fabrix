@@ -228,6 +228,8 @@ where
     }
 }
 
+// TODO: consumer seems like no longer needed
+
 /// Xl executor
 ///
 /// consumer: a concrete type who implemented XlDataConsumer
