@@ -2,12 +2,10 @@
 
 use crate::xl::{Cell, ExcelValue, XlConsumer};
 use crate::FabrixResult;
-use crate::{sql::SqlExecutor, value, D2Value, DataFrame, Value};
+use crate::{sql::SqlExecutor, value, xl, D2Value, DataFrame, Value};
 
-// TODO: row-wised adaptor needs caching column names (assuming the 1st row is the header)
-// we need an another struct other than `XlToDb`
-// TODO: `consume_fn` however, needs to cache all the data (assuming the 1st column is the header)
-/// xl -> database
+pub type XlDb = xl::XlExecutor<SqlExecutor, XlToDb>;
+
 pub struct XlToDb {}
 
 impl XlConsumer<XlToDb> for SqlExecutor {
@@ -45,11 +43,6 @@ impl XlToDb {
     pub fn convert_col_wised_no_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
     }
-
-    // test fn
-    pub async fn consume(&mut self, data: DataFrame) -> FabrixResult<()> {
-        todo!()
-    }
 }
 
 /// This test case shows a normal process of implement Xl2Db for custom biz logic.
@@ -60,6 +53,7 @@ mod test_xl_reader {
     use tokio::sync::Mutex;
 
     use super::*;
+    use crate::sources::xl::XlSource;
     use crate::sql::SqlEngine;
     use crate::{sql, DataFrame, FabrixResult};
 
@@ -101,20 +95,17 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db() {
-        use crate::sources::xl::{XlExecutor, XlSource};
-
         // Xl read from a path
         let source = XlSource::Path("../mock/test.xlsx");
 
         // consumer instance
-        let consumer = SqlExecutor::from_str(CONN3);
+        let mut consumer = SqlExecutor::from_str(CONN3);
+        consumer.connect().await.unwrap();
 
         // XlExecutor instance
-        let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
-        // Connect to the database
-        xle.consumer_mut().connect().await.unwrap();
-
+        let mut xle = XlDb::new_with_source(source).unwrap();
         let mut xl2db = XlToDb {};
+
         let mut pc = PowerConsumer::new(CONN3).await.unwrap();
 
         let iter = xle.iter_sheet(Some(50), "test_table").unwrap();
@@ -146,21 +137,19 @@ mod test_xl_reader {
         };
 
         // selected result
-        let res = xle.consumer().select(&select).await.unwrap();
+        let res = consumer.select(&select).await.unwrap();
 
         println!("{:?}", res);
     }
 
     #[tokio::test]
     async fn test_xl2db_2() {
-        use crate::sources::xl::{XlExecutor, XlSource};
-
         let source = XlSource::Path("../mock/test.xlsx");
 
         let mut consumer = SqlExecutor::from_str(CONN3);
-        // consumer.connect().await.unwrap();
+        consumer.connect().await.unwrap();
 
-        let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
+        let mut xle = XlDb::new_with_source(source).unwrap();
 
         let mut xl2db = XlToDb {};
         let pc = Arc::new(Mutex::new(PowerConsumer::new(CONN3).await.unwrap()));

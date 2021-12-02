@@ -51,7 +51,6 @@ pub trait XlConsumer<CORE> {
 
     /// consume `FinalOut` synchronously
     fn consume<'a>(
-        &mut self,
         chunked_data: Self::FinalOut,
         consume_fn: SyncConsumeFP<Self::FinalOut>,
     ) -> FabrixResult<()> {
@@ -59,7 +58,6 @@ pub trait XlConsumer<CORE> {
     }
     /// consume `FinalOut` synchronously
     fn consume_mut<'a>(
-        &mut self,
         chunked_data: Self::FinalOut,
         mut consume_fn: impl FnMut(Self::FinalOut) -> FabrixResult<()> + 'a,
     ) -> FabrixResult<()> {
@@ -68,7 +66,6 @@ pub trait XlConsumer<CORE> {
 
     /// consume `FinalOut` asynchronously
     async fn consume_async<'a>(
-        &mut self,
         chunked_data: Self::FinalOut,
         consume_fn: AsyncConsumeFP<'a, Self::FinalOut>,
     ) -> FabrixResult<()>
@@ -80,7 +77,6 @@ pub trait XlConsumer<CORE> {
 
     /// consume `FinalOut` asynchronously, with mutable reference `consume_fn`
     async fn consume_async_mut<'a>(
-        &mut self,
         chunked_data: Self::FinalOut,
         mut consume_fn: impl FnMut(Self::FinalOut) -> BoxFuture<'a, FabrixResult<()>>
             + Send
@@ -237,8 +233,8 @@ pub struct XlExecutor<CONSUMER, CORE>
 where
     CONSUMER: XlConsumer<CORE> + Send,
 {
-    consumer: CONSUMER,
     workbook: Option<Workbook>,
+    consumer: PhantomData<CONSUMER>,
     core: PhantomData<CORE>,
 }
 
@@ -247,16 +243,16 @@ where
     CONSUMER: XlConsumer<CORE> + Send,
 {
     /// constructor
-    pub fn new(consumer: CONSUMER) -> Self {
+    pub fn new() -> Self {
         Self {
-            consumer,
             workbook: None,
+            consumer: PhantomData,
             core: PhantomData,
         }
     }
 
     /// constructor
-    pub fn new_with_source<'a>(consumer: CONSUMER, source: XlSource<'a>) -> FabrixResult<Self> {
+    pub fn new_with_source<'a>(source: XlSource<'a>) -> FabrixResult<Self> {
         let wb = match source {
             XlSource::File(file) => Workbook::new(file)?,
             XlSource::Path(path) => Workbook::new(File::open(path)?)?,
@@ -264,20 +260,10 @@ where
         };
         let wb = Some(wb);
         Ok(Self {
-            consumer,
             workbook: wb,
+            consumer: PhantomData,
             core: PhantomData,
         })
-    }
-
-    /// return mutable consumer from an XlExecutor
-    pub fn consumer_mut(&mut self) -> &mut CONSUMER {
-        &mut self.consumer
-    }
-
-    /// return consumer reference from an XlExecutor
-    pub fn consumer(&self) -> &CONSUMER {
-        &self.consumer
     }
 
     /// replace or set a new workbook
@@ -313,7 +299,7 @@ where
 
         for d in iter {
             let cd = convert_fn(d)?;
-            self.consumer.consume(cd, consume_fn)?;
+            CONSUMER::consume(cd, consume_fn)?;
         }
 
         Ok(())
@@ -332,7 +318,7 @@ where
 
         for d in iter {
             let cd = convert_fn(d)?;
-            self.consumer.consume(cd, consume_fn)?;
+            CONSUMER::consume(cd, consume_fn)?;
         }
 
         Ok(())
@@ -351,7 +337,7 @@ where
 
         for d in iter {
             let cd = convert_fn(d)?;
-            self.consumer.consume(cd, consume_fn)?;
+            CONSUMER::consume(cd, consume_fn)?;
         }
 
         Ok(())
@@ -370,7 +356,7 @@ where
 
         for d in iter {
             let cd = convert_fn(d)?;
-            self.consumer.consume_async(cd, consume_fn).await?
+            CONSUMER::consume_async(cd, consume_fn).await?
         }
 
         Ok(())
@@ -389,7 +375,7 @@ where
 
         for d in iter {
             let cd = convert_fn(d)?;
-            self.consumer.consume_async(cd, consume_fn).await?
+            CONSUMER::consume_async(cd, consume_fn).await?
         }
 
         Ok(())
@@ -412,7 +398,7 @@ where
 
         for d in iter {
             let cd = convert_fn(d)?;
-            self.consumer.consume_async_mut(cd, &mut *csm).await?
+            CONSUMER::consume_async_mut(cd, &mut *csm).await?
         }
 
         Ok(())
@@ -482,7 +468,7 @@ mod test_xl_executor {
     #[test]
     fn test_exec_iter_sheet() {
         let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
 
         let foo = xle.iter_sheet(None, "data").unwrap();
 
@@ -525,7 +511,7 @@ mod test_xl_executor {
     #[test]
     fn test_exec_consume() {
         let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
 
         let foo = xle.consume(Some(20), "data", convert_fn, consume_fn);
 
@@ -536,7 +522,7 @@ mod test_xl_executor {
     #[tokio::test]
     async fn test_exec_async_consume() {
         let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
 
         let foo = xle
             .async_consume(
@@ -554,7 +540,7 @@ mod test_xl_executor {
     #[tokio::test]
     async fn test_exec_async_consume_mut() {
         let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
 
         let sc = Arc::new(Mutex::new(StatefulConsumer::new()));
 
