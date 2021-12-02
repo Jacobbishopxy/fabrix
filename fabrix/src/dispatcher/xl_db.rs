@@ -58,9 +58,43 @@ mod test_xl_reader {
 
     use super::*;
     use crate::sql::SqlEngine;
-    use crate::{sql, xl, D2Value, DataFrame, FabrixResult};
+    use crate::{sql, DataFrame, FabrixResult};
 
     const CONN3: &'static str = "sqlite://dev.sqlite";
+
+    struct PowerConsumer {
+        consumer: SqlExecutor,
+        count: usize,
+    }
+
+    impl PowerConsumer {
+        async fn new(conn: &str) -> FabrixResult<Self> {
+            let mut consumer = SqlExecutor::from_str(conn);
+            consumer.connect().await?;
+            Ok(Self { consumer, count: 0 })
+        }
+
+        async fn save(&mut self, table_name: &str, data: DataFrame) -> FabrixResult<()> {
+            let exc = match self.count {
+                0 => {
+                    self.consumer
+                        .save(table_name, data, &sql::sql_adt::SaveStrategy::FailIfExists)
+                }
+                _ => self
+                    .consumer
+                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Append),
+            }
+            .await;
+
+            match exc {
+                Ok(_) => {
+                    self.count += 1;
+                    Ok(())
+                }
+                Err(e) => Err(e.into()),
+            }
+        }
+    }
 
     #[tokio::test]
     async fn test_xl2db() {
@@ -79,29 +113,22 @@ mod test_xl_reader {
         xle.consumer_mut().connect().await.unwrap();
 
         let mut xl2db = XlToDb {};
-
-        let cvt = |d| xl2db.convert_col_wised_no_index(d);
-        // let csm = |data| {
-        //     Box::pin(async {
-        //         xle.consumer()
-        //             .save("test_table", data, &sql::sql_adt::SaveStrategy::Append)
-        //             .await?;
-
-        //         Ok(())
-        //     })
-        // };
+        let mut pc = PowerConsumer::new(CONN3).await.unwrap();
 
         let res = xle
-            .async_consume_fn_mut(Some(30), "test_table", cvt, |data| {
-                Box::pin(async {
-                    // TODO: borrow checker issue
-                    // xle.consumer()
-                    //     .save("test_table", data, &sql::sql_adt::SaveStrategy::Append)
-                    //     .await?;
+            .async_consume_fn_mut(
+                Some(30),
+                "test_table",
+                |d| xl2db.convert_col_wised_no_index(d),
+                |data| {
+                    Box::pin(async {
+                        // TODO: captured variable cannot escape `FnMut` closure body
+                        // pc.save("test_table", data).await?;
 
-                    Ok(())
-                })
-            })
+                        Ok(())
+                    })
+                },
+            )
             .await;
 
         println!("{:?}", res);
