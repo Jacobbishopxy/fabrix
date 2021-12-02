@@ -56,6 +56,9 @@ impl XlToDb {
 #[cfg(test)]
 mod test_xl_reader {
 
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
     use super::*;
     use crate::sql::SqlEngine;
     use crate::{sql, DataFrame, FabrixResult};
@@ -105,7 +108,6 @@ mod test_xl_reader {
 
         // consumer instance
         let consumer = SqlExecutor::from_str(CONN3);
-        // consumer.connect().await.unwrap();
 
         // XlExecutor instance
         let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
@@ -119,8 +121,12 @@ mod test_xl_reader {
 
         for (i, row) in iter.enumerate() {
             let df = xl2db.convert_row_wised_no_index(row).unwrap();
-            let res = pc.save("test_table", df).await;
-            println!("{:?} : {:?}", i, res);
+            if let Ok(_) = pc.save("test_table", df).await {
+                println!("{:?}: success", i);
+            } else {
+                println!("{:?}: failed", i);
+                break;
+            }
         }
 
         // sql selection
@@ -143,5 +149,38 @@ mod test_xl_reader {
         let res = xle.consumer().select(&select).await.unwrap();
 
         println!("{:?}", res);
+    }
+
+    #[tokio::test]
+    async fn test_xl2db_2() {
+        use crate::sources::xl::{XlExecutor, XlSource};
+
+        let source = XlSource::Path("../mock/test.xlsx");
+
+        let mut consumer = SqlExecutor::from_str(CONN3);
+        // consumer.connect().await.unwrap();
+
+        let mut xle = XlExecutor::new_with_source(consumer, source).unwrap();
+
+        let mut xl2db = XlToDb {};
+        let pc = Arc::new(Mutex::new(PowerConsumer::new(CONN3).await.unwrap()));
+
+        let foo = xle
+            .async_consume_fn_mut(
+                Some(40),
+                "test_table",
+                |d| xl2db.convert_col_wised_no_index(d),
+                |d| {
+                    Box::pin(async {
+                        let am = Arc::clone(&pc);
+                        let mut lk = am.lock().await;
+                        lk.save("test_table", d).await
+                    })
+                },
+            )
+            .await;
+
+        println!("{:?}", foo);
+        println!("{:?}", pc.lock().await.count);
     }
 }

@@ -228,8 +228,6 @@ where
     }
 }
 
-// TODO: consumer seems like no longer needed
-
 /// Xl executor
 ///
 /// consumer: a concrete type who implemented XlDataConsumer
@@ -450,6 +448,9 @@ where
 /// - `async_consume`
 #[cfg(test)]
 mod test_xl_executor {
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
     use super::*;
 
     // A test struct to implement XlConsumer
@@ -504,6 +505,22 @@ mod test_xl_executor {
         Ok(())
     }
 
+    struct StatefulConsumer {
+        count: usize,
+    }
+
+    impl StatefulConsumer {
+        fn new() -> Self {
+            Self { count: 0 }
+        }
+
+        async fn async_consume_fn_mut(&mut self, fo: Fo) -> FabrixResult<()> {
+            println!("{}\n\n", fo);
+            self.count += 1;
+            Ok(())
+        }
+    }
+
     // consume synchronously
     #[test]
     fn test_exec_consume() {
@@ -531,5 +548,33 @@ mod test_xl_executor {
             .await;
 
         println!("{:?}", foo);
+    }
+
+    // consume synchronously, mutable
+    #[tokio::test]
+    async fn test_exec_async_consume_mut() {
+        let source = XlSource::Path("../mock/test.xlsx");
+        let mut xle = XlExecutor::new_with_source(TestExec, source).unwrap();
+
+        let sc = Arc::new(Mutex::new(StatefulConsumer::new()));
+
+        let foo = xle
+            .async_consume_fn_mut(
+                Some(20),
+                "data",
+                |d| convert_fn(d),
+                |fo| {
+                    Box::pin(async {
+                        let am = Arc::clone(&sc);
+                        let mut lk = am.lock().await;
+
+                        lk.async_consume_fn_mut(fo).await
+                    })
+                },
+            )
+            .await;
+
+        println!("{:?}", foo);
+        println!("{:?}", sc.lock().await.count);
     }
 }
