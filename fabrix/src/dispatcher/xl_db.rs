@@ -1,8 +1,7 @@
 //!  xl -> db
 
 use crate::xl::{Cell, ExcelValue, XlConsumer};
-use crate::FabrixResult;
-use crate::{sql::SqlExecutor, value, xl, D2Value, DataFrame, Value};
+use crate::{sql::SqlExecutor, value, xl, D2Value, DataFrame, Value,FabrixResult};
 
 pub type XlDb = xl::XlExecutor<SqlExecutor, XlToDb>;
 
