@@ -70,6 +70,9 @@ pub enum FabrixError {
     #[error(transparent)]
     FL(#[from] FlError),
 
+    #[error(transparent)]
+    TokioLock(#[from] tokio::sync::TryLockError),
+
     #[error("unknown error")]
     Unknown,
 }
