@@ -381,6 +381,7 @@ where
         Ok(())
     }
 
+    /// consume a sheet asynchronously with mutable convert & consume functions
     pub async fn async_consume_fn_mut<'a>(
         &mut self,
         batch_size: Option<usize>,

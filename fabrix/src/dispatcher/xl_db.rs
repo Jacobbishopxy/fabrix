@@ -87,7 +87,7 @@ impl xl::XlConsumer<XlToDb> for SqlExecutor {
 }
 
 pub struct XlToDbConsumer {
-    pub executor: Arc<Mutex<SqlExecutor>>,
+    pub executor: SqlExecutor,
     pub consume_count: usize,
 }
 
@@ -96,30 +96,29 @@ impl XlToDbConsumer {
         let mut executor = SqlExecutor::from_str(conn);
         executor.connect().await?;
         Ok(Self {
-            executor: Arc::new(Mutex::new(executor)),
+            executor,
             consume_count: 0,
         })
     }
 
-    pub fn executor(&self) -> Arc<Mutex<SqlExecutor>> {
-        Arc::clone(&self.executor)
-    }
+    // pub fn executor(&self) -> Arc<Mutex<SqlExecutor>> {
+    //     Arc::clone(&self.executor)
+    // }
 
     pub fn clean_stats(&mut self) {
         self.consume_count = 0;
     }
 
-    // TODO: this method should be called by `&self.executor`
     pub async fn save(&mut self, table_name: &str, data: DataFrame) -> FabrixResult<()> {
         let exc = match self.consume_count {
             0 => {
-                let exc = self.executor.try_lock()?;
-                exc.save(table_name, data, &sql::sql_adt::SaveStrategy::FailIfExists)
+                self.executor
+                    .save(table_name, data, &sql::sql_adt::SaveStrategy::FailIfExists)
                     .await
             }
             _ => {
-                let exc = self.executor.try_lock()?;
-                exc.save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
+                self.executor
+                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
                     .await
             }
         };
@@ -185,13 +184,7 @@ mod test_xl_reader {
         };
 
         // selected result
-        let res = consumer
-            .executor()
-            .lock()
-            .await
-            .select(&select)
-            .await
-            .unwrap();
+        let res = consumer.executor.select(&select).await.unwrap();
 
         println!("{:?}", res);
     }
@@ -202,9 +195,11 @@ mod test_xl_reader {
 
         let mut xl2db = XlToDb::new();
         let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
+        let am_consumer = Arc::new(Mutex::new(consumer));
 
         let mut xle = XlDb::new_with_source(source).unwrap();
 
+        // TODO: better `consume_fn` ?
         let foo = xle
             .async_consume_fn_mut(
                 Some(40),
@@ -212,22 +207,15 @@ mod test_xl_reader {
                 |d| xl2db.convert_col_wised_no_index(d),
                 |d| {
                     Box::pin(async {
-                        let exc = consumer.executor();
-                        let lk = exc.lock().await;
-                        // TODO: cannot use predefined `save` method in `consumer`, since consumer itself is not a `Arc<Mutex<T>>`
-                        match lk
-                            .save("test_table", d, &sql::sql_adt::SaveStrategy::Append)
-                            .await
-                        {
-                            Ok(_) => todo!(),
-                            Err(_) => todo!(),
-                        }
+                        let am = Arc::clone(&am_consumer);
+                        let mut lk = am.lock().await;
+                        lk.save("test_table", d).await.map(|_| ())
                     })
                 },
             )
             .await;
 
         println!("{:?}", foo);
-        println!("{:?}", consumer.consume_count);
+        println!("{:?}", am_consumer.lock().await.consume_count);
     }
 }
