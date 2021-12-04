@@ -76,6 +76,7 @@ impl Row {
 
 impl DataFrame {
     /// create a DataFrame by Rows, slower than column-wise constructors.
+    /// cannot build from an empty `Vec<Row>`
     pub fn from_rows(rows: Vec<Row>) -> CoreResult<Self> {
         let mut rows = rows;
         // rows length
@@ -104,35 +105,62 @@ impl DataFrame {
     }
 
     /// create a DataFrame by IntoIter<Vec<Value>>, slower than column-wise constructors
-    pub fn from_row_values_iter(iter: std::vec::IntoIter<Vec<Value>>) -> CoreResult<Self> {
+    /// cannot build from an empty iterator
+    ///
+    /// index_col: the index column location, default is None
+    pub fn from_row_values_iter(
+        iter: std::vec::IntoIter<Vec<Value>>,
+        index_col: Option<usize>,
+    ) -> CoreResult<Self> {
+        // create a peekable iterator
         let mut iter = iter.peekable();
 
         if iter.peek().is_none() {
             return Err(CoreError::new_empty_error());
         }
 
+        // length of the first row, and width of the dataframe. number of columns
         let n = iter.peek().unwrap().len();
         let mut transposed_values: D2Value = vec![vec![]; n];
 
         for row in iter {
-            row.into_iter().enumerate().for_each(|(i, v)| {
-                transposed_values[i].push(v);
-            });
+            row.into_iter()
+                .enumerate()
+                .for_each(|(i, v)| transposed_values[i].push(v));
         }
 
+        // take an index series from the `transposed_values` if index_col is not None
+        let index_series = index_col
+            .and_then(|i| {
+                // if index_col is out of range, simply ignore it and the dataframe will use the default index
+                if i >= n {
+                    None
+                } else {
+                    // take the index column, and remove it from the `transposed_values`
+                    let v = transposed_values.swap_remove(i);
+                    Some(Series::from_values(v, "index", true))
+                }
+            })
+            .transpose()?;
+
+        // from the `transposed_values` to a vec of series
         let series = transposed_values
             .into_iter()
             .enumerate()
             .map(|(i, v)| Series::from_values(v, &format!("Column_{:?}", i), true))
             .collect::<CoreResult<Vec<_>>>()?;
 
-        Ok(DataFrame::from_series_default_index(series)?)
+        let d = match index_series {
+            Some(s) => DataFrame::from_series(series, s),
+            None => DataFrame::from_series_default_index(series),
+        };
+        Ok(d?)
     }
 
     /// create a DataFrame by D2Value, slower than column-wise constructors
-    pub fn from_row_values(values: D2Value) -> CoreResult<Self> {
+    pub fn from_row_values(values: D2Value, index_col: Option<usize>) -> CoreResult<Self> {
         let iter = values.into_iter();
-        Ok(DataFrame::from_row_values_iter(iter)?)
+        Ok(DataFrame::from_row_values_iter(iter, index_col)?)
     }
 
     /// get a row by idx. This method is slower than get a column (`self.data.get_row`).
@@ -296,7 +324,7 @@ mod test_row {
             vec![value!(31), value!("James"), value!("A"), value!(9)],
         ];
 
-        let df = DataFrame::from_row_values(vvv).unwrap();
+        let df = DataFrame::from_row_values(vvv, None).unwrap();
 
         println!("{:?}", df);
     }

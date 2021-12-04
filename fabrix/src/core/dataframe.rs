@@ -124,8 +124,11 @@ impl DataFrame {
     }
 
     /// get a cloned column
-    pub fn get_column(&self, name: &str) -> Option<Series> {
-        match self.data.column(name) {
+    pub fn get_column<S>(&self, name: S) -> Option<Series>
+    where
+        S: AsRef<str>,
+    {
+        match self.data.column(name.as_ref()) {
             Ok(s) => Some(Series(s.clone())),
             Err(_) => None,
         }

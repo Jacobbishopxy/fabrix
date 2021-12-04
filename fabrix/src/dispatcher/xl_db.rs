@@ -1,11 +1,24 @@
 //!  xl -> db
 
+use crate::sql::{SqlEngine, SqlExecutor};
 use crate::xl::{Cell, ExcelValue, XlConsumer};
-use crate::{sql::SqlExecutor, value, xl, D2Value, DataFrame, Value,FabrixResult};
+use crate::{value, xl, D2Value, DataFrame, FabrixResult, Value};
 
 pub type XlDb = xl::XlExecutor<SqlExecutor, XlToDb>;
 
-pub struct XlToDb {}
+pub struct XlToDb {
+    pub executor: SqlExecutor,
+    pub fields: Option<Vec<String>>,
+}
+
+impl XlToDb {
+    pub fn new(executor: SqlExecutor) -> Self {
+        Self {
+            executor,
+            fields: None,
+        }
+    }
+}
 
 impl XlConsumer<XlToDb> for SqlExecutor {
     type UnitOut = Value;
@@ -27,19 +40,31 @@ impl XlConsumer<XlToDb> for SqlExecutor {
 
 // TODO: &mut self for these methods
 impl XlToDb {
-    pub fn convert_row_wised_with_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_row_wised_with_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
+        // if no fields are defined, use the first row as the fields
+        if let None = &self.fields {
+            let mut fld = Vec::new();
+            data.iter_mut().for_each(|row| {
+                let v = row.swap_remove(0);
+                fld.push(v.to_string());
+            });
+            self.fields = Some(fld);
+        };
+
+        let mut df = DataFrame::from_row_values(data, Some(0))?;
+        df.set_column_names(self.fields.as_ref().unwrap())?;
+        Ok(df)
+    }
+
+    pub fn convert_row_wised_no_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
     }
 
-    pub fn convert_row_wised_no_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_col_wised_with_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
     }
 
-    pub fn convert_col_wised_with_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
-        todo!()
-    }
-
-    pub fn convert_col_wised_no_index(&mut self, data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_col_wised_no_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
         todo!()
     }
 }
@@ -100,10 +125,10 @@ mod test_xl_reader {
         // consumer instance
         let mut consumer = SqlExecutor::from_str(CONN3);
         consumer.connect().await.unwrap();
+        let mut xl2db = XlToDb::new(consumer);
 
         // XlExecutor instance
         let mut xle = XlDb::new_with_source(source).unwrap();
-        let mut xl2db = XlToDb {};
 
         let mut pc = PowerConsumer::new(CONN3).await.unwrap();
 
@@ -136,7 +161,7 @@ mod test_xl_reader {
         };
 
         // selected result
-        let res = consumer.select(&select).await.unwrap();
+        let res = xl2db.executor.select(&select).await.unwrap();
 
         println!("{:?}", res);
     }
@@ -147,10 +172,10 @@ mod test_xl_reader {
 
         let mut consumer = SqlExecutor::from_str(CONN3);
         consumer.connect().await.unwrap();
+        let mut xl2db = XlToDb::new(consumer);
 
         let mut xle = XlDb::new_with_source(source).unwrap();
 
-        let mut xl2db = XlToDb {};
         let pc = Arc::new(Mutex::new(PowerConsumer::new(CONN3).await.unwrap()));
 
         let foo = xle
@@ -170,5 +195,14 @@ mod test_xl_reader {
 
         println!("{:?}", foo);
         println!("{:?}", pc.lock().await.count);
+    }
+
+    #[test]
+    fn dev_value() {
+        use crate::value;
+
+        let v = value!("hello");
+
+        println!("{:?}", v.to_string());
     }
 }

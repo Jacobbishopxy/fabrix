@@ -16,6 +16,7 @@
 		"iloc",
 		"itertools",
 		"nocapture",
+		"peekable",
 		"Postgres",
 		"rechunk",
 		"Sqlite",

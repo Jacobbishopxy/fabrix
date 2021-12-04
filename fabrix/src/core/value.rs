@@ -203,7 +203,7 @@ impl std::fmt::Display for Value {
             Value::I64(v) => write!(f, "{:?}", v),
             Value::F32(v) => write!(f, "{:?}", v),
             Value::F64(v) => write!(f, "{:?}", v),
-            Value::String(v) => write!(f, "{:?}", v),
+            Value::String(v) => f.write_str(v),
             Value::Date(v) => write!(f, "{:?}", v.0),
             Value::Time(v) => write!(f, "{:?}", v.0),
             Value::DateTime(v) => write!(f, "{:?}", v.0),

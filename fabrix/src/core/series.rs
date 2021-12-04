@@ -122,11 +122,12 @@ pub struct Series(pub(crate) PSeries);
 
 impl Series {
     /// new Series from an integer type (Rust standard type)
-    pub fn from_integer<I>(value: &I, name: &str) -> CoreResult<Self>
+    pub fn from_integer<I, S>(value: &I, name: S) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
+        S: AsRef<str>,
     {
-        Ok(from_integer(value.clone().into(), name)?)
+        Ok(from_integer(value.clone().into(), name.as_ref())?)
     }
 
     /// new Series from an integer type (Rust standard type)
@@ -138,11 +139,15 @@ impl Series {
     }
 
     /// new Series from a range
-    pub fn from_range<'a, I>(range: &[I; 2], name: &str) -> CoreResult<Self>
+    pub fn from_range<'a, I, S>(range: &[I; 2], name: S) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
+        S: AsRef<str>,
     {
-        Ok(from_range([range[0].into(), range[1].into()], name)?)
+        Ok(from_range(
+            [range[0].into(), range[1].into()],
+            name.as_ref(),
+        )?)
     }
 
     /// new Series from a range
@@ -154,8 +159,11 @@ impl Series {
     }
 
     /// new Series from Vec<Value> and name
-    pub fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Self> {
-        Ok(from_values(values, name, nullable)?)
+    pub fn from_values<S>(values: Vec<Value>, name: S, nullable: bool) -> CoreResult<Self>
+    where
+        S: AsRef<str>,
+    {
+        Ok(from_values(values, name.as_ref(), nullable)?)
     }
 
     /// new Series from Vec<Value>
@@ -179,8 +187,11 @@ impl Series {
     }
 
     /// rename Series
-    pub fn rename(&mut self, name: &str) -> &mut Self {
-        self.0.rename(name);
+    pub fn rename<S>(&mut self, name: S) -> &mut Self
+    where
+        S: AsRef<str>,
+    {
+        self.0.rename(name.as_ref());
         self
     }
 

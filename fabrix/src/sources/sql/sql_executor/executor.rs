@@ -78,7 +78,11 @@ impl SqlExecutor {
     }
 
     /// constructor, from str
-    pub fn from_str(conn_str: &str) -> Self {
+    pub fn from_str<S>(conn_str: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        let conn_str = conn_str.as_ref();
         let mut s = conn_str.split(":");
         let driver = match s.next() {
             Some(v) => v.into(),
@@ -306,7 +310,7 @@ impl SqlEngine for SqlExecutor {
             Err(_) => {
                 let que = self.driver.select(select);
                 let res = self.pool.as_ref().unwrap().fetch_all(&que).await?;
-                DataFrame::from_row_values(res)?
+                DataFrame::from_row_values(res, None)?
             }
         };
         df.set_column_names(&select.columns_name(true))?;
