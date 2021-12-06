@@ -6,7 +6,7 @@
 //! 1. new
 //! 1. new_empty
 //! 1. from_series
-//! 1. from_series_with_index
+//! 1. from_series_with_index_name
 //! 1. from_series_default_index
 //! 1. rechunk
 //! 1. get_column
@@ -87,12 +87,12 @@ impl DataFrame {
     }
 
     /// Create a DataFrame from Vec<Series> and index name
-    pub fn from_series_with_index(series: Vec<Series>, index_name: &str) -> CoreResult<Self> {
+    pub fn from_series_with_index_name(series: Vec<Series>, index_name: &str) -> CoreResult<Self> {
         let index;
         let mut series = series;
         match series.iter().position(|s| s.name() == index_name) {
             Some(i) => {
-                index = series.swap_remove(i);
+                index = series.remove(i);
             }
             None => {
                 return Err(CoreError::new_common_error(format!(

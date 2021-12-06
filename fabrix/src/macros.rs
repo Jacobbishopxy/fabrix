@@ -33,7 +33,7 @@ macro_rules! df {
             columns.push($crate::Series::new($col_name, $slice));
         )+
 
-        $crate::DataFrame::from_series_with_index(columns, $index_name)
+        $crate::DataFrame::from_series_with_index_name(columns, $index_name)
     }};
 }
 

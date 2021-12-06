@@ -6,63 +6,138 @@
 
 use std::sync::Arc;
 
+use itertools::Itertools;
 use tokio::sync::Mutex;
 
 use crate::sql::{SqlEngine, SqlExecutor};
-use crate::{sql, value, xl, D2Value, DataFrame, FabrixResult, Value};
+use crate::{sql, value, xl, D2Value, DataFrame, FabrixError, FabrixResult, Series, Value};
 
 pub type XlDbExecutor = xl::XlExecutor<SqlExecutor, XlDbConvertor>;
 
+/// XlDbConvertor
+///
+/// Used for converting D2Value to DataFrame.
+/// Notice V2Value can have two kind of directions: row-wised & column-wised.
+///
+///
 pub struct XlDbConvertor {
     pub fields: Option<Vec<String>>,
 }
 
 impl XlDbConvertor {
+    /// constructor
     pub fn new() -> Self {
         Self { fields: None }
     }
 
+    /// clean fields
     pub fn clean_stats(&mut self) {
         self.fields = None;
     }
 
-    fn set_row_wised_fields(&mut self, data: &mut D2Value) {
+    /// set fields, only works for row-wised data
+    fn set_row_wised_fields(&mut self, data: &mut D2Value, with_index: bool) {
         // if no fields are defined, use the first row as the fields
         if let None = &self.fields {
-            let mut fld = Vec::new();
-            data.iter_mut().for_each(|row| {
-                let v = row.swap_remove(0);
-                fld.push(v.to_string());
-            });
-            // the 1st cell is the index name
-            fld.remove(0);
-            // set the fields
+            if data.len() == 0 {
+                return;
+            }
+            let mut fld = data
+                .remove(0)
+                .iter_mut()
+                .map(|v| v.to_string())
+                .collect_vec();
+            // assuming the first cell is the index name, if with_index is true, remove it
+            if with_index {
+                fld.remove(0);
+            }
             self.fields = Some(fld);
         };
     }
 
+    fn _set_col_wised_fields(&mut self, data: &mut D2Value) {
+        if data.len() == 0 {
+            return;
+        }
+
+        // if no fields are defined, use the first row as the fields
+        let mut fld = Vec::new();
+        data.iter_mut().for_each(|row| {
+            if row.len() == 0 {
+                return;
+            }
+            let v = row.remove(0);
+            fld.push(v.to_string());
+        });
+        // the 1st cell is the index name
+        if fld.len() > 0 {
+            fld.remove(0);
+
+            match self.fields {
+                Some(ref mut flds) => {
+                    flds.append(&mut fld);
+                }
+                None => {
+                    self.fields = Some(fld);
+                }
+            }
+        }
+    }
+
+    /// transform row-wised data a collection of series
+    fn transform_col_wised_data(data: D2Value) -> FabrixResult<Vec<Series>> {
+        // even has 1 row the first row is the index, cannot build up a dataframe
+        if data.len() <= 1 {
+            return Err(FabrixError::new_common_error("data is empty"));
+        }
+
+        let mut collection = Vec::new();
+        for mut row in data.into_iter() {
+            if row.len() == 0 {
+                return Err(FabrixError::new_common_error("empty row"));
+            }
+            // assume the 1st cell is the series name
+            let name = row.remove(0).to_string();
+            collection.push(Series::from_values(row, name, true)?)
+        }
+
+        Ok(collection)
+    }
+
+    /// a row-wised 2D-value -> DataFrame, with index
+    /// index is always the first column
     pub fn convert_row_wised_with_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
-        self.set_row_wised_fields(&mut data);
+        self.set_row_wised_fields(&mut data, true);
 
         let mut df = DataFrame::from_row_values(data, Some(0))?;
         df.set_column_names(self.fields.as_ref().unwrap())?;
         Ok(df)
     }
 
+    /// a row-wised 2D-value -> DataFrame, without index
     pub fn convert_row_wised_no_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
-        self.set_row_wised_fields(&mut data);
+        self.set_row_wised_fields(&mut data, false);
 
         let mut df = DataFrame::from_row_values(data, None)?;
         df.set_column_names(self.fields.as_ref().unwrap())?;
         Ok(df)
     }
 
-    pub fn convert_col_wised_with_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
-        todo!()
+    /// a column-wised 2D-value -> DataFrame, with index
+    /// index is always the first row
+    pub fn convert_col_wised_with_index(&self, data: D2Value) -> FabrixResult<DataFrame> {
+        let mut collection = Self::transform_col_wised_data(data)?;
+
+        let index = collection.remove(0);
+
+        Ok(DataFrame::from_series(collection, index)?)
     }
 
-    pub fn convert_col_wised_no_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
-        todo!()
+    /// a column-wised 2D-value -> DataFrame, without index
+    pub fn convert_col_wised_no_index(&self, data: D2Value) -> FabrixResult<DataFrame> {
+        let collection = Self::transform_col_wised_data(data)?;
+
+        Ok(DataFrame::from_series_default_index(collection)?)
     }
 }
 
@@ -210,7 +285,7 @@ mod test_xl_reader {
     async fn test_xl2db_2() {
         let source = XlSource::Path("../mock/test.xlsx");
 
-        let mut convertor = XlDbConvertor::new();
+        let convertor = XlDbConvertor::new();
         let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
         let am_consumer = Arc::new(Mutex::new(consumer));
 
@@ -239,7 +314,7 @@ mod test_xl_reader {
     async fn test_xl2db_3() {
         let source = XlSource::Path("../mock/test.xlsx");
 
-        let mut xl2db = XlDb::new(CONN3).await.unwrap();
+        let xl2db = XlDb::new(CONN3).await.unwrap();
 
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
 

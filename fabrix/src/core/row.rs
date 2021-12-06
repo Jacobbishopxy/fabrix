@@ -137,7 +137,7 @@ impl DataFrame {
                     None
                 } else {
                     // take the index column, and remove it from the `transposed_values`
-                    let v = transposed_values.swap_remove(i);
+                    let v = transposed_values.remove(i);
                     Some(Series::from_values(v, "index", true))
                 }
             })
