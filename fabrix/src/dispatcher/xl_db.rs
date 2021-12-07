@@ -17,9 +17,10 @@ pub type XlDbExecutor = xl::XlExecutor<SqlExecutor, XlDbConvertor>;
 /// XlDbConvertor
 ///
 /// Used for converting D2Value to DataFrame.
-/// Notice V2Value can have two kind of directions: row-wised & column-wised.
-///
-///
+/// Notice V2Value can have two kinds of directions: row-wised & column-wised.
+/// A convertor's method may be called several times, but only row-wised data's field
+/// will be cached. this is because column-wised data should be treated as a whole
+/// chunk of data (DataFrame) to be consumed.
 pub struct XlDbConvertor {
     pub fields: Option<Vec<String>>,
 }
@@ -53,35 +54,6 @@ impl XlDbConvertor {
             }
             self.fields = Some(fld);
         };
-    }
-
-    fn _set_col_wised_fields(&mut self, data: &mut D2Value) {
-        if data.len() == 0 {
-            return;
-        }
-
-        // if no fields are defined, use the first row as the fields
-        let mut fld = Vec::new();
-        data.iter_mut().for_each(|row| {
-            if row.len() == 0 {
-                return;
-            }
-            let v = row.remove(0);
-            fld.push(v.to_string());
-        });
-        // the 1st cell is the index name
-        if fld.len() > 0 {
-            fld.remove(0);
-
-            match self.fields {
-                Some(ref mut flds) => {
-                    flds.append(&mut fld);
-                }
-                None => {
-                    self.fields = Some(fld);
-                }
-            }
-        }
     }
 
     /// transform row-wised data a collection of series
@@ -141,6 +113,10 @@ impl XlDbConvertor {
     }
 }
 
+/// XlToDbConsumer
+///
+/// Used for consuming DataFrame and interacts with database, for instance, inserting or updating data.
+///
 pub struct XlToDbConsumer {
     pub executor: SqlExecutor,
     pub consume_count: usize,
@@ -160,7 +136,11 @@ impl XlToDbConsumer {
         self.consume_count = 0;
     }
 
-    pub async fn save(&mut self, table_name: &str, data: DataFrame) -> FabrixResult<()> {
+    pub async fn create_new_table(
+        &mut self,
+        table_name: &str,
+        data: DataFrame,
+    ) -> FabrixResult<()> {
         let exc = match self.consume_count {
             0 => {
                 self.executor
@@ -182,8 +162,51 @@ impl XlToDbConsumer {
             Err(e) => Err(e.into()),
         }
     }
+
+    pub async fn replace_existing_table(
+        &mut self,
+        table_name: &str,
+        data: DataFrame,
+    ) -> FabrixResult<()> {
+        let exc = match self.consume_count {
+            0 => {
+                self.executor
+                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Replace)
+                    .await
+            }
+            _ => {
+                self.executor
+                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
+                    .await
+            }
+        };
+
+        match exc {
+            Ok(_) => {
+                self.consume_count += 1;
+                Ok(())
+            }
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub async fn upsert_existing_table(
+        &mut self,
+        table_name: &str,
+        data: DataFrame,
+    ) -> FabrixResult<()> {
+        self.executor
+            .save(table_name, data, &sql::sql_adt::SaveStrategy::Upsert)
+            .await
+            .map(|_| ())
+            .map_err(|e| e.into())
+    }
 }
 
+/// XlDb
+///
+/// A XlDb is a combinator of convertor and consumer, whereas the consumer is wrapped in `Arc<Mutex<T>>`.
+/// This is to ensure the consumer is thread-safe, and can be called by an `async fn`.
 pub struct XlDb {
     pub convertor: XlDbConvertor,
     pub consumer: Arc<Mutex<XlToDbConsumer>>,
@@ -251,7 +274,7 @@ mod test_xl_reader {
         // iterate through the sheet, and save the data to db
         for (i, row) in iter.enumerate() {
             let df = convertor.convert_row_wised_no_index(row).unwrap();
-            if let Ok(_) = consumer.save("test_table", df).await {
+            if let Ok(_) = consumer.replace_existing_table("test_table", df).await {
                 println!("{:?}: success", i);
             } else {
                 println!("{:?}: failed", i);
@@ -300,7 +323,7 @@ mod test_xl_reader {
                     Box::pin(async {
                         let am = Arc::clone(&am_consumer);
                         let mut lk = am.lock().await;
-                        lk.save("test_table", d).await.map(|_| ())
+                        lk.replace_existing_table("test_table", d).await.map(|_| ())
                     })
                 },
             )
@@ -329,7 +352,7 @@ mod test_xl_reader {
                             .consumer
                             .lock()
                             .await
-                            .save("test_table", d)
+                            .replace_existing_table("test_table", d)
                             .await
                             .map(|_| ())
                     })
