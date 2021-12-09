@@ -203,16 +203,16 @@ impl XlToDbConsumer {
     }
 }
 
-/// XlDb
+/// XlDbHelper
 ///
 /// A XlDb is a combinator of convertor and consumer, whereas the consumer is wrapped in `Arc<Mutex<T>>`.
 /// This is to ensure the consumer is thread-safe, and can be called by an `async fn`.
-pub struct XlDb {
+pub struct XlDbHelper {
     pub convertor: XlDbConvertor,
     pub consumer: Arc<Mutex<XlToDbConsumer>>,
 }
 
-impl XlDb {
+impl XlDbHelper {
     pub async fn new(conn: &str) -> FabrixResult<Self> {
         let convertor = XlDbConvertor::new();
         let consumer = Arc::new(Mutex::new(XlToDbConsumer::new(conn).await?));
@@ -337,7 +337,7 @@ mod test_xl_reader {
     async fn test_xl2db_3() {
         let source = XlSource::Path("../mock/test.xlsx");
 
-        let xl2db = XlDb::new(CONN3).await.unwrap();
+        let xl2db = XlDbHelper::new(CONN3).await.unwrap();
 
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
 

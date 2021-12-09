@@ -5,7 +5,7 @@
 // use crate::sources::xl::{Cell, ExcelValue, XlConsumer};
 
 /// xl -> json
-pub struct XlToJson;
+pub struct XlJson;
 
 // TODO: need a bson/json executor
 // impl XlConsumer<XlToJson> for u8 {

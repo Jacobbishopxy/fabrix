@@ -66,6 +66,10 @@ There are three main parts in this crate:
 └── lib.rs
 ```
 
+## Test Cases
+
+1. [Read Excel file and write to database](./fabrix/tests/read_xl_to_db_test.rs)
+
 ## Examples
 
 under construction...

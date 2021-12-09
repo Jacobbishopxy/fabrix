@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait Helper {
+pub trait SqlHelper {
     /// get primary key from a table
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String>;
 
@@ -26,7 +26,7 @@ pub trait Helper {
 
 /// An engin is an interface to describe sql executor's business logic
 #[async_trait]
-pub trait SqlEngine: Helper {
+pub trait SqlEngine: SqlHelper {
     /// connect to the database
     async fn connect(&mut self) -> SqlResult<()>;
 
@@ -97,7 +97,7 @@ impl SqlExecutor {
 }
 
 #[async_trait]
-impl Helper for SqlExecutor {
+impl SqlHelper for SqlExecutor {
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String> {
         conn_n_err!(self.pool);
         let que = self.driver.get_primary_key(table_name);

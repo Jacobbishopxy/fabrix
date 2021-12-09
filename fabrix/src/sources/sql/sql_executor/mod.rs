@@ -8,7 +8,7 @@ pub mod macros;
 pub mod processor;
 pub mod types;
 
-pub use executor::{SqlEngine, SqlExecutor};
+pub use executor::{SqlEngine, SqlExecutor, SqlHelper};
 pub(crate) use loader::{FabrixDatabaseLoader, LoaderPool};
 pub(crate) use macros::*;
 pub(crate) use processor::SqlRowProcessor;

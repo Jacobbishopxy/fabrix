@@ -12,3 +12,5 @@ target/
 .metals
 
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
