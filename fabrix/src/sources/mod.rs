@@ -6,6 +6,8 @@ pub mod file_error;
 pub mod bson;
 #[cfg(feature = "csv")]
 pub mod csv;
+#[cfg(feature = "json")]
+pub mod json;
 #[cfg(feature = "mongo")]
 pub mod mongo;
 #[cfg(feature = "parquet")]

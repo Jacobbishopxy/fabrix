@@ -49,7 +49,9 @@ There are three main parts in this crate:
 │   │
 │   ├── parquet                         // Parquet data source
 │   │
-│   ├── bson                            // BSON & JSON data source
+│   ├── json                            // JSON data source
+│   │
+│   ├── bson                            // BSON data source
 │   │
 │   └── mongo                           // MongoDB data source
 │
