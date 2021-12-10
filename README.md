@@ -58,6 +58,7 @@ There are three main parts in this crate:
 ├── dispatcher                          // dispatcher for different data source
 │   ├── xl_db.rs                        // Excel -> Database
 │   └── xl_json.rs                      // Excel -> JSON
+│   └── xl_bson.rs                      // Excel -> BSON
 │
 ├── errors.rs                           // error handling
 │
