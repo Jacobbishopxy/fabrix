@@ -136,6 +136,7 @@ impl XlToDbConsumer {
         self.consume_count = 0;
     }
 
+    /// create a table if not exists
     pub async fn create_new_table(
         &mut self,
         table_name: &str,
@@ -163,6 +164,7 @@ impl XlToDbConsumer {
         }
     }
 
+    /// replace a table
     pub async fn replace_existing_table(
         &mut self,
         table_name: &str,
@@ -190,6 +192,7 @@ impl XlToDbConsumer {
         }
     }
 
+    /// upsert a table
     pub async fn upsert_existing_table(
         &mut self,
         table_name: &str,

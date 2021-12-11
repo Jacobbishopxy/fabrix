@@ -1,5 +1,8 @@
 {
-	"rust-analyzer.linkedProjects": ["fabrix/Cargo.toml"],
+	"rust-analyzer.linkedProjects": [
+		"fabrix/Cargo.toml",
+		"examples/xl_process_service/Cargo.toml"
+	],
 	"cSpell.words": [
 		"BSON",
 		"chrono",
