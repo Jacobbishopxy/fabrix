@@ -81,3 +81,8 @@ fn gen_col(field: &FieldInfo) -> ColumnDef {
 
     c
 }
+
+#[cfg(test)]
+mod test_mutation_ddl {
+    // TODO:
+}

@@ -41,6 +41,7 @@ fn cond_builder(vec_cond: &mut Vec<Cond>, flt: &[sql_adt::Expression]) {
                             sql_adt::Conjunction::AND => vec_cond.push(Cond::all()),
                             sql_adt::Conjunction::OR => vec_cond.push(Cond::any()),
                         },
+                        // make sure odd index is conjunction
                         _ => panic!("wrong expression {:?}, needs a conjunction", e),
                     }
                 }
@@ -70,6 +71,7 @@ fn cond_builder(vec_cond: &mut Vec<Cond>, flt: &[sql_adt::Expression]) {
                     sql_adt::Expression::Nest(ve) => {
                         cond_builder(vec_cond, ve);
                     }
+                    // make sure even index is simple/nest expression
                     _ => panic!("wrong expression {:?}, needs a simple or nested variant", e),
                 }
             }

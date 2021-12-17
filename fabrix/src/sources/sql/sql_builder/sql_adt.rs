@@ -3,7 +3,7 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::{SqlError, SqlResult, FieldInfo, Series, Value, ValueType};
+use crate::{FieldInfo, Series, SqlError, SqlResult, Value, ValueType};
 
 /// Table Schema
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -131,7 +131,6 @@ pub struct Condition {
     pub equation: Equation,
 }
 
-// TODO: macro
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum Expression {

@@ -66,7 +66,7 @@ impl DmlQuery for SqlBuilder {
 }
 
 #[cfg(test)]
-mod test_sql {
+mod test_query_dml {
 
     use super::*;
     use crate::series;
@@ -77,5 +77,11 @@ mod test_sql {
         let sql = SqlBuilder::Mysql.select_existing_ids("dev", &ids);
 
         println!("{:?}", sql);
+        assert!(sql.is_ok());
+    }
+
+    #[test]
+    fn test_select() {
+        unimplemented!();
     }
 }

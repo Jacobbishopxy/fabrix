@@ -99,6 +99,17 @@ impl DmlMutation for SqlBuilder {
 mod test_mutation_dml {
     use super::*;
     use crate::value;
+    use crate::{xpr_and, xpr_nest, xpr_or, xpr_simple};
+
+    #[test]
+    fn test_insert() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn test_update() {
+        unimplemented!();
+    }
 
     #[test]
     fn test_delete() {
@@ -123,6 +134,31 @@ mod test_mutation_dml {
                 ]),
                 // this is not a correct syntax, but it works and should only be used for testing
                 sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
+            ],
+        };
+
+        let foo = SqlBuilder::Mysql.delete(&delete);
+
+        println!("{:?}", foo);
+
+        assert_eq!(
+            "DELETE FROM `test` WHERE `ord` = 15 OR (`names` = 'X' AND `val` >= 10)",
+            foo
+        );
+    }
+
+    #[test]
+    fn test_delete_using_macro_expr() {
+        let delete = sql_adt::Delete {
+            table: "test".to_string(),
+            filter: vec![
+                xpr_simple!("ord", "=", 15),
+                xpr_or!(),
+                xpr_nest!(
+                    xpr_simple!("names", "=", "X"),
+                    xpr_and!(),
+                    xpr_simple!("val", ">=", 10.0)
+                ),
             ],
         };
 

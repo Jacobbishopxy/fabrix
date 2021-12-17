@@ -462,6 +462,15 @@ mod test_xl_executor {
         type FinalOut = Fo;
 
         fn transform(cell: Cell) -> Self::UnitOut {
+            // here to show what information a cell contains
+            dbg!(
+                &cell.value,
+                &cell.formula,
+                &cell.reference,
+                &cell.style,
+                &cell.cell_type,
+                &cell.raw_value
+            );
             cell.value.to_string()
         }
     }
@@ -506,6 +515,16 @@ mod test_xl_executor {
             self.count += 1;
             Ok(())
         }
+    }
+
+    #[test]
+    fn test_value_console() {
+        let source = XlSource::Path("../mock/test2.xlsx");
+        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
+
+        let foo = xle.consume(Some(20), "data", convert_fn, consume_fn);
+
+        assert!(foo.is_ok());
     }
 
     // consume synchronously
