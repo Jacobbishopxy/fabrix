@@ -89,6 +89,7 @@ macro_rules! xpr_simple {
                 ">=" => $crate::sql::sql_adt::Equation::GreaterEqual($crate::value!($value)),
                 "<" => $crate::sql::sql_adt::Equation::Less($crate::value!($value)),
                 "<=" => $crate::sql::sql_adt::Equation::LessEqual($crate::value!($value)),
+                "%" => $crate::sql::sql_adt::Equation::Like(String::from(stringify!($value))),
                 _ => unimplemented!(),
             },
         })
@@ -101,6 +102,7 @@ macro_rules! xpr_simple {
                     let values = $value.map(|i| $crate::value!(i)).collect();
                     $crate::sql::sql_adt::Equation::In(values)
                 }
+                _ => unimplemented!(),
             },
         })
     };
@@ -112,6 +114,7 @@ macro_rules! xpr_simple {
                     $crate::value!($value1),
                     $crate::value!($value2),
                 )),
+                _ => unimplemented!(),
             },
         })
     };

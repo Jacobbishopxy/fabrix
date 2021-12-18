@@ -47,14 +47,13 @@ impl DmlMutation for SqlBuilder {
     }
 
     /// given a `Dataframe`, update to an existing table in terms of df index
-    fn update(
-        &self,
-        table_name: &str,
-        df: DataFrame,
-        index_option: &sql_adt::IndexOption,
-    ) -> SqlResult<Vec<String>> {
+    ///
+    /// Since bulk update is not supported by `sea-query` yet, we need to stack each row-updated
+    /// into a vector and then update the whole vector sequentially.
+    fn update(&self, table_name: &str, df: DataFrame) -> SqlResult<Vec<String>> {
         let column_info = df.fields();
-        let indices_type = df.index_dtype().clone();
+        let index_type = df.index_dtype().clone();
+        let index_name = df.index.name().to_owned();
         let mut res = vec![];
 
         for row in df.into_iter() {
@@ -71,9 +70,9 @@ impl DmlMutation for SqlBuilder {
             }
 
             statement.values(updates).and_where(
-                Expr::col(alias!(&index_option.name)).eq(try_from_value_to_svalue(
+                Expr::col(alias!(&index_name)).eq(try_from_value_to_svalue(
                     row.index,
-                    &indices_type,
+                    &index_type,
                     false,
                 )?),
             );
@@ -98,57 +97,56 @@ impl DmlMutation for SqlBuilder {
 #[cfg(test)]
 mod test_mutation_dml {
     use super::*;
-    use crate::value;
-    use crate::{xpr_and, xpr_nest, xpr_or, xpr_simple};
+    use crate::{df, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
     #[test]
     fn test_insert() {
-        unimplemented!();
-    }
+        let df = df![
+            "v1" => [1, 2, 3],
+            "v2" => ["a", "b", "c"],
+            "v3" => [1.0, 2.0, 3.0],
+            "v4" => [true, false, true],
+        ]
+        .unwrap();
 
-    #[test]
-    fn test_update() {
-        unimplemented!();
-    }
+        let insert = SqlBuilder::Postgres.insert("test", df, true).unwrap();
 
-    #[test]
-    fn test_delete() {
-        let delete = sql_adt::Delete {
-            table: "test".to_string(),
-            filter: vec![
-                sql_adt::Expression::Simple(sql_adt::Condition {
-                    column: "ord".to_owned(),
-                    equation: sql_adt::Equation::Equal(value!(15)),
-                }),
-                sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
-                sql_adt::Expression::Nest(vec![
-                    sql_adt::Expression::Simple(sql_adt::Condition {
-                        column: "names".to_owned(),
-                        equation: sql_adt::Equation::Equal(value!("X")),
-                    }),
-                    sql_adt::Expression::Conjunction(sql_adt::Conjunction::AND),
-                    sql_adt::Expression::Simple(sql_adt::Condition {
-                        column: "val".to_owned(),
-                        equation: sql_adt::Equation::GreaterEqual(value!(10.0)),
-                    }),
-                ]),
-                // this is not a correct syntax, but it works and should only be used for testing
-                sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
-            ],
-        };
-
-        let foo = SqlBuilder::Mysql.delete(&delete);
-
-        println!("{:?}", foo);
+        println!("{:?}", insert);
 
         assert_eq!(
-            "DELETE FROM `test` WHERE `ord` = 15 OR (`names` = 'X' AND `val` >= 10)",
-            foo
+            insert,
+            r#"INSERT INTO "test" ("v1", "v2", "v3", "v4") VALUES (1, 'a', 1, TRUE), (2, 'b', 2, FALSE), (3, 'c', 3, TRUE)"#
         );
     }
 
     #[test]
-    fn test_delete_using_macro_expr() {
+    fn test_update() {
+        let df = df![
+            "id";
+            "id" => [1, 2, 3],
+            "v1" => [10, 20, 30],
+            "v2" => ["a", "b", "c"],
+            "v3" => [1.0, 2.0, 3.0],
+            "v4" => [true, false, true],
+        ]
+        .unwrap();
+
+        let update = SqlBuilder::Postgres.update("test", df).unwrap();
+
+        println!("{:?}", update);
+
+        assert_eq!(
+            update,
+            vec![
+                r#"UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1"#,
+                r#"UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2"#,
+                r#"UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3"#,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_delete() {
         let delete = sql_adt::Delete {
             table: "test".to_string(),
             filter: vec![

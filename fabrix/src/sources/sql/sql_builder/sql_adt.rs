@@ -258,6 +258,8 @@ impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
 }
 
 /// index option
+///
+/// Only be used in `create_table`
 #[derive(Debug, Clone)]
 pub struct IndexOption<'a> {
     pub name: &'a str,

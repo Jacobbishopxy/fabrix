@@ -53,12 +53,7 @@ pub trait DmlQuery {
 pub trait DmlMutation {
     fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> SqlResult<String>;
 
-    fn update(
-        &self,
-        table_name: &str,
-        df: DataFrame,
-        index_option: &sql_adt::IndexOption,
-    ) -> SqlResult<Vec<String>>;
+    fn update(&self, table_name: &str, df: DataFrame) -> SqlResult<Vec<String>>;
 
     fn delete(&self, delete: &sql_adt::Delete) -> String;
 }

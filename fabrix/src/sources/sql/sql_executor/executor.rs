@@ -204,9 +204,7 @@ impl SqlEngine for SqlExecutor {
 
     async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
         conn_n_err!(self.pool);
-        let index_field = data.index_field();
-        let index_option = sql_adt::IndexOption::try_from(&index_field)?;
-        let que = self.driver.update(table_name, data, &index_option)?;
+        let que = self.driver.update(table_name, data)?;
 
         let res = self
             .pool
