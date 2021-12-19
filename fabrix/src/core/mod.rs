@@ -26,7 +26,11 @@ pub struct FieldInfo {
 }
 
 impl FieldInfo {
-    pub fn new(name: String, dtype: ValueType) -> Self {
+    pub fn new<T>(name: T, dtype: ValueType) -> Self
+    where
+        T: Into<String>,
+    {
+        let name = name.into();
         FieldInfo { name, dtype }
     }
 

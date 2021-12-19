@@ -52,8 +52,9 @@ impl DmlMutation for SqlBuilder {
     /// into a vector and then update the whole vector sequentially.
     fn update(&self, table_name: &str, df: DataFrame) -> SqlResult<Vec<String>> {
         let column_info = df.fields();
-        let index_type = df.index_dtype().clone();
-        let index_name = df.index.name().to_owned();
+        let index_field = df.index_field();
+        let index_type = index_field.dtype();
+        let index_name = index_field.name();
         let mut res = vec![];
 
         for row in df.into_iter() {

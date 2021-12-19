@@ -439,7 +439,7 @@ impl std::fmt::Display for DataFrame {
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{df, series};
+    use crate::{df, series, FieldInfo, ValueType};
 
     #[test]
     fn test_df_new1() {
@@ -447,12 +447,18 @@ mod test_fabrix_dataframe {
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
-        ]
-        .unwrap();
+        ];
 
-        println!("{:?}", df);
-        println!("{:?}", df.data_dtypes());
-        println!("{:?}", df.get_column("names").unwrap());
+        assert!(df.is_ok());
+
+        let df = df.unwrap();
+
+        assert_eq!(
+            df.data_dtypes(),
+            vec![ValueType::String, ValueType::I32, ValueType::I32]
+        );
+
+        assert_eq!(df.get_column("names").unwrap().len(), 3);
     }
 
     #[test]
@@ -462,12 +468,20 @@ mod test_fabrix_dataframe {
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
-        ]
-        .unwrap();
+        ];
 
-        println!("{:?}", df);
+        assert!(df.is_ok());
+
+        let df = df.unwrap();
+
         println!("{:?}", df.fields());
-        println!("{:?}", df.get_column("names").unwrap());
+        assert_eq!(
+            df.fields(),
+            vec![
+                FieldInfo::new("names", ValueType::String),
+                FieldInfo::new("val", ValueType::I32)
+            ]
+        );
     }
 
     #[test]

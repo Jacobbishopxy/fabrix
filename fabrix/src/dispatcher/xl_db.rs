@@ -260,7 +260,7 @@ mod test_xl_reader {
     const CONN3: &'static str = "sqlite://dev.sqlite";
 
     #[tokio::test]
-    async fn test_xl2db() {
+    async fn test_xl2db_sync() {
         // Xl read from a path
         let source = XlSource::Path("../mock/test.xlsx");
 
@@ -308,7 +308,7 @@ mod test_xl_reader {
     }
 
     #[tokio::test]
-    async fn test_xl2db_2() {
+    async fn test_xl2db_async() {
         let source = XlSource::Path("../mock/test.xlsx");
 
         let convertor = XlDbConvertor::new();
@@ -337,9 +337,12 @@ mod test_xl_reader {
     }
 
     #[tokio::test]
-    async fn test_xl2db_3() {
+    async fn test_xl2db_async_helper() {
         let source = XlSource::Path("../mock/test.xlsx");
 
+        // same as the above test case: `test_xl2db_async`
+        // simplify the process from naming convertor and consumer separately;
+        // however, by this way, we lose the flexibility of customizing the convertor and consumer
         let xl2db = XlDbHelper::new(CONN3).await.unwrap();
 
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
