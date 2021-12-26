@@ -485,7 +485,10 @@ mod test_pool {
 
         loop {
             match stream.try_next().await {
-                Ok(Some(r)) => println!("{:?}", r),
+                Ok(Some(r)) => {
+                    assert!(r.rows_affected() > 0);
+                    println!("{:?}", r);
+                }
                 Ok(None) => break,
                 Err(e) => {
                     println!("{:?}", e);
@@ -517,19 +520,18 @@ mod test_pool {
                 Ok(vec![value!(name), value!(col_type), value!(is_nullable)])
             })
             .fetch_all(&pool1)
-            .await
-            .unwrap();
-
+            .await;
         println!("{:?}", res);
+        assert!(res.is_ok());
 
         // Pg
         let pool2 = LoaderPool::from(sqlx::PgPool::connect(CONN2).await.unwrap());
 
         let que = SqlBuilder::Postgres.check_table_schema("dev");
 
-        let df = pool2.fetch_all(&que).await.unwrap();
+        let d2value = pool2.fetch_all(&que).await.unwrap();
 
-        println!("{:?}", df);
+        println!("{:?}", d2value);
 
         // Sqlite
         let sqlx_pool = sqlx::SqlitePool::connect(CONN3).await.unwrap();
@@ -544,37 +546,42 @@ mod test_pool {
                 Ok(vec![value!(name), value!(col_type), value!(is_nullable)])
             })
             .fetch_all(&sqlx_pool)
-            .await
-            .unwrap();
-
+            .await;
         println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     // Test table if exists
     #[tokio::test]
     async fn test_fetch_optional() {
+        // MySQL
         let pool1 = LoaderPool::from(sqlx::MySqlPool::connect(CONN1).await.unwrap());
 
         let que = SqlBuilder::Mysql.check_table_exists("test_table");
 
-        let df = pool1.fetch_optional(&que).await.unwrap();
+        let res = pool1.fetch_optional(&que).await.unwrap();
 
-        println!("{:?}", df);
+        println!("{:?}", res);
+        assert!(res.is_some());
 
+        // Pg
         let pool2 = LoaderPool::from(sqlx::PgPool::connect(CONN2).await.unwrap());
 
         let que = SqlBuilder::Postgres.check_table_exists("author");
 
-        let df = pool2.fetch_optional(&que).await.unwrap();
+        let res = pool2.fetch_optional(&que).await.unwrap();
 
-        println!("{:?}", df);
+        println!("{:?}", res);
+        assert!(res.is_some());
 
+        // Sqlite
         let pool3 = LoaderPool::from(sqlx::SqlitePool::connect(CONN3).await.unwrap());
 
         let que = SqlBuilder::Sqlite.check_table_exists("tag");
 
-        let df = pool3.fetch_optional(&que).await.unwrap();
+        let res = pool3.fetch_optional(&que).await.unwrap();
 
-        println!("{:?}", df);
+        println!("{:?}", res);
+        assert!(res.is_some());
     }
 }

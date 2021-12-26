@@ -475,21 +475,21 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // postgres
         let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     #[tokio::test]
@@ -516,21 +516,21 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // postgres
         let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     #[tokio::test]
@@ -550,21 +550,21 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // postgres
         let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     #[tokio::test]
@@ -596,21 +596,21 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // postgres
         let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     #[tokio::test]
@@ -619,19 +619,19 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
 
         let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
-        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     #[tokio::test]
@@ -657,6 +657,8 @@ mod test_executor {
 
         let df = exc.select(&select).await.unwrap();
         println!("{:?}", df);
+        assert!(df.width() > 0);
+        assert!(df.height() > 0);
 
         // postgres
         let mut exc = SqlExecutor::from_str(CONN2);
@@ -664,6 +666,8 @@ mod test_executor {
 
         let df = exc.select(&select).await.unwrap();
         println!("{:?}", df);
+        assert!(df.width() > 0);
+        assert!(df.height() > 0);
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3);
@@ -671,18 +675,8 @@ mod test_executor {
 
         let df = exc.select(&select).await.unwrap();
         println!("{:?}", df);
-    }
-
-    #[tokio::test]
-    async fn test_fu() {
-        use futures::future::TryFutureExt;
-
-        let future = async { Ok::<i32, i32>(1) };
-        let future = future.and_then(|x| async move { Ok::<i32, i32>(x + 3) });
-
-        let res = future.await;
-
-        println!("{:?}", res);
+        assert!(df.width() > 0);
+        assert!(df.height() > 0);
     }
 
     #[tokio::test]
@@ -693,6 +687,7 @@ mod test_executor {
 
         let schema = exc.get_table_schema(TABLE_NAME).await.unwrap();
         println!("{:?}\n", schema);
+        assert!(schema.len() > 0);
 
         // pg
         let mut exc = SqlExecutor::from_str(CONN2);
@@ -700,6 +695,7 @@ mod test_executor {
 
         let schema = exc.get_table_schema(TABLE_NAME).await.unwrap();
         println!("{:?}\n", schema);
+        assert!(schema.len() > 0);
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3);
@@ -707,6 +703,7 @@ mod test_executor {
 
         let schema = exc.get_table_schema(TABLE_NAME).await.unwrap();
         println!("{:?}\n", schema);
+        assert!(schema.len() > 0);
     }
 
     #[tokio::test]
@@ -717,21 +714,21 @@ mod test_executor {
         let mut exc = SqlExecutor::from_str(CONN1);
         exc.connect().await.expect("connection is ok");
 
-        let res = exc.get_existing_ids(TABLE_NAME, &ids).await.unwrap();
-        println!("{:?}", res);
+        let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
+        assert!(res.is_ok());
 
         // pg
         let mut exc = SqlExecutor::from_str(CONN2);
         exc.connect().await.expect("connection is ok");
 
-        let res = exc.get_existing_ids(TABLE_NAME, &ids).await.unwrap();
-        println!("{:?}", res);
+        let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
+        assert!(res.is_ok());
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3);
         exc.connect().await.expect("connection is ok");
 
-        let res = exc.get_existing_ids(TABLE_NAME, &ids).await.unwrap();
-        println!("{:?}", res);
+        let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
+        assert!(res.is_ok());
     }
 }

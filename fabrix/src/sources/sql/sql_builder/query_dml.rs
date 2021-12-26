@@ -69,19 +69,54 @@ impl DmlQuery for SqlBuilder {
 mod test_query_dml {
 
     use super::*;
-    use crate::series;
+    use crate::{series, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
     #[test]
     fn test_select_exist_ids() {
         let ids = series!("index" => [1, 2, 3, 4, 5]);
         let sql = SqlBuilder::Mysql.select_existing_ids("dev", &ids);
-
         println!("{:?}", sql);
+
         assert!(sql.is_ok());
     }
 
     #[test]
     fn test_select() {
-        unimplemented!();
+        let select = SqlBuilder::Postgres.select(&sql_adt::Select {
+            table: "test".to_string(),
+            columns: vec![
+                sql_adt::ColumnAlias::Simple("v1".to_string()),
+                sql_adt::ColumnAlias::Simple("v2".to_string()),
+                sql_adt::ColumnAlias::Simple("v3".to_string()),
+                sql_adt::ColumnAlias::Simple("v4".to_string()),
+            ],
+            filter: Some(vec![
+                xpr_simple!("ord", "=", 15),
+                xpr_or!(),
+                xpr_nest!(
+                    xpr_simple!("names", "=", "X"),
+                    xpr_and!(),
+                    xpr_simple!("val", ">=", 10.0)
+                ),
+            ]),
+            order: Some(vec![
+                sql_adt::Order {
+                    name: "v1".to_string(),
+                    order: Some(sql_adt::OrderType::Asc),
+                },
+                sql_adt::Order {
+                    name: "v4".to_string(),
+                    order: Some(sql_adt::OrderType::Asc),
+                },
+            ]),
+            limit: Some(10),
+            offset: Some(20),
+        });
+        println!("{:?}", select);
+
+        assert_eq!(
+            select,
+            r#"SELECT "v1", "v2", "v3", "v4" FROM "test" WHERE "ord" = 15 OR ("names" = 'X' AND "val" >= 10) ORDER BY "v1" ASC, "v4" ASC LIMIT 10 OFFSET 20"#
+        );
     }
 }

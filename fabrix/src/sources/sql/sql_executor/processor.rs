@@ -157,10 +157,10 @@ mod test_processor {
                     .map_err(|e| e.turn_into_sqlx_decode_error())
             })
             .fetch_all(&pool)
-            .await
-            .unwrap();
+            .await;
 
         println!("{:?}", res);
+        assert!(res.is_ok());
     }
 
     // processor with new processing fn
@@ -195,9 +195,9 @@ mod test_processor {
                     .map_err(|e| e.turn_into_sqlx_decode_error())
             })
             .fetch_all(&pool)
-            .await
-            .unwrap();
+            .await;
 
         println!("{:?}", res);
+        assert!(res.is_ok());
     }
 }

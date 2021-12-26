@@ -564,9 +564,8 @@ impl_try_from_value!(Uuid, Option<Uuid>, "Option<Uuid>");
 #[cfg(test)]
 mod test_value {
 
-    use crate::{value, Date, Decimal, Uuid, Value};
-    use chrono::NaiveTime;
-    use polars::prelude::AnyValue;
+    use crate::{value, Date, Decimal, Uuid, Value, ValueType};
+    use chrono::{NaiveDate, NaiveTime};
     use rust_decimal::Decimal as RDecimal;
     use uuid::Uuid as UUuid;
 
@@ -574,60 +573,45 @@ mod test_value {
     fn test_conversion() {
         let v = 123;
         let i = Value::from(v);
-
-        println!("{:?}", i);
+        assert_eq!(ValueType::from(&i), ValueType::I32);
 
         let v = value!(123);
-        let i = i32::try_from(v).unwrap();
-
-        println!("{:?}", i);
+        let i = i32::try_from(v);
+        assert!(i.is_ok());
 
         let v = value!(Some(123));
-        let i = Option::<i32>::try_from(v).unwrap();
-
-        println!("{:?}", i);
+        let i = Option::<i32>::try_from(v);
+        assert!(i.is_ok());
 
         let v = value!(None::<i32>);
-        let i = Option::<i32>::try_from(v).unwrap();
-
-        println!("{:?}", i);
+        let i = Option::<i32>::try_from(v);
+        assert!(i.is_ok());
     }
 
     #[test]
     fn test_custom_type_conversion() {
+        // test case: external crate type (rust_decimal::Decimal)
         let v = RDecimal::new(123, 0);
         let v = Some(Decimal(v));
         let v: Value = v.into();
+        assert_eq!(ValueType::from(&v), ValueType::Decimal);
 
-        println!("{:?}", v);
-
+        // test case: external crate type (uuid::Uuid)
         let v = UUuid::new_v4();
         let v = Some(Uuid(v));
         let v: Value = v.into();
+        assert_eq!(ValueType::from(&v), ValueType::Uuid);
 
-        println!("{:?}", v);
-
+        // test case: external crate type (chrono::NaiveTime)
         let v = NaiveTime::from_hms(1, 2, 3);
         let v = Some(v);
         let v: Value = v.into();
+        assert_eq!(ValueType::from(&v), ValueType::Time);
 
-        println!("{:?}", v);
-    }
-
-    #[test]
-    fn test_any_value_to_value() {
-        let v = value!(NaiveTime::from_hms(1, 2, 3));
-
-        let foo: AnyValue = (&v).into();
-        println!("0 -> {:?}", foo);
-
-        let bar: Value = foo.into();
-
-        println!("1 -> {:?}", bar);
-
-        let d = Date(chrono::NaiveDate::from_ymd(2019, 1, 1));
-        let v = AnyValue::Object(&d);
-
-        println!("2 -> {:?}", value!(v));
+        // test case: custom type (crate::Date), which is a wrapper of chrono::NaiveDate
+        let v = NaiveDate::from_ymd(2019, 1, 1);
+        let v = Some(Date(v));
+        let v: Value = v.into();
+        assert_eq!(ValueType::from(&v), ValueType::Date);
     }
 }

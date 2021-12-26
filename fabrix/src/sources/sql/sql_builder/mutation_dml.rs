@@ -100,6 +100,7 @@ mod test_mutation_dml {
     use super::*;
     use crate::{df, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
+    // TODO: string value contains "'" char will cause error
     #[test]
     fn test_insert() {
         let df = df![
@@ -111,7 +112,6 @@ mod test_mutation_dml {
         .unwrap();
 
         let insert = SqlBuilder::Postgres.insert("test", df, true).unwrap();
-
         println!("{:?}", insert);
 
         assert_eq!(

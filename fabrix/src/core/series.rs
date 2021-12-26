@@ -667,26 +667,28 @@ impl<'a> Iterator for SeriesIterator<'a> {
 mod test_fabrix_series {
 
     use chrono::NaiveDate;
-    use polars::{chunked_array::ChunkedArray, prelude::NamedFrom};
+    use polars::prelude::NamedFrom;
 
     use super::*;
     use crate::{series, value, Date};
 
     #[test]
     fn test_series_creation() {
-        let s = Series::from_integer_default_name(&10u32).unwrap();
+        let s = Series::from_integer_default_name(&10u32);
+        assert!(s.is_ok());
 
-        println!("{:?}", s);
-        println!("{:?}", s.dtype());
-        println!("{:?}", s.get(9));
-        println!("{:?}", s.take(&[0, 3, 9]).unwrap());
+        let s = s.unwrap();
+        assert_eq!(s.dtype(), ValueType::U32);
+        assert_eq!(s.get(9).unwrap(), value!(9u32));
+        assert_eq!(s.take(&[0, 3, 9]).unwrap().len(), 3);
 
-        let s = Series::from_range_default_name(&[3u8, 9]).unwrap();
+        let s = Series::from_range_default_name(&[3u8, 9]);
+        assert!(s.is_ok());
 
-        println!("{:?}", s);
-        println!("{:?}", s.dtype());
-        println!("{:?}", s.get(100));
-        println!("{:?}", s.take(&[0, 4]).unwrap());
+        let s = s.unwrap();
+        assert_eq!(s.dtype(), ValueType::U8);
+        assert!(s.get(100).is_err());
+        assert_eq!(s.take(&[0, 4]).unwrap().len(), 2);
 
         let s = Series::from_values_default_name(
             vec![
@@ -695,11 +697,11 @@ mod test_fabrix_series {
                 value!(None::<&str>),
             ],
             true,
-        )
-        .unwrap();
+        );
+        assert!(s.is_ok());
 
-        println!("{:?}", s);
-        println!("{:?}", s.dtype());
+        let s = s.unwrap();
+        assert_eq!(s.dtype(), ValueType::String);
     }
 
     #[test]
@@ -717,8 +719,7 @@ mod test_fabrix_series {
             ],
             true,
         );
-
-        println!("{:?}", s);
+        assert!(s.is_ok());
 
         let s = Series::from_values_default_name(
             vec![
@@ -730,24 +731,7 @@ mod test_fabrix_series {
             ],
             true,
         );
-
-        println!("{:?}", s);
-    }
-
-    #[test]
-    fn test_chunked_arr() {
-        let arr = [
-            Date(NaiveDate::from_ymd(2019, 1, 1)),
-            Date(NaiveDate::from_ymd(2019, 1, 2)),
-            Date(NaiveDate::from_ymd(2019, 1, 3)),
-            Date(NaiveDate::from_ymd(2019, 1, 4)),
-        ];
-
-        let foo = ChunkedArray::<ObjectTypeDate>::new_from_slice("name", &arr);
-
-        let foo = foo.into_series();
-
-        println!("{:?}", foo.dtype());
+        assert!(s.is_ok());
     }
 
     #[test]
@@ -761,37 +745,47 @@ mod test_fabrix_series {
                 Date(NaiveDate::from_ymd(2019, 1, 4)),
             ],
         );
-        println!("{:?}", s.dtype());
+        assert_eq!(s.dtype(), ValueType::Date);
 
         let s = Series::new("num", &[1u8, 3, 5, 7, 9]);
-        println!("{:?}", s.dtype());
+        assert_eq!(s.dtype(), ValueType::U8);
     }
 
-    // #[test]
-    // fn test_series_props() {
-    //     let s = series!("yes" => &[Some(1), None, Some(2)]);
-    //     println!("{:?}", s.has_null());
+    #[test]
+    fn test_series_props() {
+        let s = series!("yes" => &[Some(1), None, Some(2)]);
+        assert!(s.has_null());
 
-    //     let s = series!("no" => &[Some(1), Some(3), Some(2)]);
-    //     println!("{:?}", s.has_null());
+        let s = series!("no" => &[Some(1), Some(3), Some(2)]);
+        assert!(!s.has_null());
 
-    //     let s = series!("no" => &[1, 3, 2]);
-    //     println!("{:?}", s.has_null());
-    // }
+        let s = series!("no" => &[1, 3, 2]);
+        assert!(!s.has_null());
+
+        let s = series!("no" => &[
+            Date(NaiveDate::from_ymd(2019, 1, 1)),
+            Date(NaiveDate::from_ymd(2019, 1, 2)),
+            Date(NaiveDate::from_ymd(2019, 1, 3)),
+            Date(NaiveDate::from_ymd(2019, 1, 4)),
+        ]);
+        assert!(!s.has_null());
+    }
 
     #[test]
     fn test_series_get() {
         let s = series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
 
-        println!("{:?}", s.head(None));
-        println!("{:?}", s.head(Some(2)));
-        println!("{:?}", s.head(Some(10)));
+        assert_eq!(s.head(None).unwrap().get(0).unwrap(), value!("Jacob"));
+        assert_eq!(s.head(Some(2)).unwrap().len(), 2);
+        assert!(s.head(Some(10)).is_err());
 
-        println!("{:?}", s.tail(None));
-        println!("{:?}", s.tail(Some(2)));
-        println!("{:?}", s.tail(Some(10)));
+        assert_eq!(s.tail(None).unwrap().get(0).unwrap(), value!("Henry"));
+        assert_eq!(s.tail(Some(2)).unwrap().len(), 2);
+        assert!(s.tail(Some(10)).is_err());
 
-        println!("{:?}", s.split(4));
+        let (s1, s2) = s.split(4).unwrap();
+        assert_eq!(s1.len(), 4);
+        assert_eq!(s2.len(), 3);
     }
 
     #[test]
@@ -799,10 +793,10 @@ mod test_fabrix_series {
         let s = series!("dollars" => &["Jacob", "Sam", "James", "April"]);
 
         let flt = series!("cmp" => &["Jacob", "Bob"]);
-        println!("{:?}", s.find_indices(&flt));
+        assert_eq!(s.find_indices(&flt), vec![0]);
 
         let flt = value!("April");
-        println!("{:?}", s.find_index(&flt));
+        assert_eq!(s.find_index(&flt), Some(3));
     }
 
     #[test]
@@ -811,8 +805,7 @@ mod test_fabrix_series {
         let s2 = series!("other" => &["Julia", "Jack", "John"]);
 
         s1.concat(s2).unwrap();
-
-        println!("{:?}", s1);
+        assert_eq!(s1.len(), 7);
     }
 
     #[test]
@@ -820,29 +813,40 @@ mod test_fabrix_series {
         let mut s1 = series!("dollars" => &["Jacob", "Sam", "James", "April"]);
 
         let v1 = value!("Julia");
-        println!("{:?}", s1.push(v1).unwrap());
+        s1.push(v1).unwrap();
+        assert_eq!(s1.len(), 5);
 
         let s2 = series!(["Jackson", "Jan"]);
-        println!("{:?}", s1.concat(s2).unwrap());
+        s1.concat(s2).unwrap();
+        assert_eq!(s1.len(), 7);
 
         let v2 = value!("Merry");
-        println!("{:?}", s1.insert(2, v2).unwrap());
+        s1.insert(2, v2).unwrap();
+        assert_eq!(s1.len(), 8);
 
         let s3 = series!(["Jasmine", "Justin"]);
-        println!("{:?}", s1.insert_many(3, s3).unwrap());
+        s1.insert_many(3, s3).unwrap();
+        assert_eq!(s1.len(), 10);
 
-        println!("{:?}", s1.pop().unwrap());
-        println!("{:?}", s1.remove(3).unwrap());
+        s1.pop().unwrap();
+        assert_eq!(s1.len(), 9);
+
+        s1.remove(3).unwrap();
+        assert_eq!(s1.len(), 8);
     }
 
     #[test]
     fn test_series_op2() {
         let mut s1 = series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Merry", "Justin"]);
 
-        println!("{:?}", s1.slice(3, 4));
-        println!("{:?}", s1.remove_slice(3, 4));
+        assert_eq!(s1.slice(3, 4).len(), 4);
 
-        println!("{:?}", s1.slice(-3, 4));
-        println!("{:?}", s1.remove_slice(-3, 4));
+        s1.remove_slice(3, 4).unwrap();
+        assert_eq!(s1.len(), 4);
+
+        assert_eq!(s1.slice(-3, 4).len(), 3);
+
+        s1.remove_slice(-3, 4).unwrap();
+        assert_eq!(s1.len(), 1);
     }
 }
