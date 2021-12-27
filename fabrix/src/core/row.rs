@@ -193,7 +193,8 @@ impl DataFrame {
 
     /// append a row to the dataframe. dtypes of the row must be equivalent to self dtypes
     pub fn append(&mut self, row: Row) -> CoreResult<&mut Self> {
-        let d = DataFrame::from_rows(vec![row])?;
+        let mut d = DataFrame::from_rows(vec![row])?;
+        d.set_column_names(&self.get_column_names())?;
         self.vconcat_mut(&d)
     }
 
@@ -222,7 +223,8 @@ impl DataFrame {
         let len = self.height();
         let mut d1 = self.slice(0, idx);
         let d2 = self.slice(idx as i64, len);
-        let di = DataFrame::from_rows(rows)?;
+        let mut di = DataFrame::from_rows(rows)?;
+        di.set_column_names(&self.get_column_names())?;
 
         d1.vconcat_mut(&di)?.vconcat_mut(&d2)?;
         *self = d1;
@@ -299,9 +301,9 @@ mod test_row {
             [2, "James", "A", 9],
         );
 
-        let df = DataFrame::from_rows(rows).unwrap();
-
-        println!("{:?}", df);
+        let df = DataFrame::from_rows(rows);
+        assert!(df.is_ok());
+        assert!(df.unwrap().shape() == (3, 4));
 
         let rows = rows!(
             100 => [0, "Jacob", "A", 10],
@@ -309,11 +311,11 @@ mod test_row {
             102 => [2, "James", "A", 9],
         );
 
-        println!("{:?}", rows);
-
-        let df = DataFrame::from_rows(rows).unwrap();
-
-        println!("{:?}", df);
+        let df = DataFrame::from_rows(rows);
+        assert!(df.is_ok());
+        let df = df.unwrap();
+        assert!(df.shape() == (3, 4));
+        assert!(df.index().len() == 3);
     }
 
     #[test]
@@ -324,9 +326,11 @@ mod test_row {
             vec![value!(31), value!("James"), value!("A"), value!(9)],
         ];
 
-        let df = DataFrame::from_row_values(vvv, None).unwrap();
+        let df = DataFrame::from_row_values(vvv, None);
+        assert!(df.is_ok());
 
-        println!("{:?}", df);
+        let df = df.unwrap();
+        assert!(df.shape() == (3, 4));
     }
 
     #[test]
@@ -336,11 +340,19 @@ mod test_row {
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
-        ]
-        .unwrap();
+        ];
+        assert!(df.is_ok());
 
-        println!("{:?}", df.get_row_by_idx(1));
-        println!("{:?}", df.get_row(&value!(2i32)));
+        let df = df.unwrap();
+        assert_eq!(df.shape(), (3, 2));
+
+        let test1 = df.get_row_by_idx(1).unwrap();
+        assert_eq!(test1.index(), &value!(2));
+        assert_eq!(test1.data(), &[value!("Sam"), value!(None::<i32>)]);
+
+        let test2 = df.get_row(&value!(2i32)).unwrap();
+        assert_eq!(test2.index(), &value!(2));
+        assert_eq!(test2.data(), &[value!("Sam"), value!(None::<i32>)]);
     }
 
     #[test]
@@ -354,12 +366,13 @@ mod test_row {
         .unwrap();
 
         let row1 = Row::new(value!(4), vec![value!("Mia"), value!(10)]);
-
-        println!("{:?}", df.append(row1).unwrap());
+        let res1 = df.append(row1);
+        assert!(res1.is_ok());
 
         let row2 = Row::new(value!(5), vec![value!("Mandy"), value!(9)]);
-
-        println!("{:?}", df.insert_row(value!(2), row2).unwrap());
+        let res2 = df.insert_row(value!(2), row2);
+        assert!(res2.is_ok());
+        assert!(df.shape() == (5, 2));
 
         let rows = rows!(
             6 => ["Jamie", 9],
@@ -367,13 +380,20 @@ mod test_row {
             8 => ["Julia", 8]
         );
 
-        println!("{:?}", df.insert_rows(value!(5), rows).unwrap());
+        let res3 = df.insert_rows(value!(5), rows);
+        assert!(res3.is_ok());
 
-        println!("{:?}", df.remove_row(value!(7)).unwrap());
+        let res4 = df.remove_row(value!(7));
+        assert!(res4.is_ok());
+        assert_eq!(df.shape(), (7, 2));
 
-        println!("{:?}", df.remove_slice(1, 2).unwrap());
+        let res4 = df.remove_slice(1, 2);
+        assert!(res4.is_ok());
+        assert_eq!(df.shape(), (5, 2));
 
-        println!("{:?}", df.remove_rows(vec![value!(2), value!(4)]).unwrap());
+        let res5 = df.remove_rows(vec![value!(2), value!(4)]);
+        assert!(res5.is_ok());
+        assert_eq!(df.shape(), (3, 2));
     }
 
     #[test]
@@ -385,8 +405,37 @@ mod test_row {
         ]
         .unwrap();
 
-        for (idx, row) in df.into_iter().enumerate() {
-            println!("{:?} >>> {:?}", idx, row);
-        }
+        let mut iter = df.into_iter();
+
+        let r1 = iter.next();
+        assert!(r1.is_some());
+        assert_eq!(
+            r1.unwrap().data(),
+            vec![value!("Jacob"), value!(100), value!(2u8)]
+        );
+
+        let r2 = iter.next();
+        assert!(r2.is_some());
+        assert_eq!(
+            r2.unwrap().data(),
+            vec![value!("Sam"), value!(99), value!(3u8)]
+        );
+
+        let r3 = iter.next();
+        assert!(r3.is_some());
+        assert_eq!(
+            r3.unwrap().data(),
+            vec![value!("James"), value!(100), value!(1u8)]
+        );
+
+        let r4 = iter.next();
+        assert!(r4.is_some());
+        assert_eq!(
+            r4.unwrap().data(),
+            vec![value!("Julia"), value!(69), value!(4u8)]
+        );
+
+        let r5 = iter.next();
+        assert!(r5.is_none());
     }
 }

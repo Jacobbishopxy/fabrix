@@ -263,15 +263,14 @@ impl DataFrame {
         Ok(self)
     }
 
-    // TODO: dtypes safety check is optional?
     /// vertical stack, return cloned data
     pub fn vconcat(&self, df: &DataFrame) -> CoreResult<DataFrame> {
-        if !self.is_dtypes_match(&df) {
-            return Err(CoreError::new_df_dtypes_mismatch_error(
-                self.dtypes(),
-                df.dtypes(),
-            ));
-        }
+        // if !self.is_dtypes_match(&df) {
+        //     return Err(CoreError::new_df_dtypes_mismatch_error(
+        //         self.dtypes(),
+        //         df.dtypes(),
+        //     ));
+        // }
         let data = self.data.vstack(df.data())?;
         let mut index = self.index.0.clone();
         index.append(&df.index.0)?;
@@ -279,15 +278,14 @@ impl DataFrame {
         Ok(DataFrame::new(data, Series(index)))
     }
 
-    // TODO: dtypes safety check is optional?
     /// vertical concat, self mutation
     pub fn vconcat_mut(&mut self, df: &DataFrame) -> CoreResult<&mut Self> {
-        if !self.is_dtypes_match(&df) {
-            return Err(CoreError::new_df_dtypes_mismatch_error(
-                self.dtypes(),
-                df.dtypes(),
-            ));
-        }
+        // if !self.is_dtypes_match(&df) {
+        //     return Err(CoreError::new_df_dtypes_mismatch_error(
+        //         self.dtypes(),
+        //         df.dtypes(),
+        //     ));
+        // }
         self.data.vstack_mut(df.data())?;
         self.index.0.append(&df.index.0)?;
 
@@ -485,22 +483,56 @@ mod test_fabrix_dataframe {
     }
 
     #[test]
-    fn test_df_op() {
+    fn test_df_op1() {
         let df = df![
+            "names" => ["Jacob", "Sam", "James"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)]
+        ];
+
+        assert!(df.is_ok());
+
+        let df = df.unwrap();
+
+        let test1 = df.get_columns(&["names", "val"]);
+        assert!(test1.is_some());
+        assert_eq!(test1.unwrap().len(), 2);
+
+        let test2 = df.take_rows_by_idx(&[0, 2]);
+        assert!(test2.is_ok());
+        assert_eq!(test2.unwrap().shape(), (2, 3));
+
+        let test3 = df.take_cols(&["names", "val"]);
+        assert!(test3.is_ok());
+        assert_eq!(test3.unwrap().shape(), (3, 2));
+
+        // watch out that the default index type is u64
+        let flt = series!([1u64, 3]);
+        let test4 = df.take_rows(&flt);
+        assert!(test4.is_ok());
+        assert_eq!(test4.unwrap().shape(), (1, 3)); // 1 row, since index 3u64 doesn't exist
+    }
+
+    #[test]
+    fn test_df_op2() {
+        let mut df1 = df![
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
         ]
         .unwrap();
 
-        println!("{:?}", df.get_columns(&["names", "val"]).unwrap());
-        println!("{:?}", df.take_rows_by_idx(&[0, 2]));
-        println!("{:?}", df.take_cols(&["names", "val"]).unwrap());
+        let df2 = df![
+            "names" => ["Sam", "James", "Jason"],
+            "ord" => [2,3,4],
+            "val" => [Some(20), None, Some(9)]
+        ]
+        .unwrap();
 
-        // watch out that the default index type is u64
-        let flt = series!([1u64, 3]);
-        println!("{:?}", df.take_rows(&flt));
-
-        println!("{:?}", df.slice(2, 3));
+        // vconcat needs fields (type and name) to be the same
+        let res = df1.vconcat_mut(&df2);
+        assert!(res.is_ok());
     }
+
+    // TODO: test the rest of the methods
 }
