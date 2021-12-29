@@ -33,11 +33,16 @@ pub trait SqlEngine: SqlHelper {
     /// disconnect from the database
     async fn disconnect(&mut self) -> SqlResult<()>;
 
-    /// insert data into a table
+    /// insert data into a table, dataframe index is the primary key
     async fn insert(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
 
-    /// update data in a table
+    /// update data in a table, dataframe index is the primary key
     async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // ================================================================================================
+    // TODO: should know whether the primary key exists or not
+    // ================================================================================================
 
     /// save data into a table
     /// saving strategy:
@@ -229,34 +234,53 @@ impl SqlEngine for SqlExecutor {
             sql_adt::SaveStrategy::FailIfExists => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
+
+                // loader
+                let ldr = self.pool.as_ref().unwrap();
+
                 // BEWARE: use fetch_optional instead of fetch_one is because `check_table_exists`
                 // will only return one row or none
-                if let Some(_) = self.pool.as_ref().unwrap().fetch_optional(&ck_str).await? {
+                if let Some(_) = ldr.fetch_optional(&ck_str).await? {
                     return Err(SqlError::new_common_error(
                         "table already exist, table cannot be saved",
                     ));
                 }
 
                 // start a transaction
-                let txn = self.pool.as_ref().unwrap().begin_transaction().await?;
+                let txn = ldr.begin_transaction().await?;
 
-                create_and_insert(&self.driver, txn, table_name, data).await
+                txn_create_table(&self.driver, txn, table_name, &data).await?;
+
+                // insert data
+                let insert = self.driver.insert(table_name, data, true)?;
+                let res = ldr.execute(&insert).await?;
+
+                Ok(res.rows_affected as usize)
             }
             sql_adt::SaveStrategy::Replace => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
+                // loader
+                let ldr = self.pool.as_ref().unwrap();
+
                 // start a transaction
-                let mut txn = self.pool.as_ref().unwrap().begin_transaction().await?;
+                let mut txn = ldr.begin_transaction().await?;
 
                 // BEWARE: use fetch_optional instead of fetch_one is because `check_table_exists`
                 // will only return one row or none
-                if let Some(_) = self.pool.as_ref().unwrap().fetch_optional(&ck_str).await? {
+                if let Some(_) = ldr.fetch_optional(&ck_str).await? {
                     let del_str = self.driver.delete_table(table_name);
                     txn.execute(&del_str).await?;
                 }
 
-                create_and_insert(&self.driver, txn, table_name, data).await
+                txn_create_table(&self.driver, txn, table_name, &data).await?;
+
+                // insert data
+                let insert = self.driver.insert(table_name, data, true)?;
+                let res = ldr.execute(&insert).await?;
+
+                Ok(res.rows_affected as usize)
             }
             sql_adt::SaveStrategy::Append => {
                 // insert to an existing table and ignore primary key
@@ -269,17 +293,23 @@ impl SqlEngine for SqlExecutor {
             sql_adt::SaveStrategy::Upsert => {
                 // get existing ids from selected table
                 let existing_ids = self.get_existing_ids(table_name, data.index()).await?;
-                let existing_ids = Series::from_values_default_name(existing_ids, false)?;
 
-                // declare a df for inserting
-                let mut df_to_insert = data;
-                // popup a df for updating
-                let df_to_update = df_to_insert.popup_rows(&existing_ids)?;
+                if existing_ids.len() != 0 {
+                    let existing_ids = Series::from_values_default_name(existing_ids, false)?;
 
-                let r1 = self.insert(&table_name, df_to_insert).await?;
-                let r2 = self.update(&table_name, df_to_update).await?;
+                    // declare a df for inserting
+                    let mut df_to_insert = data;
+                    // popup a df for updating
+                    let df_to_update = df_to_insert.popup_rows(&existing_ids)?;
 
-                Ok((r1 + r2) as usize)
+                    let r1 = self.insert(&table_name, df_to_insert).await?;
+                    let r2 = self.update(&table_name, df_to_update).await?;
+
+                    Ok((r1 + r2) as usize)
+                } else {
+                    let r1 = self.insert(&table_name, data).await?;
+                    Ok(r1 as usize)
+                }
             }
         }
     }
@@ -332,12 +362,12 @@ fn try_value_into_string(value: &Value) -> SqlResult<String> {
     }
 }
 
-/// create table and insert data
-async fn create_and_insert<'a>(
+/// create table
+async fn txn_create_table<'a>(
     driver: &SqlBuilder,
     mut txn: LoaderTransaction<'a>,
     table_name: &str,
-    data: DataFrame,
+    data: &DataFrame,
 ) -> SqlResult<usize> {
     // transaction starts
     let mut affected_rows = 0;
@@ -357,19 +387,21 @@ async fn create_and_insert<'a>(
         }
     }
 
-    // insert string
-    let insert_str = driver.insert(table_name, data, false)?;
+    // TODO: save logic is not clear!
 
-    // insert data
-    match txn.execute(&insert_str).await {
-        Ok(res) => {
-            affected_rows += res.rows_affected;
-        }
-        Err(e) => {
-            txn.rollback().await?;
-            return Err(e);
-        }
-    }
+    // // insert string
+    // let insert_str = driver.insert(table_name, data, true)?;
+
+    // // insert data
+    // match txn.execute(&insert_str).await {
+    //     Ok(res) => {
+    //         affected_rows += res.rows_affected;
+    //     }
+    //     Err(e) => {
+    //         txn.rollback().await?;
+    //         return Err(e);
+    //     }
+    // }
 
     // commit transaction
     txn.commit().await?;

@@ -105,6 +105,15 @@ impl From<&str> for ColumnAlias {
     }
 }
 
+impl From<(&str, &str)> for ColumnAlias {
+    fn from((from, to): (&str, &str)) -> Self {
+        ColumnAlias::Alias(NameAlias {
+            from: from.to_owned(),
+            to: to.to_owned(),
+        })
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Conjunction {
     AND,
@@ -162,9 +171,9 @@ pub struct Select {
 
 // TODO: methods required: from_json, from_json_string
 impl Select {
-    pub fn new(table: String) -> Self {
+    pub fn new<T: Into<String>>(table: T) -> Self {
         Select {
-            table,
+            table: table.into(),
             columns: vec![],
             filter: None,
             order: None,
@@ -178,6 +187,38 @@ impl Select {
             .iter()
             .map(|c| if alias { c.name() } else { c.original_name() })
             .collect_vec()
+    }
+
+    pub fn columns<'a, T>(&mut self, columns: &[T]) -> &mut Self
+    where
+        T: Clone,
+        T: Into<ColumnAlias>,
+    {
+        self.columns.extend(columns.iter().map(|c| {
+            let foo = c.to_owned();
+            foo.into()
+        }));
+        self
+    }
+
+    pub fn filter(&mut self, filter: &[Expression]) -> &mut Self {
+        self.filter = Some(filter.to_vec());
+        self
+    }
+
+    pub fn order(&mut self, order: &[Order]) -> &mut Self {
+        self.order = Some(order.to_vec());
+        self
+    }
+
+    pub fn limit(&mut self, limit: u64) -> &mut Self {
+        self.limit = Some(limit);
+        self
+    }
+
+    pub fn offset(&mut self, offset: u64) -> &mut Self {
+        self.offset = Some(offset);
+        self
     }
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -193,6 +234,11 @@ impl Delete {
             table,
             filter: Vec::new(),
         }
+    }
+
+    pub fn filter(&mut self, filter: &[Expression]) -> &mut Self {
+        self.filter = filter.to_vec();
+        self
     }
 }
 

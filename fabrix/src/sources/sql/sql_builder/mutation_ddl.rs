@@ -89,7 +89,7 @@ mod test_mutation_ddl {
     use crate::FieldInfo;
 
     #[test]
-    fn test_create_table() {
+    fn test_create_table_mysql() {
         let index_option = sql_adt::IndexOption::new("idx", sql_adt::IndexType::Uuid);
 
         let create_table = SqlBuilder::Mysql.create_table(
@@ -108,6 +108,29 @@ mod test_mutation_ddl {
         assert_eq!(
             create_table,
             r#"CREATE TABLE IF NOT EXISTS `test` ( `idx` binary(16) NOT NULL AUTO_INCREMENT PRIMARY KEY, `v1` int, `v2` varchar(255), `v3` bigint, `v4` bool, `v5` date )"#
+        );
+    }
+
+    #[test]
+    fn test_create_table_pg() {
+        let index_option = sql_adt::IndexOption::new("idx", sql_adt::IndexType::BigInt);
+
+        let create_table = SqlBuilder::Postgres.create_table(
+            "test",
+            &[
+                FieldInfo::new("v1", ValueType::U8),
+                FieldInfo::new("v2", ValueType::String),
+                FieldInfo::new("v3", ValueType::U64),
+                FieldInfo::new("v4", ValueType::Bool),
+                FieldInfo::new("v5", ValueType::Date),
+            ],
+            Some(&index_option),
+        );
+        println!("{}", create_table);
+
+        assert_eq!(
+            create_table,
+            r#"CREATE TABLE IF NOT EXISTS "test" ( "idx" bigserial NOT NULL PRIMARY KEY, "v1" integer, "v2" varchar, "v3" bigint, "v4" bool, "v5" date )"#
         );
     }
 

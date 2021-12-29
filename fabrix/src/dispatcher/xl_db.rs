@@ -164,6 +164,21 @@ impl XlToDbConsumer {
         }
     }
 
+    pub async fn append_table(&mut self, table_name: &str, data: DataFrame) -> FabrixResult<()> {
+        let exc = self
+            .executor
+            .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
+            .await;
+
+        match exc {
+            Ok(_) => {
+                self.consume_count += 1;
+                Ok(())
+            }
+            Err(e) => Err(e.into()),
+        }
+    }
+
     /// replace a table
     pub async fn replace_existing_table(
         &mut self,
@@ -286,24 +301,21 @@ mod test_xl_reader {
         }
 
         // sql selection
-        let select = sql::sql_adt::Select {
-            table: "test_table".into(),
-            columns: vec![
-                "id".into(),
-                "first_name".into(),
-                "last_name".into(),
-                "email".into(),
-                "ip_address".into(),
-                "birth".into(),
-                "issued_date".into(),
-                "issued_times".into(),
-            ],
-            ..Default::default()
-        };
+        let mut select = sql::sql_adt::Select::new("test_table");
+        select.columns(&[
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "ip_address",
+            "birth",
+            "issued_date",
+            "issued_times",
+        ]);
 
         // selected result
-        let res = consumer.executor.select(&select).await.unwrap();
-
+        let res = consumer.executor.select(&select).await;
+        assert!(res.is_ok());
         println!("{:?}", res);
     }
 
@@ -332,6 +344,7 @@ mod test_xl_reader {
             )
             .await;
 
+        assert!(foo.is_ok());
         println!("{:?}", foo);
         println!("{:?}", am_consumer.lock().await.consume_count);
     }
@@ -366,6 +379,7 @@ mod test_xl_reader {
             )
             .await;
 
+        assert!(foo.is_ok());
         println!("{:?}", foo);
     }
 }
