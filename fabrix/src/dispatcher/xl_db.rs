@@ -141,11 +141,16 @@ impl XlToDbConsumer {
         &mut self,
         table_name: &str,
         data: DataFrame,
+        ignore_index: bool,
     ) -> FabrixResult<()> {
         let exc = match self.consume_count {
             0 => {
                 self.executor
-                    .save(table_name, data, &sql::sql_adt::SaveStrategy::FailIfExists)
+                    .save(
+                        table_name,
+                        data,
+                        &sql::sql_adt::SaveStrategy::FailIfExists { ignore_index },
+                    )
                     .await
             }
             _ => {
@@ -184,11 +189,16 @@ impl XlToDbConsumer {
         &mut self,
         table_name: &str,
         data: DataFrame,
+        ignore_index: bool,
     ) -> FabrixResult<()> {
         let exc = match self.consume_count {
             0 => {
                 self.executor
-                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Replace)
+                    .save(
+                        table_name,
+                        data,
+                        &sql::sql_adt::SaveStrategy::Replace { ignore_index },
+                    )
                     .await
             }
             _ => {
@@ -292,7 +302,10 @@ mod test_xl_reader {
         // iterate through the sheet, and save the data to db
         for (i, row) in iter.enumerate() {
             let df = convertor.convert_row_wised_no_index(row).unwrap();
-            if let Ok(_) = consumer.replace_existing_table("test_table", df).await {
+            if let Ok(_) = consumer
+                .replace_existing_table("test_table", df, true)
+                .await
+            {
                 println!("{:?}: success", i);
             } else {
                 println!("{:?}: failed", i);
@@ -338,7 +351,9 @@ mod test_xl_reader {
                     Box::pin(async {
                         let am = Arc::clone(&am_consumer);
                         let mut lk = am.lock().await;
-                        lk.replace_existing_table("test_table", d).await.map(|_| ())
+                        lk.replace_existing_table("test_table", d, true)
+                            .await
+                            .map(|_| ())
                     })
                 },
             )
@@ -371,7 +386,7 @@ mod test_xl_reader {
                             .consumer
                             .lock()
                             .await
-                            .replace_existing_table("test_table", d)
+                            .replace_existing_table("test_table", d, true)
                             .await
                             .map(|_| ())
                     })

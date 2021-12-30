@@ -29,7 +29,7 @@ async fn test_xl2db_async() {
                         .consumer
                         .lock()
                         .await
-                        .replace_existing_table("test_table", d)
+                        .replace_existing_table("test_table", d, true)
                         // .append_table("test_table", d)
                         .await
                         .map(|_| ())

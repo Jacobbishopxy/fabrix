@@ -231,7 +231,7 @@ impl SqlEngine for SqlExecutor {
         conn_n_err!(self.pool);
 
         match strategy {
-            sql_adt::SaveStrategy::FailIfExists => {
+            sql_adt::SaveStrategy::FailIfExists { ignore_index } => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
@@ -249,15 +249,12 @@ impl SqlEngine for SqlExecutor {
                 // start a transaction
                 let txn = ldr.begin_transaction().await?;
 
-                txn_create_table(&self.driver, txn, table_name, &data).await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data, *ignore_index)
+                    .await?;
 
-                // insert data
-                let insert = self.driver.insert(table_name, data, true)?;
-                let res = ldr.execute(&insert).await?;
-
-                Ok(res.rows_affected as usize)
+                Ok(res as usize)
             }
-            sql_adt::SaveStrategy::Replace => {
+            sql_adt::SaveStrategy::Replace { ignore_index } => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
@@ -274,13 +271,10 @@ impl SqlEngine for SqlExecutor {
                     txn.execute(&del_str).await?;
                 }
 
-                txn_create_table(&self.driver, txn, table_name, &data).await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data, *ignore_index)
+                    .await?;
 
-                // insert data
-                let insert = self.driver.insert(table_name, data, true)?;
-                let res = ldr.execute(&insert).await?;
-
-                Ok(res.rows_affected as usize)
+                Ok(res as usize)
             }
             sql_adt::SaveStrategy::Append => {
                 // insert to an existing table and ignore primary key
@@ -363,50 +357,39 @@ fn try_value_into_string(value: &Value) -> SqlResult<String> {
 }
 
 /// create table
-async fn txn_create_table<'a>(
+async fn txn_create_and_insert<'a>(
     driver: &SqlBuilder,
     mut txn: LoaderTransaction<'a>,
     table_name: &str,
-    data: &DataFrame,
+    data: DataFrame,
+    ignore_index: bool,
 ) -> SqlResult<usize> {
-    // transaction starts
-    let mut affected_rows = 0;
-
     // create table string
     let fi = data.index_field();
     let index_option = sql_adt::IndexOption::try_from(&fi)?;
     let create_str = driver.create_table(table_name, &data.fields(), Some(&index_option));
 
     // create table
-    match txn.execute(&create_str).await {
-        Ok(res) => {
-            affected_rows += res.rows_affected;
-        }
-        Err(e) => {
-            return Err(e);
-        }
+    if let Err(e) = txn.execute(&create_str).await {
+        txn.rollback().await?;
+        return Err(e);
     }
 
-    // TODO: save logic is not clear!
+    // insert string
+    let insert_str = driver.insert(table_name, data, ignore_index)?;
 
-    // // insert string
-    // let insert_str = driver.insert(table_name, data, true)?;
-
-    // // insert data
-    // match txn.execute(&insert_str).await {
-    //     Ok(res) => {
-    //         affected_rows += res.rows_affected;
-    //     }
-    //     Err(e) => {
-    //         txn.rollback().await?;
-    //         return Err(e);
-    //     }
-    // }
-
-    // commit transaction
-    txn.commit().await?;
-
-    Ok(affected_rows as usize)
+    // insert data
+    match txn.execute(&insert_str).await {
+        Ok(res) => {
+            // commit transaction
+            txn.commit().await?;
+            Ok(res.rows_affected as usize)
+        }
+        Err(e) => {
+            txn.rollback().await?;
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -456,7 +439,9 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = sql_adt::SaveStrategy::FailIfExists;
+        let save_strategy = sql_adt::SaveStrategy::FailIfExists {
+            ignore_index: false,
+        };
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1);
@@ -500,7 +485,9 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = sql_adt::SaveStrategy::Replace;
+        let save_strategy = sql_adt::SaveStrategy::Replace {
+            ignore_index: false,
+        };
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1);

@@ -83,7 +83,9 @@ async fn test_save_fail_if_exists() {
     ]
     .unwrap();
 
-    let save_strategy = sql_adt::SaveStrategy::FailIfExists;
+    let save_strategy = sql_adt::SaveStrategy::FailIfExists {
+        ignore_index: false,
+    };
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1);
@@ -130,7 +132,9 @@ async fn test_save_replace() {
     ]
     .unwrap();
 
-    let save_strategy = sql_adt::SaveStrategy::Replace;
+    let save_strategy = sql_adt::SaveStrategy::Replace {
+        ignore_index: false,
+    };
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1);

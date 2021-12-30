@@ -246,13 +246,15 @@ impl Delete {
 /// Variants:
 /// - `FailIfExists`: if table exists, do nothing
 /// - `Replace`: drop if exists, create new table
-/// - `Append`: ignore primary key, append to an existing table
-/// - `Upsert`: if table exists: insert if id not exists, update if id exists
+/// - `Append`: ignore primary key, append to an existing table; index will be ignored
+/// - `Upsert`: if table exists: insert if id not exists, update if id exists; index will not be ignored
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum SaveStrategy {
-    FailIfExists,
-    Replace,
+    FailIfExists { ignore_index: bool },
+    Replace { ignore_index: bool },
+    // Index is always ignored
     Append,
+    // Index is always used
     Upsert,
 }
 
