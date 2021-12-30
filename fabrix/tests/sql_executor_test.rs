@@ -13,7 +13,7 @@
 use std::assert_matches::assert_matches;
 
 use fabrix::sql::{sql_adt, SqlEngine, SqlExecutor};
-use fabrix::{df, value, DateTime};
+use fabrix::{df, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
 
 const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";
@@ -247,22 +247,13 @@ async fn test_delete() {
     let delete = sql_adt::Delete {
         table: TABLE_NAME.to_owned(),
         filter: vec![
-            sql_adt::Expression::Simple(sql_adt::Condition {
-                column: "ord".to_owned(),
-                equation: sql_adt::Equation::Equal(value!(15)),
-            }),
-            sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR),
-            sql_adt::Expression::Nest(vec![
-                sql_adt::Expression::Simple(sql_adt::Condition {
-                    column: "names".to_owned(),
-                    equation: sql_adt::Equation::Equal(value!("Livia")),
-                }),
-                sql_adt::Expression::Conjunction(sql_adt::Conjunction::AND),
-                sql_adt::Expression::Simple(sql_adt::Condition {
-                    column: "val".to_owned(),
-                    equation: sql_adt::Equation::Greater(value!(10.0)),
-                }),
-            ]),
+            xpr_simple!("ord", "=", 15),
+            xpr_or!(),
+            xpr_nest!(
+                xpr_simple!("names", "=", "Livia"),
+                xpr_and!(),
+                xpr_simple!("val", ">", 10.0)
+            ),
         ],
     };
 

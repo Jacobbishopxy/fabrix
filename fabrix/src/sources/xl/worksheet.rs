@@ -37,8 +37,7 @@ pub struct Cell<'a> {
     pub formula: String,
     /// What cell are we looking at? E.g., B3, A1, etc.
     pub reference: String,
-    /// The cell style (e.g., the style you see in Excel by hitting Ctrl+1 and going to the
-    /// "Number" tab).
+    /// The cell style (e.g., the style you see in Excel by hitting Ctrl+1 and going to the "Number" tab).
     pub style: String,
     /// The type of cell as recorded by Excel (s = string using sharedStrings.xml, str = raw
     /// string, b = boolean, etc.). This may change from a `String` type to an `Enum` of some sorts

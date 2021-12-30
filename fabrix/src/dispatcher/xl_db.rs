@@ -100,7 +100,10 @@ impl XlDbConvertor {
     pub fn convert_col_wised_with_index(&self, data: D2Value) -> FabrixResult<DataFrame> {
         let mut collection = Self::transform_col_wised_data(data)?;
 
-        let index = collection.remove(0);
+        // let the 1st column as the index column
+        let mut index = collection.remove(0);
+        // remove the 1st cell, which is the index name
+        index.remove(0)?;
 
         Ok(DataFrame::from_series(collection, index)?)
     }

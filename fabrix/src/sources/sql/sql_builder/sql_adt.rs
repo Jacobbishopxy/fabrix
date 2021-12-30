@@ -258,6 +258,7 @@ pub enum SaveStrategy {
     Upsert,
 }
 
+// TODO: maybe we need more index type?
 /// index type is used for defining Sql column type
 #[derive(Debug, Clone)]
 pub enum IndexType {
@@ -274,34 +275,6 @@ impl From<&str> for IndexType {
             "uuid" | "u" => IndexType::Uuid,
             _ => IndexType::Int,
         }
-    }
-}
-
-impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
-    type Error = SqlError;
-
-    fn try_from(value: &'a FieldInfo) -> Result<Self, Self::Error> {
-        let dtype = value.dtype();
-        let index_type = match dtype {
-            ValueType::U8 => Ok(IndexType::Int),
-            ValueType::U16 => Ok(IndexType::Int),
-            ValueType::U32 => Ok(IndexType::Int),
-            ValueType::U64 => Ok(IndexType::BigInt),
-            ValueType::I8 => Ok(IndexType::Int),
-            ValueType::I16 => Ok(IndexType::Int),
-            ValueType::I32 => Ok(IndexType::Int),
-            ValueType::I64 => Ok(IndexType::BigInt),
-            ValueType::Uuid => Ok(IndexType::Uuid),
-            _ => Err(SqlError::new_common_error(format!(
-                "{:?} cannot convert to index type",
-                dtype
-            ))),
-        }?;
-
-        Ok(IndexOption {
-            name: value.name(),
-            index_type,
-        })
     }
 }
 
@@ -343,6 +316,34 @@ impl<'a> IndexOption<'a> {
 
         Ok(IndexOption {
             name: series.name(),
+            index_type,
+        })
+    }
+}
+
+impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
+    type Error = SqlError;
+
+    fn try_from(value: &'a FieldInfo) -> Result<Self, Self::Error> {
+        let dtype = value.dtype();
+        let index_type = match dtype {
+            ValueType::U8 => Ok(IndexType::Int),
+            ValueType::U16 => Ok(IndexType::Int),
+            ValueType::U32 => Ok(IndexType::Int),
+            ValueType::U64 => Ok(IndexType::BigInt),
+            ValueType::I8 => Ok(IndexType::Int),
+            ValueType::I16 => Ok(IndexType::Int),
+            ValueType::I32 => Ok(IndexType::Int),
+            ValueType::I64 => Ok(IndexType::BigInt),
+            ValueType::Uuid => Ok(IndexType::Uuid),
+            _ => Err(SqlError::new_common_error(format!(
+                "{:?} cannot convert to index type",
+                dtype
+            ))),
+        }?;
+
+        Ok(IndexOption {
+            name: value.name(),
             index_type,
         })
     }

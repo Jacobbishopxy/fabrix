@@ -31,6 +31,7 @@ pub(crate) enum DateSystem {
     V1904,
 }
 
+// TODO: more variants, Int and etc. They can get conversion information from `Cell`'s `raw_value` & `cell_type`
 /// `ExcelValue` is the enum that holds the equivalent "rust value" of a `Cell`s "raw_value."
 #[derive(Debug, PartialEq)]
 pub enum ExcelValue<'a> {

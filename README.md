@@ -71,8 +71,10 @@ There are three main parts in this crate:
 
 ## Test Cases
 
+1. [Declare DataFrame](./fabrix/tests/declare_df_test.rs)
+1. [Sql executor CRUD](./fabrix/tests/sql_executor_test.rs)
 1. [Read Excel file and write to database](./fabrix/tests/read_xl_to_db_test.rs)
 
 ## Examples
 
-1. [Excel process service](./examples/excel_process_service/src/main.rs)
+1. _Not yet_ ~~[Excel process service](./examples/excel_process_service/src/main.rs)~~
