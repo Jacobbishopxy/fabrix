@@ -18,20 +18,22 @@ macro_rules! df {
     ($($col_name:expr => $slice:expr),+ $(,)*) => {{
         use polars::prelude::NamedFrom;
 
-        let mut columns = vec![];
-        $(
-            columns.push($crate::Series::new($col_name, $slice));
-        )+
+        let columns = vec![
+            $(
+                $crate::Series::new($col_name, $slice),
+            )+
+        ];
 
         $crate::DataFrame::from_series_default_index(columns)
     }};
     ($index_name:expr; $($col_name:expr => $slice:expr),+ $(,)*) => {{
         use polars::prelude::NamedFrom;
 
-        let mut columns = vec![];
-        $(
-            columns.push($crate::Series::new($col_name, $slice));
-        )+
+        let columns = vec![
+            $(
+                $crate::Series::new($col_name, $slice),
+            )+
+        ];
 
         $crate::DataFrame::from_series_with_index_name(columns, $index_name)
     }};

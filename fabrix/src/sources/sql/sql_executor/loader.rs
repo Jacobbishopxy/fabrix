@@ -142,7 +142,6 @@ pub(crate) trait FabrixDatabaseLoader: Send + Sync {
     async fn fetch_optional_cst_prc_fn(&self, query: &str, f: CstPrc)
         -> SqlResult<Option<D1Value>>;
 
-    // TODO: necessary?
     /// fetch many
     async fn fetch_many(&self, queries: &[String]) -> SqlResult<Vec<ExecutionResultOrData>>;
 
@@ -348,7 +347,6 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    // TODO:
     async fn fetch_many(&self, queries: &[String]) -> SqlResult<Vec<ExecutionResultOrData>> {
         let queries = queries.join(";");
         // let mut srp = SqlRowProcessor::new();

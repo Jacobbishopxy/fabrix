@@ -94,9 +94,9 @@ impl DataFrame {
         let mut series = Vec::with_capacity(n);
         for j in 0..n {
             let mut buf = Vec::with_capacity(m);
-            for i in 0..m {
+            for r in rows.iter_mut() {
                 let mut tmp = Value::Null;
-                std::mem::swap(&mut tmp, &mut rows[i].data[j]);
+                std::mem::swap(&mut tmp, &mut r.data[j]);
                 buf.push(tmp);
             }
             series.push(Series::from_values(buf, &format!("Column_{:?}", j), true)?);
