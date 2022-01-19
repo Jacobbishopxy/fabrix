@@ -35,7 +35,7 @@ impl DmlMutation for SqlBuilder {
                 c.data
                     .into_iter()
                     .zip(column_info.iter())
-                    .map(|(v, inf)| try_from_value_to_svalue(v, &inf.dtype(), true))
+                    .map(|(v, inf)| try_from_value_to_svalue(v, inf.dtype(), true))
                     .collect::<SqlResult<Vec<_>>>()?,
             );
 
@@ -66,16 +66,13 @@ impl DmlMutation for SqlBuilder {
 
             for (v, inf) in itr {
                 let alias = alias!(&inf.name);
-                let svalue = try_from_value_to_svalue(v, &inf.dtype(), true)?;
+                let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
                 updates.push((alias, svalue));
             }
 
             statement.values(updates).and_where(
-                Expr::col(alias!(&index_name)).eq(try_from_value_to_svalue(
-                    row.index,
-                    &index_type,
-                    false,
-                )?),
+                Expr::col(alias!(index_name))
+                    .eq(try_from_value_to_svalue(row.index, index_type, false)?),
             );
 
             statement!(res; self, statement)

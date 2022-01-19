@@ -50,7 +50,7 @@ pub trait XlConsumer<CORE> {
     fn transform(cell: Cell) -> Self::UnitOut;
 
     /// consume `FinalOut` synchronously
-    fn consume<'a>(
+    fn consume(
         chunked_data: Self::FinalOut,
         consume_fn: SyncConsumeFP<Self::FinalOut>,
     ) -> FabrixResult<()> {
@@ -203,7 +203,7 @@ where
         }
 
         // if batch_size is greater than the number of rows in the sheet, return the collected data
-        if chunk.len() > 0 {
+        if !chunk.is_empty() {
             Some(chunk)
         } else {
             None
@@ -229,6 +229,7 @@ where
 /// consumer: a concrete type who implemented XlDataConsumer
 /// workbook: working resource
 /// core: a phantom type to distinguish different consumers
+#[derive(Default)]
 pub struct XlExecutor<CONSUMER, CORE>
 where
     CONSUMER: XlConsumer<CORE> + Send,
@@ -252,7 +253,7 @@ where
     }
 
     /// constructor
-    pub fn new_with_source<'a>(source: XlSource<'a>) -> FabrixResult<Self> {
+    pub fn new_with_source(source: XlSource<'_>) -> FabrixResult<Self> {
         let wb = match source {
             XlSource::File(file) => Workbook::new(file)?,
             XlSource::Path(path) => Workbook::new(File::open(path)?)?,
@@ -451,7 +452,7 @@ mod test_xl_executor {
                 for cell in row {
                     write!(f, "{} \t|", cell)?;
                 }
-                write!(f, "\n")?;
+                writeln!(f)?;
             }
             Ok(())
         }
@@ -545,12 +546,9 @@ mod test_xl_executor {
         let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
 
         let foo = xle
-            .async_consume(
-                Some(20),
-                "data",
-                |d| convert_fn(d),
-                |fo| Box::pin(async_consume_fn(fo)),
-            )
+            .async_consume(Some(20), "data", convert_fn, |fo| {
+                Box::pin(async_consume_fn(fo))
+            })
             .await;
 
         println!("{:?}", foo);
@@ -565,19 +563,14 @@ mod test_xl_executor {
         let sc = Arc::new(Mutex::new(StatefulConsumer::new()));
 
         let foo = xle
-            .async_consume_fn_mut(
-                Some(20),
-                "data",
-                |d| convert_fn(d),
-                |fo| {
-                    Box::pin(async {
-                        let am = Arc::clone(&sc);
-                        let mut lk = am.lock().await;
+            .async_consume_fn_mut(Some(20), "data", convert_fn, |fo| {
+                Box::pin(async {
+                    let am = Arc::clone(&sc);
+                    let mut lk = am.lock().await;
 
-                        lk.async_consume_fn_mut(fo).await
-                    })
-                },
-            )
+                    lk.async_consume_fn_mut(fo).await
+                })
+            })
             .await;
 
         println!("{:?}", foo);

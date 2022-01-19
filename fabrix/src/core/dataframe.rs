@@ -110,7 +110,7 @@ impl DataFrame {
 
     /// Create a DataFrame from Vec<Series>, index is automatically generated
     pub fn from_series_default_index(series: Vec<Series>) -> CoreResult<Self> {
-        let len = series.first().ok_or(cis_err("Vec<Series>"))?.len() as u64;
+        let len = series.first().ok_or_else(|| cis_err("Vec<Series>"))?.len() as u64;
         let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
         let index = Series::from_integer_default_name(&len)?;
 
@@ -140,7 +140,7 @@ impl DataFrame {
         S: Selection<'a, &'a str>,
     {
         match self.data.select_series(names) {
-            Ok(r) => Some(r.into_iter().map(|s| Series(s)).collect()),
+            Ok(r) => Some(r.into_iter().map(Series).collect()),
             Err(_) => None,
         }
     }
@@ -240,11 +240,7 @@ impl DataFrame {
 
     /// horizontal stack, return cloned data
     pub fn hconcat(&self, columns: &[Series]) -> CoreResult<DataFrame> {
-        let raw_columns = columns
-            .into_iter()
-            .cloned()
-            .map(|v| v.0)
-            .collect::<Vec<_>>();
+        let raw_columns = columns.iter().cloned().map(|v| v.0).collect::<Vec<_>>();
         let data = self.data.hstack(&raw_columns[..])?;
 
         Ok(DataFrame::new(data, self.index.clone()))
@@ -252,11 +248,7 @@ impl DataFrame {
 
     /// horizontal stack, self mutation
     pub fn hconcat_mut(&mut self, columns: &[Series]) -> CoreResult<&mut Self> {
-        let raw_columns = columns
-            .into_iter()
-            .cloned()
-            .map(|v| v.0)
-            .collect::<Vec<_>>();
+        let raw_columns = columns.iter().cloned().map(|v| v.0).collect::<Vec<_>>();
 
         self.data = self.data.hstack(&raw_columns[..])?;
 
@@ -294,12 +286,12 @@ impl DataFrame {
 
     /// take cloned rows by an indices array
     pub fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<DataFrame> {
-        let iter = indices.to_vec().into_iter();
+        let iter = indices.iter().copied();
         let data = self.data.take_iter(iter)?;
 
         Ok(DataFrame {
             data,
-            index: self.index.take(&indices)?,
+            index: self.index.take(indices)?,
         })
     }
 
@@ -307,7 +299,7 @@ impl DataFrame {
     pub fn take_rows(&self, index: &Series) -> CoreResult<DataFrame> {
         let idx = self.index.find_indices(index);
 
-        Ok(self.take_rows_by_idx(&idx[..])?)
+        self.take_rows_by_idx(&idx)
     }
 
     /// pop row
@@ -364,7 +356,7 @@ impl DataFrame {
     }
 
     /// remove rows. expensive
-    pub fn remove_rows<'a>(&mut self, indices: Vec<Value>) -> CoreResult<&mut Self> {
+    pub fn remove_rows(&mut self, indices: Vec<Value>) -> CoreResult<&mut Self> {
         let idx = Series::from_values_default_name(indices, false)?;
         let idx = self.index.find_indices(&idx);
 
@@ -404,15 +396,16 @@ impl DataFrame {
     pub fn popup_rows(&mut self, index: &Series) -> CoreResult<DataFrame> {
         let idx = self.index.find_indices(index);
 
-        Ok(self.popup_rows_by_idx(&idx)?)
+        self.popup_rows_by_idx(&idx)
     }
 
     /// slice the DataFrame along the rows
-    pub fn slice(&self, offset: i64, length: usize) -> DataFrame {
+    #[must_use]
+    pub fn slice(&self, offset: i64, length: usize) -> Self {
         let data = self.data.slice(offset, length);
         let index = self.index.slice(offset, length);
 
-        DataFrame::new(data, index.into())
+        Self::new(data, index)
     }
 
     /// take cloned DataFrame by column names
@@ -430,7 +423,7 @@ impl DataFrame {
 
 impl std::fmt::Display for DataFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", self)
     }
 }
 

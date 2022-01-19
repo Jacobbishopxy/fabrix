@@ -68,6 +68,11 @@ impl Row {
         self.data.iter().map(|v| v.into()).collect()
     }
 
+    /// check if the row is empty
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     /// row length
     pub fn len(&self) -> usize {
         self.data.len()
@@ -98,10 +103,7 @@ impl DataFrame {
         }
         let index = rows.iter().map(|r| r.index.clone()).collect();
 
-        Ok(DataFrame::from_series(
-            series,
-            Series::from_values_default_name(index, true)?,
-        )?)
+        DataFrame::from_series(series, Series::from_values_default_name(index, true)?)
     }
 
     /// create a DataFrame by IntoIter<Vec<Value>>, slower than column-wise constructors
@@ -150,17 +152,16 @@ impl DataFrame {
             .map(|(i, v)| Series::from_values(v, &format!("Column_{:?}", i), true))
             .collect::<CoreResult<Vec<_>>>()?;
 
-        let d = match index_series {
+        match index_series {
             Some(s) => DataFrame::from_series(series, s),
             None => DataFrame::from_series_default_index(series),
-        };
-        Ok(d?)
+        }
     }
 
     /// create a DataFrame by D2Value, slower than column-wise constructors
     pub fn from_row_values(values: D2Value, index_col: Option<usize>) -> CoreResult<Self> {
         let iter = values.into_iter();
-        Ok(DataFrame::from_row_values_iter(iter, index_col)?)
+        DataFrame::from_row_values_iter(iter, index_col)
     }
 
     /// get a row by idx. This method is slower than get a column (`self.data.get_row`).
@@ -185,7 +186,7 @@ impl DataFrame {
     }
 
     /// get a row by index. This method is slower than get a column.
-    pub fn get_row<'a>(&self, index: &Value) -> CoreResult<Row> {
+    pub fn get_row(&self, index: &Value) -> CoreResult<Row> {
         self.index
             .find_index(index)
             .map_or(Err(inf_err(index)), |i| self.get_row_by_idx(i))

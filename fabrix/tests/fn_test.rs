@@ -56,13 +56,13 @@ async fn use_fn_mut_test() {
     let d1 = [1, 2, 3];
     let d2 = [4, 5, 6];
 
-    let mut foo = Foo;
+    let mut x = Foo;
 
     let res1 = bar
         .process(
             &d1,
             &d2,
-            |d| foo.convert1(d),
+            |d| x.convert1(d),
             |d| Box::pin(async { Foo.consume1(d).await }),
         )
         .await;
@@ -73,7 +73,7 @@ async fn use_fn_mut_test() {
         .process(
             &d1,
             &d2,
-            |d| foo.convert2(d),
+            |d| x.convert2(d),
             |d| Box::pin(async { Foo.consume2(d).await }),
         )
         .await;

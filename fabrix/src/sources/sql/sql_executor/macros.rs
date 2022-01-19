@@ -208,7 +208,7 @@ macro_rules! impl_sql_type_tag_marker {
 /// tmap pair
 macro_rules! tmap_pair {
     ($key:expr, $value:ident) => {
-        ($key, Box::new(SqlTypeTag::<$value>::new($key)) as STTM)
+        ($key, Box::new(SqlTypeTag::<$value>::new($key)) as Sttm)
     };
 }
 
@@ -286,3 +286,18 @@ macro_rules! fetch_process_cst {
 
 pub(crate) use fetch_process;
 pub(crate) use fetch_process_cst;
+
+/// get SqlTypeTagMarker from SqlTypeTag. used in `types.rs`
+///
+/// Equivalent to:
+///
+/// ```rust
+/// PG_TMAP.get("BOOL").unwrap().as_ref()
+/// ```
+macro_rules! static_sttm_get {
+    ($map:expr, $key:expr) => {
+        $map.get($key).unwrap().as_ref()
+    };
+}
+
+pub(crate) use static_sttm_get;

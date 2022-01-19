@@ -19,9 +19,9 @@ macro_rules! df {
         use polars::prelude::NamedFrom;
 
         let mut columns = vec![];
-            $(
-                columns.push($crate::Series::new($col_name, $slice));
-            )+
+        $(
+            columns.push($crate::Series::new($col_name, $slice));
+        )+
 
         $crate::DataFrame::from_series_default_index(columns)
     }};

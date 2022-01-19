@@ -12,7 +12,7 @@ pub struct XlJsonConvertor;
 
 impl XlJsonConvertor {
     pub fn transform_data(data: D2<JsonValue>) -> JsonValue {
-        JsonValue::Array(data.into_iter().map(|x| JsonValue::Array(x)).collect())
+        JsonValue::Array(data.into_iter().map(JsonValue::Array).collect())
     }
 }
 

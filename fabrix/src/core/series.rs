@@ -127,7 +127,7 @@ impl Series {
         I: Into<Value> + Copy,
         S: AsRef<str>,
     {
-        Ok(from_integer(value.clone().into(), name.as_ref())?)
+        from_integer((*value).into(), name.as_ref())
     }
 
     /// new Series from an integer type (Rust standard type)
@@ -135,27 +135,24 @@ impl Series {
     where
         I: Into<Value> + Copy,
     {
-        Ok(from_integer(value.clone().into(), IDX)?)
+        from_integer((*value).into(), IDX)
     }
 
     /// new Series from a range
-    pub fn from_range<'a, I, S>(range: &[I; 2], name: S) -> CoreResult<Self>
+    pub fn from_range<I, S>(range: &[I; 2], name: S) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
         S: AsRef<str>,
     {
-        Ok(from_range(
-            [range[0].into(), range[1].into()],
-            name.as_ref(),
-        )?)
+        from_range([range[0].into(), range[1].into()], name.as_ref())
     }
 
     /// new Series from a range
-    pub fn from_range_default_name<'a, I>(range: &[I; 2]) -> CoreResult<Self>
+    pub fn from_range_default_name<I>(range: &[I; 2]) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
     {
-        Ok(from_range([range[0].into(), range[1].into()], IDX)?)
+        from_range([range[0].into(), range[1].into()], IDX)
     }
 
     /// new Series from Vec<Value> and name
@@ -163,17 +160,17 @@ impl Series {
     where
         S: AsRef<str>,
     {
-        Ok(from_values(values, name.as_ref(), nullable)?)
+        from_values(values, name.as_ref(), nullable)
     }
 
     /// new Series from Vec<Value>
     pub fn from_values_default_name(values: Vec<Value>, nullable: bool) -> CoreResult<Self> {
-        Ok(from_values(values, IDX, nullable)?)
+        from_values(values, IDX, nullable)
     }
 
     /// new empty Series from field
     pub fn empty_series_from_field(field: Field, nullable: bool) -> CoreResult<Self> {
-        Ok(empty_series_from_field(field, nullable)?)
+        empty_series_from_field(field, nullable)
     }
 
     /// rechunk: aggregate all chunks to a contiguous array of memory
@@ -272,11 +269,12 @@ impl Series {
 
     /// take a cloned slice by an indices array
     pub fn take(&self, indices: &[usize]) -> CoreResult<Series> {
-        let mut iter = indices.to_vec().into_iter();
+        let mut iter = indices.iter().copied();
         Ok(Series(self.0.take_iter(&mut iter)?))
     }
 
     /// slice the Series
+    #[must_use]
     pub fn slice(&self, offset: i64, length: usize) -> Series {
         self.0.slice(offset, length).into()
     }
@@ -344,7 +342,7 @@ impl Series {
     }
 
     /// insert a series at a specified idx, self mutation
-    pub fn insert_many<'a>(&mut self, idx: usize, series: Series) -> CoreResult<&mut Self> {
+    pub fn insert_many(&mut self, idx: usize, series: Series) -> CoreResult<&mut Self> {
         let (mut s1, s2) = self.split(idx)?;
 
         s1.concat(series)?.concat(s2)?;
@@ -366,7 +364,7 @@ impl Series {
     }
 
     /// remove a value from the series, self mutation
-    pub fn remove<'a>(&mut self, idx: usize) -> CoreResult<&mut Self> {
+    pub fn remove(&mut self, idx: usize) -> CoreResult<&mut Self> {
         let len = self.len();
         if idx >= len {
             return Err(oob_err(idx, len));
@@ -380,7 +378,7 @@ impl Series {
     }
 
     /// remove a slice from the series, self mutation
-    pub fn remove_slice<'a>(&mut self, offset: i64, length: usize) -> CoreResult<&mut Self> {
+    pub fn remove_slice(&mut self, offset: i64, length: usize) -> CoreResult<&mut Self> {
         let len = self.len();
         let offset = if offset >= 0 {
             offset
@@ -415,7 +413,7 @@ fn from_integer(val: Value, name: &str) -> CoreResult<Series> {
 }
 
 /// new Series from a range of AnyValue (integer specific)
-fn from_range<'a>(rng: [Value; 2], name: &str) -> CoreResult<Series> {
+fn from_range(rng: [Value; 2], name: &str) -> CoreResult<Series> {
     let [r0, r1] = rng;
     match [r0, r1] {
         [Value::U8(s), Value::U8(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
@@ -451,12 +449,13 @@ impl From<Series> for PSeries {
 ///
 /// if nullable is true, mismatched types will be converted to null.
 fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Series> {
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(CoreError::new_common_error("values' length is 0!"));
     }
 
     // iterate until get the first non-null value
-    let opt_dtype = values.iter().skip_while(|v| v.is_null()).next();
+    // let opt_dtype = values.iter().skip_while(|v| v.is_null()).next();
+    let opt_dtype = values.iter().find(|v| !v.is_null());
 
     match opt_dtype {
         Some(v) => match ValueType::from(v) {

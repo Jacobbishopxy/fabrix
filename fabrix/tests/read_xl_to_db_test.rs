@@ -7,9 +7,9 @@ use fabrix::prelude::*;
 use fabrix::sql::*;
 use fabrix::xl::*;
 
-// const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
-const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";
-// const CONN3: &'static str = "sqlite://dev.sqlite";
+// const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
+const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
+// const CONN3: &str = "sqlite://dev.sqlite";
 
 #[tokio::test]
 async fn test_xl2db_async_no_index() {

@@ -189,15 +189,13 @@ impl Select {
             .collect_vec()
     }
 
-    pub fn columns<'a, T>(&mut self, columns: &[T]) -> &mut Self
+    pub fn columns<T>(&mut self, columns: &[T]) -> &mut Self
     where
         T: Clone,
         T: Into<ColumnAlias>,
     {
-        self.columns.extend(columns.iter().map(|c| {
-            let foo = c.to_owned();
-            foo.into()
-        }));
+        self.columns
+            .extend(columns.iter().map(|c| c.to_owned().into()));
         self
     }
 

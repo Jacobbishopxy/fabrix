@@ -15,7 +15,7 @@ pub struct XlBsonConvertor;
 
 impl XlBsonConvertor {
     pub fn transform_data(data: D2<Bson>) -> Bson {
-        Bson::Array(data.into_iter().map(|x| Bson::Array(x)).collect())
+        Bson::Array(data.into_iter().map(Bson::Array).collect())
     }
 }
 

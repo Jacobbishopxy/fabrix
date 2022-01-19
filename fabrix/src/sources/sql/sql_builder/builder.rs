@@ -1,5 +1,7 @@
 //! Sql builder
 
+use std::str::FromStr;
+
 use sea_query::Value as SValue;
 
 use crate::{Date, DateTime, Decimal, SqlError, SqlResult, Time, Uuid, Value, ValueType};
@@ -21,12 +23,18 @@ impl std::fmt::Display for SqlBuilder {
     }
 }
 
-impl From<&str> for SqlBuilder {
-    fn from(v: &str) -> Self {
-        match &v.to_lowercase()[..] {
-            "mysql" | "m" => SqlBuilder::Mysql,
-            "postgres" | "p" => SqlBuilder::Postgres,
-            _ => SqlBuilder::Sqlite,
+impl FromStr for SqlBuilder {
+    type Err = SqlError;
+
+    fn from_str(s: &str) -> SqlResult<Self> {
+        match s {
+            "mysql" | "m" => Ok(SqlBuilder::Mysql),
+            "postgres" | "p" => Ok(SqlBuilder::Postgres),
+            "sqlite" | "s" => Ok(SqlBuilder::Sqlite),
+            _ => Err(SqlError::new_common_error(format!(
+                "{} is not a valid sql builder",
+                s
+            ))),
         }
     }
 }

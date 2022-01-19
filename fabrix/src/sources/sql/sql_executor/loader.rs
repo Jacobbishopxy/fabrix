@@ -52,15 +52,15 @@ impl<'a> LoaderTransaction<'a> {
     pub async fn execute(&mut self, sql: &str) -> SqlResult<ExecutionResult> {
         match self {
             Self::Mysql(tx) => {
-                let result = sqlx::query(&sql).execute(tx).await?;
+                let result = sqlx::query(sql).execute(tx).await?;
                 Ok(ExecutionResult::from(result))
             }
             Self::Pg(tx) => {
-                let result = sqlx::query(&sql).execute(tx).await?;
+                let result = sqlx::query(sql).execute(tx).await?;
                 Ok(ExecutionResult::from(result))
             }
             Self::Sqlite(tx) => {
-                let result = sqlx::query(&sql).execute(tx).await?;
+                let result = sqlx::query(sql).execute(tx).await?;
                 Ok(ExecutionResult::from(result))
             }
         }
@@ -448,9 +448,9 @@ mod test_pool {
     use futures::TryStreamExt;
     use sqlx::{Executor, Row};
 
-    const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
-    const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";
-    const CONN3: &'static str = "sqlite://dev.sqlite";
+    const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
+    const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
+    const CONN3: &str = "sqlite://dev.sqlite";
 
     #[tokio::test]
     async fn test_sqlx_execute_many() {

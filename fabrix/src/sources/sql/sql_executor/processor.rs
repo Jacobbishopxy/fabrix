@@ -4,7 +4,8 @@ use itertools::Itertools;
 use sqlx::{Column, Row as SRow};
 
 use super::types::{
-    value_type_try_into_marker, OptMarker, SqlRow, MYSQL_TMAP, PG_TMAP, SQLITE_TMAP,
+    value_type_try_into_marker, OptMarker, SqlRow, SqlTypeTagMarker, MYSQL_TMAP, PG_TMAP,
+    SQLITE_TMAP,
 };
 use crate::{D1Value, Row, SqlBuilder, SqlResult, Value, ValueType};
 
@@ -28,7 +29,7 @@ impl SqlRowProcessor {
 
     /// since each row has the same type order, saving them in cache for future use
     fn caching(&mut self, sql_row: &SqlRow) {
-        if let None = self.cache_markers {
+        if self.cache_markers.is_none() {
             match sql_row {
                 SqlRow::Mysql(row) => {
                     let ct = row
@@ -36,7 +37,10 @@ impl SqlRowProcessor {
                         .iter()
                         .map(|c| {
                             let t = c.type_info().to_string();
-                            MYSQL_TMAP.get(&t[..])
+                            MYSQL_TMAP.get(t.as_str()).map(|v| {
+                                let rf: &dyn SqlTypeTagMarker = v.as_ref();
+                                rf
+                            })
                         })
                         .collect_vec();
                     self.cache_markers = Some(ct);
@@ -47,7 +51,10 @@ impl SqlRowProcessor {
                         .iter()
                         .map(|c| {
                             let t = c.type_info().to_string();
-                            PG_TMAP.get(&t[..])
+                            PG_TMAP.get(t.as_str()).map(|v| {
+                                let rf: &dyn SqlTypeTagMarker = v.as_ref();
+                                rf
+                            })
                         })
                         .collect_vec();
                     self.cache_markers = Some(ct);
@@ -58,7 +65,10 @@ impl SqlRowProcessor {
                         .iter()
                         .map(|c| {
                             let t = c.type_info().to_string();
-                            SQLITE_TMAP.get(&t[..])
+                            SQLITE_TMAP.get(t.as_str()).map(|v| {
+                                let rf: &dyn SqlTypeTagMarker = v.as_ref();
+                                rf
+                            })
                         })
                         .collect_vec();
                     self.cache_markers = Some(ct);
@@ -135,9 +145,9 @@ mod test_processor {
     use super::*;
     use crate::value;
 
-    const CONN1: &'static str = "mysql://root:secret@localhost:3306/dev";
-    // const CONN2: &'static str = "postgres://root:secret@localhost:5432/dev";
-    // const CONN3: &'static str = "sqlite://dev.sqlite";
+    const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
+    // const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
+    // const CONN3: &str = "sqlite://dev.sqlite";
 
     // processor with cache
     #[tokio::test]
@@ -150,7 +160,7 @@ mod test_processor {
 
         let mut processor = SqlRowProcessor::new_with_cache(&SqlBuilder::Mysql, &vt);
 
-        let res = sqlx::query(&que)
+        let res = sqlx::query(que)
             .try_map(|row: sqlx::mysql::MySqlRow| {
                 processor
                     .process(row)
@@ -188,7 +198,7 @@ mod test_processor {
             Ok(vec![value!(id), value!(name)])
         };
 
-        let res = sqlx::query(&que)
+        let res = sqlx::query(que)
             .try_map(|row: sqlx::mysql::MySqlRow| {
                 processor
                     .process_by_fn(row, &box_f)

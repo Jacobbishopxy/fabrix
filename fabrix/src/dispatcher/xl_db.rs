@@ -4,6 +4,7 @@
 //! - XlDbConsumer
 //! - XlDb
 
+use std::str::FromStr;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -21,6 +22,7 @@ pub type XlDbExecutor = xl::XlExecutor<SqlExecutor, XlDbConvertor>;
 /// A convertor's method may be called several times, but only row-wised data's field
 /// will be cached. this is because column-wised data should be treated as a whole
 /// chunk of data (DataFrame) to be consumed.
+#[derive(Debug, Default)]
 pub struct XlDbConvertor {
     pub fields: Option<Vec<String>>,
 }
@@ -28,7 +30,7 @@ pub struct XlDbConvertor {
 impl XlDbConvertor {
     /// constructor
     pub fn new() -> Self {
-        Self { fields: None }
+        Self::default()
     }
 
     /// clean fields
@@ -39,8 +41,8 @@ impl XlDbConvertor {
     /// set fields, only works for row-wised data
     fn set_row_wised_fields(&mut self, data: &mut D2Value, with_index: bool) {
         // if no fields are defined, use the first row as the fields
-        if let None = &self.fields {
-            if data.len() == 0 {
+        if self.fields.is_none() {
+            if data.is_empty() {
                 return;
             }
             let mut fld = data
@@ -65,7 +67,7 @@ impl XlDbConvertor {
 
         let mut collection = Vec::new();
         for mut row in data.into_iter() {
-            if row.len() == 0 {
+            if row.is_empty() {
                 return Err(FabrixError::new_common_error("empty row"));
             }
             // assume the 1st cell is the series name
@@ -127,7 +129,7 @@ pub struct XlToDbConsumer {
 
 impl XlToDbConsumer {
     pub async fn new(conn: &str) -> FabrixResult<Self> {
-        let mut executor = SqlExecutor::from_str(conn);
+        let mut executor = SqlExecutor::from_str(conn)?;
         executor.connect().await?;
         Ok(Self {
             executor,
@@ -285,7 +287,7 @@ mod test_xl_reader {
     use crate::sources::xl::XlSource;
     use crate::sql::SqlEngine;
 
-    const CONN3: &'static str = "sqlite://dev.sqlite";
+    const CONN3: &str = "sqlite://dev.sqlite";
 
     #[tokio::test]
     async fn test_xl2db_sync() {
@@ -305,9 +307,10 @@ mod test_xl_reader {
         // iterate through the sheet, and save the data to db
         for (i, row) in iter.enumerate() {
             let df = convertor.convert_row_wised_no_index(row).unwrap();
-            if let Ok(_) = consumer
+            if consumer
                 .replace_existing_table("test_table", df, true)
                 .await
+                .is_ok()
             {
                 println!("{:?}: success", i);
             } else {

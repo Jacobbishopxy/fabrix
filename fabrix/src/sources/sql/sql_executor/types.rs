@@ -5,11 +5,11 @@ use std::{collections::HashMap, marker::PhantomData};
 use itertools::Itertools;
 use sqlx::{mysql::MySqlRow, postgres::PgRow, sqlite::SqliteRow, Row as SRow};
 
-use super::{impl_sql_type_tag_marker, tmap_pair};
+use super::{impl_sql_type_tag_marker, static_sttm_get, tmap_pair};
 use crate::{Date, DateTime, Decimal, SqlBuilder, SqlResult, Time, Uuid, Value, ValueType};
 
 /// type alias
-pub(crate) type OptMarker = Option<&'static Box<dyn SqlTypeTagMarker>>;
+pub(crate) type OptMarker = Option<&'static dyn SqlTypeTagMarker>;
 
 /// Type of Sql row
 pub(crate) enum SqlRow {
@@ -77,21 +77,21 @@ pub(crate) trait SqlTypeTagMarker: Send + Sync {
 }
 
 /// tmap value type
-pub(crate) type STTM = Box<dyn SqlTypeTagMarker>;
+pub(crate) type Sttm = Box<dyn SqlTypeTagMarker>;
 
-impl PartialEq<str> for STTM {
+impl PartialEq<str> for Sttm {
     fn eq(&self, other: &str) -> bool {
         self.to_str() == other
     }
 }
 
-impl PartialEq<STTM> for str {
-    fn eq(&self, other: &STTM) -> bool {
+impl PartialEq<Sttm> for str {
+    fn eq(&self, other: &Sttm) -> bool {
         self == other.to_str()
     }
 }
 
-const MISMATCHED_SQL_ROW: &'static str = "mismatched sql row";
+const MISMATCHED_SQL_ROW: &str = "mismatched sql row";
 
 // impl SqlTypeTagMarker for SqlTypeTag<T>
 
@@ -201,68 +201,68 @@ where
 }
 
 /// value_type -> mysql marker
-fn value_type_try_into_mysql_marker(vt: &ValueType) -> Option<&'static Box<dyn SqlTypeTagMarker>> {
+fn value_type_try_into_mysql_marker(vt: &ValueType) -> Option<&'static dyn SqlTypeTagMarker> {
     match vt {
-        ValueType::Bool => Some(MYSQL_TMAP.get("BOOLEAN").unwrap()),
-        ValueType::U8 => Some(MYSQL_TMAP.get("TINYINT UNSIGNED").unwrap()),
-        ValueType::U16 => Some(MYSQL_TMAP.get("SMALLINT UNSIGNED").unwrap()),
-        ValueType::U32 => Some(MYSQL_TMAP.get("INT UNSIGNED").unwrap()),
-        ValueType::U64 => Some(MYSQL_TMAP.get("BIGINT UNSIGNED").unwrap()),
-        ValueType::I8 => Some(MYSQL_TMAP.get("TINYINT").unwrap()),
-        ValueType::I16 => Some(MYSQL_TMAP.get("SMALLINT").unwrap()),
-        ValueType::I32 => Some(MYSQL_TMAP.get("INT").unwrap()),
-        ValueType::I64 => Some(MYSQL_TMAP.get("BIGINT").unwrap()),
-        ValueType::F32 => Some(MYSQL_TMAP.get("FLOAT").unwrap()),
-        ValueType::F64 => Some(MYSQL_TMAP.get("DOUBLE").unwrap()),
-        ValueType::String => Some(MYSQL_TMAP.get("VARCHAR").unwrap()),
-        ValueType::Date => Some(MYSQL_TMAP.get("DATE").unwrap()),
-        ValueType::Time => Some(MYSQL_TMAP.get("TIME").unwrap()),
-        ValueType::DateTime => Some(MYSQL_TMAP.get("DATETIME").unwrap()),
-        ValueType::Decimal => Some(MYSQL_TMAP.get("DECIMAL").unwrap()),
+        ValueType::Bool => Some(static_sttm_get!(MYSQL_TMAP, "BOOLEAN")),
+        ValueType::U8 => Some(static_sttm_get!(MYSQL_TMAP, "TINYINT UNSIGNED")),
+        ValueType::U16 => Some(static_sttm_get!(MYSQL_TMAP, "SMALLINT UNSIGNED")),
+        ValueType::U32 => Some(static_sttm_get!(MYSQL_TMAP, "INT UNSIGNED")),
+        ValueType::U64 => Some(static_sttm_get!(MYSQL_TMAP, "BIGINT UNSIGNED")),
+        ValueType::I8 => Some(static_sttm_get!(MYSQL_TMAP, "TINYINT")),
+        ValueType::I16 => Some(static_sttm_get!(MYSQL_TMAP, "SMALLINT")),
+        ValueType::I32 => Some(static_sttm_get!(MYSQL_TMAP, "INT")),
+        ValueType::I64 => Some(static_sttm_get!(MYSQL_TMAP, "BIGINT")),
+        ValueType::F32 => Some(static_sttm_get!(MYSQL_TMAP, "FLOAT")),
+        ValueType::F64 => Some(static_sttm_get!(MYSQL_TMAP, "DOUBLE")),
+        ValueType::String => Some(static_sttm_get!(MYSQL_TMAP, "VARCHAR")),
+        ValueType::Date => Some(static_sttm_get!(MYSQL_TMAP, "DATE")),
+        ValueType::Time => Some(static_sttm_get!(MYSQL_TMAP, "TIME")),
+        ValueType::DateTime => Some(static_sttm_get!(MYSQL_TMAP, "DATETIME")),
+        ValueType::Decimal => Some(static_sttm_get!(MYSQL_TMAP, "DECIMAL")),
         _ => None,
     }
 }
 
 /// value_type -> pg marker
-fn value_type_try_into_pg_marker(vt: &ValueType) -> Option<&'static Box<dyn SqlTypeTagMarker>> {
+fn value_type_try_into_pg_marker(vt: &ValueType) -> Option<&'static dyn SqlTypeTagMarker> {
     match vt {
-        ValueType::Bool => Some(PG_TMAP.get("BOOL").unwrap()),
-        ValueType::U8 => Some(PG_TMAP.get("TINYINT").unwrap()),
-        ValueType::U16 => Some(PG_TMAP.get("SMALLINT").unwrap()),
-        ValueType::U32 => Some(PG_TMAP.get("INT").unwrap()),
-        ValueType::U64 => Some(PG_TMAP.get("BIGINT").unwrap()),
-        ValueType::I8 => Some(PG_TMAP.get("TINYINT").unwrap()),
-        ValueType::I16 => Some(PG_TMAP.get("SMALLINT").unwrap()),
-        ValueType::I32 => Some(PG_TMAP.get("INT").unwrap()),
-        ValueType::I64 => Some(PG_TMAP.get("BIGINT").unwrap()),
-        ValueType::F32 => Some(PG_TMAP.get("REAL").unwrap()),
-        ValueType::F64 => Some(PG_TMAP.get("DOUBLE PRECISION").unwrap()),
-        ValueType::String => Some(PG_TMAP.get("VARCHAR").unwrap()),
-        ValueType::Date => Some(PG_TMAP.get("DATE").unwrap()),
-        ValueType::Time => Some(PG_TMAP.get("TIME").unwrap()),
-        ValueType::DateTime => Some(PG_TMAP.get("TIMESTAMP").unwrap()),
-        ValueType::Decimal => Some(PG_TMAP.get("NUMERIC").unwrap()),
-        ValueType::Uuid => Some(PG_TMAP.get("UUID").unwrap()),
+        ValueType::Bool => Some(static_sttm_get!(PG_TMAP, "BOOL")),
+        ValueType::U8 => Some(static_sttm_get!(PG_TMAP, "TINYINT")),
+        ValueType::U16 => Some(static_sttm_get!(PG_TMAP, "SMALLINT")),
+        ValueType::U32 => Some(static_sttm_get!(PG_TMAP, "INT")),
+        ValueType::U64 => Some(static_sttm_get!(PG_TMAP, "BIGINT")),
+        ValueType::I8 => Some(static_sttm_get!(PG_TMAP, "TINYINT")),
+        ValueType::I16 => Some(static_sttm_get!(PG_TMAP, "SMALLINT")),
+        ValueType::I32 => Some(static_sttm_get!(PG_TMAP, "INT")),
+        ValueType::I64 => Some(static_sttm_get!(PG_TMAP, "BIGINT")),
+        ValueType::F32 => Some(static_sttm_get!(PG_TMAP, "REAL")),
+        ValueType::F64 => Some(static_sttm_get!(PG_TMAP, "DOUBLE PRECISION")),
+        ValueType::String => Some(static_sttm_get!(PG_TMAP, "VARCHAR")),
+        ValueType::Date => Some(static_sttm_get!(PG_TMAP, "DATE")),
+        ValueType::Time => Some(static_sttm_get!(PG_TMAP, "TIME")),
+        ValueType::DateTime => Some(static_sttm_get!(PG_TMAP, "TIMESTAMP")),
+        ValueType::Decimal => Some(static_sttm_get!(PG_TMAP, "NUMERIC")),
+        ValueType::Uuid => Some(static_sttm_get!(PG_TMAP, "UUID")),
         _ => None,
     }
 }
 
 /// value_type -> sqlite marker
-fn value_type_try_into_sqlite_marker(vt: &ValueType) -> Option<&'static Box<dyn SqlTypeTagMarker>> {
+fn value_type_try_into_sqlite_marker(vt: &ValueType) -> Option<&'static dyn SqlTypeTagMarker> {
     match vt {
-        ValueType::Bool => Some(SQLITE_TMAP.get("BOOLEAN").unwrap()),
-        ValueType::U8 => Some(SQLITE_TMAP.get("INTEGER").unwrap()),
-        ValueType::U16 => Some(SQLITE_TMAP.get("INTEGER").unwrap()),
-        ValueType::U32 => Some(SQLITE_TMAP.get("INTEGER").unwrap()),
-        ValueType::U64 => Some(SQLITE_TMAP.get("BIGINT").unwrap()),
-        ValueType::I8 => Some(SQLITE_TMAP.get("INTEGER").unwrap()),
-        ValueType::I16 => Some(SQLITE_TMAP.get("INTEGER").unwrap()),
-        ValueType::I32 => Some(SQLITE_TMAP.get("INTEGER").unwrap()),
-        ValueType::I64 => Some(SQLITE_TMAP.get("BIGINT").unwrap()),
-        ValueType::F32 => Some(SQLITE_TMAP.get("REAL").unwrap()),
-        ValueType::F64 => Some(SQLITE_TMAP.get("REAL").unwrap()),
-        ValueType::String => Some(SQLITE_TMAP.get("VARCHAR").unwrap()),
-        ValueType::DateTime => Some(SQLITE_TMAP.get("DATETIME").unwrap()),
+        ValueType::Bool => Some(static_sttm_get!(SQLITE_TMAP, "BOOLEAN")),
+        ValueType::U8 => Some(static_sttm_get!(SQLITE_TMAP, "INTEGER")),
+        ValueType::U16 => Some(static_sttm_get!(SQLITE_TMAP, "INTEGER")),
+        ValueType::U32 => Some(static_sttm_get!(SQLITE_TMAP, "INTEGER")),
+        ValueType::U64 => Some(static_sttm_get!(SQLITE_TMAP, "BIGINT")),
+        ValueType::I8 => Some(static_sttm_get!(SQLITE_TMAP, "INTEGER")),
+        ValueType::I16 => Some(static_sttm_get!(SQLITE_TMAP, "INTEGER")),
+        ValueType::I32 => Some(static_sttm_get!(SQLITE_TMAP, "INTEGER")),
+        ValueType::I64 => Some(static_sttm_get!(SQLITE_TMAP, "BIGINT")),
+        ValueType::F32 => Some(static_sttm_get!(SQLITE_TMAP, "REAL")),
+        ValueType::F64 => Some(static_sttm_get!(SQLITE_TMAP, "REAL")),
+        ValueType::String => Some(static_sttm_get!(SQLITE_TMAP, "VARCHAR")),
+        ValueType::DateTime => Some(static_sttm_get!(SQLITE_TMAP, "DATETIME")),
         _ => None,
     }
 }
@@ -275,15 +275,15 @@ pub(crate) fn value_type_try_into_marker(
     match driver {
         SqlBuilder::Mysql => value_types
             .iter()
-            .map(|vt| value_type_try_into_mysql_marker(vt))
+            .map(value_type_try_into_mysql_marker)
             .collect_vec(),
         SqlBuilder::Postgres => value_types
             .iter()
-            .map(|vt| value_type_try_into_pg_marker(vt))
+            .map(value_type_try_into_pg_marker)
             .collect_vec(),
         SqlBuilder::Sqlite => value_types
             .iter()
-            .map(|vt| value_type_try_into_sqlite_marker(vt))
+            .map(value_type_try_into_sqlite_marker)
             .collect_vec(),
     }
 }

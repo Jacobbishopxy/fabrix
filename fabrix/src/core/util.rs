@@ -16,11 +16,7 @@ impl Stepper {
     }
 
     pub fn exhausted(&self) -> bool {
-        if self.len == self.step {
-            true
-        } else {
-            false
-        }
+        self.len == self.step
     }
 
     pub fn forward(&mut self) {
@@ -29,7 +25,7 @@ impl Stepper {
 }
 
 /// a general naming for a default FDataFrame index
-pub const IDX: &'static str = "index";
+pub const IDX: &str = "index";
 
 /// out of boundary error
 pub(crate) fn oob_err(length: usize, len: usize) -> CoreError {
@@ -37,7 +33,7 @@ pub(crate) fn oob_err(length: usize, len: usize) -> CoreError {
 }
 
 /// index not found error
-pub(crate) fn inf_err<'a>(index: &Value) -> CoreError {
+pub(crate) fn inf_err(index: &Value) -> CoreError {
     CoreError::new_common_error(format!("index {:?} not found", index))
 }
 

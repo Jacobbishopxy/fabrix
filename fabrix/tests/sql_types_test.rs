@@ -41,33 +41,33 @@ impl SqlTypeTagMarker for SqlTypeTag<bool> {
     }
 }
 
-type STTM = Box<dyn SqlTypeTagMarker>;
+type Sttm = Box<dyn SqlTypeTagMarker>;
 
 lazy_static::lazy_static! {
     // Mysql types map
-    static ref MYSQL_TMAP: HashMap<&'static str, STTM> = {
+    static ref MYSQL_TMAP: HashMap<&'static str, Sttm> = {
         HashMap::from([
             (
                 "BOOLEAN",
-                Box::new(SqlTypeTag::<bool>::new("BOOLEAN")) as STTM,
+                Box::new(SqlTypeTag::<bool>::new("BOOLEAN")) as Sttm,
             )
         ])
     };
 
     // Postgres types map
-    static ref PG_TMAP: HashMap<&'static str, STTM> = {
+    static ref PG_TMAP: HashMap<&'static str, Sttm> = {
         HashMap::from([
             (
                 "BOOL",
-                Box::new(SqlTypeTag::<bool>::new("BOOL")) as STTM,
+                Box::new(SqlTypeTag::<bool>::new("BOOL")) as Sttm,
             )
         ])
     };
 }
 
 fn get_sql_type(input: &str) -> IResult<&str, (&str, &str)> {
-    let sql_type = |s| alpha1(s);
-    let data_type = |s| alpha1(s);
+    let sql_type = alpha1;
+    let data_type = alpha1;
 
     let ctn = separated_pair(sql_type, tag(":"), data_type);
     let mut par = delimited(tag("["), ctn, tag("]"));
@@ -77,7 +77,7 @@ fn get_sql_type(input: &str) -> IResult<&str, (&str, &str)> {
 
 // "[MYSQL:BOOLEAN]" -> MYSQL_TMAP["BOOLEAN"]
 // "[PG:BOOL]" -> PG_TMAP["BOOL"]
-impl FromStr for &STTM {
+impl FromStr for &Sttm {
     type Err = SqlError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -85,10 +85,10 @@ impl FromStr for &STTM {
             Ok((_, (db_type, sql_type))) => match db_type {
                 "MYSQL" => MYSQL_TMAP
                     .get(sql_type)
-                    .ok_or(SqlError::new_common_error("MYSQL data type not found")),
+                    .ok_or_else(|| SqlError::new_common_error("MYSQL data type not found")),
                 "PG" => PG_TMAP
                     .get(sql_type)
-                    .ok_or(SqlError::new_common_error("PG data type not found")),
+                    .ok_or_else(|| SqlError::new_common_error("PG data type not found")),
                 _ => Err(SqlError::new_common_error("DB type not found")),
             },
             Err(_) => Err(SqlError::new_common_error("parsing error")),
@@ -98,13 +98,13 @@ impl FromStr for &STTM {
 
 #[test]
 fn test_parsing() {
-    let foo = "[MYSQL:BOOLEAN]";
-    let foo = foo.parse::<&STTM>();
+    let x = "[MYSQL:BOOLEAN]";
+    let x = x.parse::<&Sttm>();
 
-    println!("{:?}", foo.unwrap().to_dtype());
+    println!("{:?}", x.unwrap().to_dtype());
 
     let bar = "[PG:BOOL]";
-    let bar = bar.parse::<&STTM>();
+    let bar = bar.parse::<&Sttm>();
 
     println!("{:?}", bar.unwrap().to_dtype());
 }

@@ -320,7 +320,7 @@ impl<'a> Iterator for RowIter<'a> {
                     // note: because v elements are children of c elements,
                     // need this check to go before the 'in_cell' check
                     Ok(Event::Text(ref e)) if in_value => {
-                        c.raw_value = e.unescape_and_decode(&reader).unwrap();
+                        c.raw_value = e.unescape_and_decode(reader).unwrap();
                         c.value = match &c.cell_type[..] {
                             "s" => {
                                 if let Ok(pos) = c.raw_value.parse::<usize>() {
@@ -358,7 +358,7 @@ impl<'a> Iterator for RowIter<'a> {
                         }
                     }
                     Ok(Event::Text(ref e)) if in_cell => {
-                        let txt = e.unescape_and_decode(&reader).unwrap();
+                        let txt = e.unescape_and_decode(reader).unwrap();
                         c.formula.push_str(&txt)
                     }
                     Ok(Event::End(ref e)) if e.name() == b"v" => {

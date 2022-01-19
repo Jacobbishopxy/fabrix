@@ -142,6 +142,10 @@ impl SheetMap {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.sheets_by_num.is_empty()
+    }
+
     /// The number of active sheets in the workbook.
     ///
     /// # Example usage
@@ -318,7 +322,7 @@ impl Workbook {
                     styles,
                 })
             }
-            Err(e) => Err(e)?,
+            Err(e) => Err(e.into()),
         }
     }
 
