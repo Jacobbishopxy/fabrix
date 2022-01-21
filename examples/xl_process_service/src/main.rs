@@ -4,12 +4,15 @@
 //!
 //! Reference: https://github.com/actix/examples/blob/master/forms/multipart/src/main.rs
 
+use std::fs::File;
 use std::io::Write;
 
 use actix_multipart::Multipart;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use futures_util::TryStreamExt;
 use uuid::Uuid;
+
+// use fabrix::xl::XlSource;
 
 async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // iterate over multipart stream
@@ -28,7 +31,7 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
         dbg!(&filepath);
 
         // File::create is blocking operation, use threadpool
-        let mut f = web::block(|| std::fs::File::create(filepath)).await?;
+        let mut f = web::block(|| File::create(filepath)).await?;
 
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.try_next().await? {
@@ -36,13 +39,16 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
             // filesystem operations are blocking, we have to use threadpool
             f = web::block(move || f.write_all(&chunk).map(|_| f)).await?;
         }
+
+        // read from cached file
     }
 
     Ok(HttpResponse::Ok().into())
 }
 
 fn index() -> HttpResponse {
-    let html = r#"<html>
+    let html = r#"
+        <html>
         <head><title>Multipart Form</title></head>
         <body>
             <form target="/" method="post" enctype="multipart/form-data">
@@ -50,7 +56,8 @@ fn index() -> HttpResponse {
                 <button type="submit">Submit</button>
             </form>
         </body>
-    </html>"#;
+        </html>
+    "#;
 
     HttpResponse::Ok().body(html)
 }

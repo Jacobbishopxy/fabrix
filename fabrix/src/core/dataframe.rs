@@ -45,8 +45,7 @@
 //! 1. take_cols
 
 use itertools::Itertools;
-use polars::frame::select::Selection;
-use polars::prelude::{BooleanChunked, DataFrame as PDataFrame, Field, NewChunkedArray};
+use polars::prelude::{BooleanChunked, DataFrame as PDataFrame, Field, IntoVec, NewChunkedArray};
 
 use super::{cis_err, inf_err, oob_err, FieldInfo, Series, IDX};
 use crate::{CoreError, CoreResult, Value, ValueType};
@@ -135,10 +134,7 @@ impl DataFrame {
     }
 
     /// get a vector of cloned columns
-    pub fn get_columns<'a, S>(&self, names: S) -> Option<Vec<Series>>
-    where
-        S: Selection<'a, &'a str>,
-    {
+    pub fn get_columns(&self, names: impl IntoVec<String>) -> Option<Vec<Series>> {
         match self.data.select_series(names) {
             Ok(r) => Some(r.into_iter().map(Series).collect()),
             Err(_) => None,
@@ -199,10 +195,7 @@ impl DataFrame {
     /// dataframe check null columns
     /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
     pub fn has_null(&self) -> Vec<bool> {
-        self.data
-            .iter()
-            .map(|s| !s.is_not_null().all_true())
-            .collect()
+        self.data.iter().map(|s| !s.is_not_null().all()).collect()
     }
 
     /// series dtype + dataframe dtypes
@@ -409,9 +402,10 @@ impl DataFrame {
     }
 
     /// take cloned DataFrame by column names
-    pub fn take_cols<'a, S>(&self, cols: S) -> CoreResult<DataFrame>
+    pub fn take_cols<I, S>(&self, cols: I) -> CoreResult<DataFrame>
     where
-        S: Selection<'a, &'a str>,
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
     {
         let data = self.data.select(cols)?;
         Ok(DataFrame {

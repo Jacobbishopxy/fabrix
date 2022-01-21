@@ -10,3 +10,5 @@ actix-web = "3"
 futures-util = "0"
 sanitize-filename = "0"
 uuid = { version = "0", features = ["v4"] }
+
+fabrix = { path = "../../fabrix" }

@@ -88,7 +88,7 @@ fn test_obj_chunk() {
     let arr = ObjectChunked::<DateTime>::new_from_vec("dt", dt);
     let s = arr.into_series();
 
-    let mut it = [0, 2].into_iter();
+    let mut it = vec![0, 2].into_iter();
     println!("{:?}", s.take_iter(&mut it));
 }
 
@@ -98,7 +98,7 @@ But explicit type annotation is required for polars `TakeIdx` enum.
 */
 #[test]
 fn test_obj_chunked_arr_take() {
-    use std::array::IntoIter as ArrayIntoIter;
+    // use std::array::IntoIter as ArrayIntoIter;
     use std::vec::IntoIter as VecIntoIter;
 
     use polars::prelude::{ChunkTake, ChunkedArray, NewChunkedArray, ObjectType, TakeIdx};
@@ -114,9 +114,10 @@ fn test_obj_chunked_arr_take() {
     let arr = ChunkedArray::<ObjectType<DateTime>>::new_from_slice("dt", &dt);
     println!("{:?}", arr);
 
-    let ti = [0usize, 2].into_iter();
-    let tk: TakeIdx<ArrayIntoIter<usize, 2>, ArrayIntoIter<Option<usize>, 2>> = TakeIdx::Iter(ti);
-    println!("{:?}", arr.take(tk));
+    // TODO: update?
+    // let ti = [0usize, 2].into_iter();
+    // let tk: TakeIdx<ArrayIntoIter<usize, 2>, ArrayIntoIter<Option<usize>, 2>> = TakeIdx::Iter(ti);
+    // println!("{:?}", arr.take(tk));
 
     let ti = vec![0usize, 4].into_iter();
     let tk: TakeIdx<VecIntoIter<usize>, VecIntoIter<Option<usize>>> = TakeIdx::Iter(ti);

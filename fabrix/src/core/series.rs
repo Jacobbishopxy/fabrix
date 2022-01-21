@@ -220,7 +220,7 @@ impl Series {
     /// check if contains null value
     /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
     pub fn has_null(&self) -> bool {
-        !self.0.is_not_null().all_true()
+        !self.0.is_not_null().all()
     }
 
     /// head, if length is `None`, return a series only contains the first element

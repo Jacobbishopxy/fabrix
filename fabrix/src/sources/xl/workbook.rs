@@ -316,7 +316,7 @@ impl Workbook {
                 let date_system = get_date_system(&mut xls);
                 Ok(Workbook {
                     xls,
-                    encoding: String::from("utf8"),
+                    encoding: "utf8".to_owned(),
                     date_system,
                     strings,
                     styles,
