@@ -58,62 +58,62 @@ use crate::{
 
 // Series new methods
 
-impl_named_from!([bool], BooleanType, new_from_slice);
-impl_named_from!([Option<bool>], BooleanType, new_from_opt_slice);
+impl_named_from!([bool], BooleanType, from_slice);
+impl_named_from!([Option<bool>], BooleanType, from_slice_options);
 
-impl_named_from!([i8], Int8Type, new_from_slice);
-impl_named_from!([i16], Int16Type, new_from_slice);
-impl_named_from!([i32], Int32Type, new_from_slice);
-impl_named_from!([i64], Int64Type, new_from_slice);
-impl_named_from!([Option<i8>], Int8Type, new_from_opt_slice);
-impl_named_from!([Option<i16>], Int16Type, new_from_opt_slice);
-impl_named_from!([Option<i32>], Int32Type, new_from_opt_slice);
-impl_named_from!([Option<i64>], Int64Type, new_from_opt_slice);
+impl_named_from!([i8], Int8Type, from_slice);
+impl_named_from!([i16], Int16Type, from_slice);
+impl_named_from!([i32], Int32Type, from_slice);
+impl_named_from!([i64], Int64Type, from_slice);
+impl_named_from!([Option<i8>], Int8Type, from_slice_options);
+impl_named_from!([Option<i16>], Int16Type, from_slice_options);
+impl_named_from!([Option<i32>], Int32Type, from_slice_options);
+impl_named_from!([Option<i64>], Int64Type, from_slice_options);
 
-impl_named_from!([u8], UInt8Type, new_from_slice);
-impl_named_from!([u16], UInt16Type, new_from_slice);
-impl_named_from!([u32], UInt32Type, new_from_slice);
-impl_named_from!([u64], UInt64Type, new_from_slice);
-impl_named_from!([Option<u8>], UInt8Type, new_from_opt_slice);
-impl_named_from!([Option<u16>], UInt16Type, new_from_opt_slice);
-impl_named_from!([Option<u32>], UInt32Type, new_from_opt_slice);
-impl_named_from!([Option<u64>], UInt64Type, new_from_opt_slice);
+impl_named_from!([u8], UInt8Type, from_slice);
+impl_named_from!([u16], UInt16Type, from_slice);
+impl_named_from!([u32], UInt32Type, from_slice);
+impl_named_from!([u64], UInt64Type, from_slice);
+impl_named_from!([Option<u8>], UInt8Type, from_slice_options);
+impl_named_from!([Option<u16>], UInt16Type, from_slice_options);
+impl_named_from!([Option<u32>], UInt32Type, from_slice_options);
+impl_named_from!([Option<u64>], UInt64Type, from_slice_options);
 
-impl_named_from!([f32], Float32Type, new_from_slice);
-impl_named_from!([f64], Float64Type, new_from_slice);
-impl_named_from!([Option<f32>], Float32Type, new_from_opt_slice);
-impl_named_from!([Option<f64>], Float64Type, new_from_opt_slice);
+impl_named_from!([f32], Float32Type, from_slice);
+impl_named_from!([f64], Float64Type, from_slice);
+impl_named_from!([Option<f32>], Float32Type, from_slice_options);
+impl_named_from!([Option<f64>], Float64Type, from_slice_options);
 
-impl_named_from!([String], Utf8Type, new_from_slice);
-impl_named_from!([Option<String>], Utf8Type, new_from_opt_slice);
+impl_named_from!([String], Utf8Type, from_slice);
+impl_named_from!([Option<String>], Utf8Type, from_slice_options);
 
 impl<'a, T: AsRef<[&'a str]>> NamedFrom<T, [&'a str]> for Series {
     fn new(name: &str, v: T) -> Self {
-        let polars_series = Utf8Chunked::new_from_slice(name, v.as_ref()).into_series();
+        let polars_series = Utf8Chunked::from_slice(name, v.as_ref()).into_series();
         Series(polars_series)
     }
 }
 impl<'a, T: AsRef<[Option<&'a str>]>> NamedFrom<T, [Option<&'a str>]> for Series {
     fn new(name: &str, v: T) -> Self {
-        let polars_series = Utf8Chunked::new_from_opt_slice(name, v.as_ref()).into_series();
+        let polars_series = Utf8Chunked::from_slice_options(name, v.as_ref()).into_series();
         Series(polars_series)
     }
 }
 
-impl_named_from!([Date], ObjectTypeDate, new_from_slice);
-impl_named_from!([Option<Date>], ObjectTypeDate, new_from_opt_slice);
+impl_named_from!([Date], ObjectTypeDate, from_slice);
+impl_named_from!([Option<Date>], ObjectTypeDate, from_slice_options);
 
-impl_named_from!([Time], ObjectTypeTime, new_from_slice);
-impl_named_from!([Option<Time>], ObjectTypeTime, new_from_opt_slice);
+impl_named_from!([Time], ObjectTypeTime, from_slice);
+impl_named_from!([Option<Time>], ObjectTypeTime, from_slice_options);
 
-impl_named_from!([DateTime], ObjectTypeDateTime, new_from_slice);
-impl_named_from!([Option<DateTime>], ObjectTypeDateTime, new_from_opt_slice);
+impl_named_from!([DateTime], ObjectTypeDateTime, from_slice);
+impl_named_from!([Option<DateTime>], ObjectTypeDateTime, from_slice_options);
 
-impl_named_from!([Decimal], ObjectTypeDecimal, new_from_slice);
-impl_named_from!([Option<Decimal>], ObjectTypeDecimal, new_from_opt_slice);
+impl_named_from!([Decimal], ObjectTypeDecimal, from_slice);
+impl_named_from!([Option<Decimal>], ObjectTypeDecimal, from_slice_options);
 
-impl_named_from!([Uuid], ObjectTypeUuid, new_from_slice);
-impl_named_from!([Option<Uuid>], ObjectTypeUuid, new_from_opt_slice);
+impl_named_from!([Uuid], ObjectTypeUuid, from_slice);
+impl_named_from!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
 
 /// Series is a data structure used in Fabrix crate, it wrapped `polars` Series and provides
 /// additional customized functionalities

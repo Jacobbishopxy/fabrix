@@ -338,7 +338,7 @@ impl DataFrame {
         // create a `BooleanChunked` and get residual data
         let mut data_rsd = vec![true; self.height()];
         idx.iter().for_each(|i| data_rsd[*i] = false);
-        let idx_rsd = BooleanChunked::new_from_slice(IDX, &data_rsd);
+        let idx_rsd = BooleanChunked::from_slice(IDX, &data_rsd);
         let data_rsd = self.data.filter(&idx_rsd)?;
         let index_rsd = Series(self.index.0.filter(&idx_rsd)?);
 
@@ -417,7 +417,7 @@ impl DataFrame {
 
 impl std::fmt::Display for DataFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{:?}\n{:?}", self.index(), self.data())
     }
 }
 

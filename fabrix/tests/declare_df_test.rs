@@ -111,7 +111,7 @@ fn test_obj_chunked_arr_take() {
         DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
         DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
     ];
-    let arr = ChunkedArray::<ObjectType<DateTime>>::new_from_slice("dt", &dt);
+    let arr = ChunkedArray::<ObjectType<DateTime>>::from_slice("dt", &dt);
     println!("{:?}", arr);
 
     // TODO: update?

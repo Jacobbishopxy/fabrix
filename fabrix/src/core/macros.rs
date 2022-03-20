@@ -243,7 +243,7 @@ macro_rules! series_from_values {
             .into_iter()
             .map(|v| Option::<$ftype>::try_from(v).unwrap_or(None))
             .collect::<Vec<_>>();
-        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_opt_slice($name, &r[..]);
+        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice_options($name, &r[..]);
 
         Ok(Series(s.into_series()))
     }};
@@ -252,19 +252,19 @@ macro_rules! series_from_values {
             .into_iter()
             .map(|v| <$ftype>::try_from(v))
             .collect::<$crate::CoreResult<Vec<_>>>()?;
-        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_slice($name, &r[..]);
+        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice($name, &r[..]);
 
         Ok(Series(s.into_series()))
     }};
     ($name:expr; Option<$ftype:ty>, $polars_type:ident) => {{
         let vec: Vec<Option<$ftype>> = vec![];
-        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_opt_slice($name, &vec);
+        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice_options($name, &vec);
 
         Ok(Series(s.into_series()))
     }};
     ($name:expr; $ftype:ty, $polars_type:ident) => {{
         let vec: Vec<$ftype> = vec![];
-        let s = polars::prelude::ChunkedArray::<$polars_type>::new_from_slice($name, &vec);
+        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice($name, &vec);
 
         Ok(Series(s.into_series()))
     }};
@@ -421,7 +421,7 @@ mod test_polars_dev {
 
         let iter = v.into_iter().map(|i| i as f32);
 
-        let foo = ChunkedArray::<Float32Type>::new_from_iter("a", iter);
+        let foo = Float32Chunked::from_iter_values("a", iter);
 
         println!("{:?}", foo);
     }
