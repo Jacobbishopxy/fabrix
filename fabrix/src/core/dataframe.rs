@@ -52,7 +52,7 @@ use crate::{CoreError, CoreResult, Value, ValueType};
 
 /// DataFrame is a data structure used in Fabrix crate, it wrapped `polars` Series as DF index and
 /// `polars` DataFrame for holding 2 dimensional data. Make sure index series is not nullable.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DataFrame {
     pub(crate) data: PDataFrame,
     pub(crate) index: Series,
@@ -412,12 +412,6 @@ impl DataFrame {
             data,
             index: self.index.clone(),
         })
-    }
-}
-
-impl std::fmt::Display for DataFrame {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}\n{:?}", self.index(), self.data())
     }
 }
 

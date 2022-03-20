@@ -619,6 +619,7 @@ dependencies = [
  "bigdecimal 0.3.0",
  "bson2",
  "chrono",
+ "comfy-table",
  "futures",
  "itertools",
  "lazy_static",

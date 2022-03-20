@@ -117,7 +117,7 @@ impl_named_from!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
 
 /// Series is a data structure used in Fabrix crate, it wrapped `polars` Series and provides
 /// additional customized functionalities
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Series(pub(crate) PSeries);
 
 impl Series {

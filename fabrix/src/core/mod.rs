@@ -2,6 +2,7 @@
 
 pub mod dataframe;
 pub mod error;
+pub mod fmt;
 pub(crate) mod macros;
 pub mod row;
 pub mod series;
