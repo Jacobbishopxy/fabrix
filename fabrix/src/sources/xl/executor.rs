@@ -120,13 +120,13 @@ where
         workbook: &'a mut Workbook,
         sheet_name: &str,
     ) -> FabrixResult<Self> {
-        let sheets = workbook.sheets();
+        let sheets = workbook.sheets()?;
         let sheet = match sheets.get(sheet_name) {
             Some(ws) => ws,
             None => return Err(FabrixError::new_common_error("Sheet not found")),
         };
 
-        let buffer = sheet.rows(workbook);
+        let buffer = sheet.rows(workbook)?;
 
         Ok(Self {
             batch_size,
@@ -174,8 +174,11 @@ where
         let mut chunk = Vec::new();
         let mut row_count = 0usize;
 
+        // TODO:
+        // buffer could also contain an error message, please handle this case
+        // self.buffer.error
         for row in &mut self.buffer {
-            // turn Vec<Cell> into Vec<OUT>1
+            // turn Vec<Cell> into Vec<OUT>
             let row_buf = row
                 .data
                 .into_iter()

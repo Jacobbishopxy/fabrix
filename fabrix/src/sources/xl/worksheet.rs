@@ -9,6 +9,8 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 use zip::read::ZipFile;
 
+use crate::{FlError, FlResult};
+
 use super::{util, DateSystem, ExcelValue, Workbook};
 
 // type alias
@@ -208,16 +210,17 @@ impl Worksheet {
     ///     let row1 = rows.next().unwrap();
     ///     assert_eq!(row1[0].raw_value, "1");
     ///     assert_eq!(row1[1].value, ExcelValue::Number(2f64));
-    pub fn rows<'a>(&self, workbook: &'a mut Workbook) -> RowIter<'a> {
-        let reader = workbook.sheet_reader(&self.target);
-        RowIter {
+    pub fn rows<'a>(&self, workbook: &'a mut Workbook) -> FlResult<RowIter<'a>> {
+        let reader = workbook.sheet_reader(&self.target)?;
+        Ok(RowIter {
             worksheet_reader: reader,
             want_row: 1,
             next_row: None,
             num_cols: 0,
             num_rows: 0,
             done_file: false,
-        }
+            error: None,
+        })
     }
 
     pub fn relationship_id(&self) -> &str {
@@ -236,6 +239,7 @@ pub struct RowIter<'a> {
     num_rows: u32,
     num_cols: u16,
     done_file: bool,
+    pub error: Option<FlError>,
 }
 
 impl<'a> Iterator for RowIter<'a> {
@@ -342,15 +346,20 @@ impl<'a> Iterator for RowIter<'a> {
                             "e" => ExcelValue::Error(c.raw_value.to_string()),
                             _ if is_date(&c) => {
                                 let num = c.raw_value.parse::<f64>().unwrap();
-                                // TODO: unwrap `excel_number_to_date` is not safe
-                                match util::excel_number_to_date(num, date_system).unwrap() {
-                                    util::DateConversion::Date(date) => ExcelValue::Date(date),
-                                    util::DateConversion::DateTime(date) => {
-                                        ExcelValue::DateTime(date)
-                                    }
-                                    util::DateConversion::Time(time) => ExcelValue::Time(time),
-                                    util::DateConversion::Number(num) => {
-                                        ExcelValue::Number(num as f64)
+                                match util::excel_number_to_date(num, date_system) {
+                                    Ok(dv) => match dv {
+                                        util::DateConversion::Date(date) => ExcelValue::Date(date),
+                                        util::DateConversion::DateTime(date) => {
+                                            ExcelValue::DateTime(date)
+                                        }
+                                        util::DateConversion::Time(time) => ExcelValue::Time(time),
+                                        util::DateConversion::Number(num) => {
+                                            ExcelValue::Number(num as f64)
+                                        }
+                                    },
+                                    Err(e) => {
+                                        self.error = Some(e);
+                                        break None;
                                     }
                                 }
                             }
@@ -408,7 +417,14 @@ impl<'a> Iterator for RowIter<'a> {
                         }
                     }
                     Ok(Event::Eof) => break None,
-                    Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                    Err(e) => {
+                        self.error = Some(FlError::new_common_error(format!(
+                            "Error at position {}: {:?}",
+                            reader.buffer_position(),
+                            e
+                        )));
+                        break None;
+                    }
                     _ => (),
                 }
                 buf.clear();

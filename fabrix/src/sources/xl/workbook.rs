@@ -11,7 +11,7 @@ use quick_xml::{events::Event, Reader};
 use zip::ZipArchive;
 
 use super::{util, DateSystem, SheetReader, Worksheet};
-use crate::FlResult;
+use crate::{FlError, FlResult};
 
 /// The main struct of this module.
 ///
@@ -165,7 +165,7 @@ impl Workbook {
     /// to uniquely identify sheets within the file. The targets have information on where the
     /// sheets can be found within the zip. This function returns a hashmap of id -> target so that
     /// you can quickly determine the name of the sheet xml file within the zip.
-    fn rels(&mut self) -> HashMap<String, String> {
+    fn rels(&mut self) -> FlResult<HashMap<String, String>> {
         let mut map = HashMap::new();
 
         match self.xls.by_name("xl/_rels/workbook.xml.rels") {
@@ -206,23 +206,29 @@ impl Workbook {
                         }
                         // exits the loop when reaching end of file
                         Ok(Event::Eof) => break,
-                        Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                        Err(e) => {
+                            return Err(FlError::new_common_error(format!(
+                                "Error at position {}: {:?}",
+                                reader.buffer_position(),
+                                e
+                            )))
+                        }
                         // There are several other `Event`s we do not consider here
                         _ => (),
                     }
                     buf.clear();
                 }
 
-                map
+                Ok(map)
             }
-            Err(_) => map,
+            Err(_) => Ok(map),
         }
     }
 
     /// Return `SheetMap` of all sheets in this workbook. See `SheetMap` class and associated
     /// methods for more detailed documentation.
-    pub fn sheets(&mut self) -> SheetMap {
-        let rels = self.rels();
+    pub fn sheets(&mut self) -> FlResult<SheetMap> {
+        let rels = self.rels()?;
         let num_sheets = rels
             .iter()
             .filter(|(_, v)| v.starts_with("worksheet"))
@@ -280,14 +286,20 @@ impl Workbook {
                             sheets.sheets_by_num.push(Some(ws));
                         }
                         Ok(Event::Eof) => break,
-                        Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                        Err(e) => {
+                            return Err(FlError::new_common_error(format!(
+                                "Error at position {}: {:?}",
+                                reader.buffer_position(),
+                                e
+                            )))
+                        }
                         _ => (),
                     }
                     buf.clear();
                 }
-                sheets
+                Ok(sheets)
             }
-            Err(_) => todo!(),
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -311,9 +323,9 @@ impl Workbook {
     pub fn new(file: File) -> FlResult<Self> {
         match ZipArchive::new(file) {
             Ok(mut xls) => {
-                let strings = strings(&mut xls);
-                let styles = find_styles(&mut xls);
-                let date_system = get_date_system(&mut xls);
+                let strings = strings(&mut xls)?;
+                let styles = find_styles(&mut xls)?;
+                let date_system = get_date_system(&mut xls)?;
                 Ok(Workbook {
                     xls,
                     encoding: "utf8".to_owned(),
@@ -351,17 +363,27 @@ impl Workbook {
     /// Create a SheetReader for the given worksheet. A `SheetReader` is a struct in the
     /// `xl::Worksheet` class that can be used to iterate over rows, etc. See documentation in the
     /// `xl::Worksheet` module for more information.
-    pub(crate) fn sheet_reader<'a>(&'a mut self, zip_target: &str) -> SheetReader<'a> {
+    pub(crate) fn sheet_reader<'a>(&'a mut self, zip_target: &str) -> FlResult<SheetReader<'a>> {
         let target = match self.xls.by_name(zip_target) {
             Ok(ws) => ws,
-            Err(_) => panic!("Could not find worksheet: {}", zip_target),
+            Err(_) => {
+                return Err(FlError::new_common_error(format!(
+                    "Could not find worksheet: {}",
+                    zip_target
+                )))
+            }
         };
         // let _ = std::io::copy(&mut target, &mut std::io::stdout());
 
         let reader = BufReader::new(target);
         let mut reader = Reader::from_reader(reader);
         reader.trim_text(true);
-        SheetReader::new(reader, &self.strings, &self.styles, &self.date_system)
+        Ok(SheetReader::new(
+            reader,
+            &self.strings,
+            &self.styles,
+            &self.date_system,
+        ))
     }
 
     pub fn encoding(&self) -> &str {
@@ -369,7 +391,7 @@ impl Workbook {
     }
 }
 
-fn strings(zip_file: &mut ZipArchive<File>) -> Vec<String> {
+fn strings(zip_file: &mut ZipArchive<File>) -> FlResult<Vec<String>> {
     let mut strings = Vec::new();
     match zip_file.by_name("xl/sharedStrings.xml") {
         Ok(strings_file) => {
@@ -406,26 +428,32 @@ fn strings(zip_file: &mut ZipArchive<File>) -> Vec<String> {
                         this_string = String::new();
                     }
                     Ok(Event::Eof) => break,
-                    Err(_) => todo!(),
+                    Err(e) => {
+                        return Err(FlError::new_common_error(format!(
+                            "Error at position {}: {:?}",
+                            reader.buffer_position(),
+                            e,
+                        )))
+                    }
                     _ => (),
                 }
                 buf.clear();
             }
-            strings
+            Ok(strings)
         }
-        Err(_) => strings,
+        Err(_) => Ok(strings),
     }
 }
 
 /// find the number of rows and columns used in a particular worksheet. takes the workbook xlsx
 /// location as its first parameter, and the location of the worksheet in question (within the zip)
 /// as the second parameter. Returns a tuple of (rows, columns) in the worksheet.
-fn find_styles(xlsx: &mut ZipArchive<File>) -> Vec<String> {
+fn find_styles(xlsx: &mut ZipArchive<File>) -> FlResult<Vec<String>> {
     let mut styles = Vec::new();
     let mut number_formats = standard_styles();
     let styles_xml = match xlsx.by_name("xl/styles.xml") {
         Ok(s) => s,
-        Err(_) => return styles,
+        Err(_) => return Ok(styles),
     };
     // let _ = std::io::copy(&mut styles_xml, &mut std::io::stdout());
 
@@ -457,12 +485,18 @@ fn find_styles(xlsx: &mut ZipArchive<File>) -> Vec<String> {
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+            Err(e) => {
+                return Err(FlError::new_common_error(format!(
+                    "Error at position {}: {:?}",
+                    reader.buffer_position(),
+                    e
+                )))
+            }
             _ => (),
         }
         buf.clear();
     }
-    styles
+    Ok(styles)
 }
 
 /// Return hashmap of standard styles (ISO/IEC 29500:2011 in Part 1, section 18.8.30)
@@ -505,7 +539,7 @@ fn standard_styles() -> HashMap<String, String> {
     styles
 }
 
-fn get_date_system(xlsx: &mut ZipArchive<File>) -> DateSystem {
+fn get_date_system(xlsx: &mut ZipArchive<File>) -> FlResult<DateSystem> {
     match xlsx.by_name("xl/workbook.xml") {
         Ok(wb) => {
             let reader = BufReader::new(wb);
@@ -517,18 +551,24 @@ fn get_date_system(xlsx: &mut ZipArchive<File>) -> DateSystem {
                     Ok(Event::Empty(ref e)) if e.name() == b"workbookPr" => {
                         if let Some(system) = util::get(e.attributes(), b"date1904") {
                             if system == "1" {
-                                break DateSystem::V1904;
+                                break Ok(DateSystem::V1904);
                             }
                         }
-                        break DateSystem::V1900;
+                        break Ok(DateSystem::V1900);
                     }
-                    Ok(Event::Eof) => break DateSystem::V1900,
-                    Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                    Ok(Event::Eof) => break Ok(DateSystem::V1900),
+                    Err(e) => {
+                        return Err(FlError::new_common_error(format!(
+                            "Error at position {}: {:?}",
+                            reader.buffer_position(),
+                            e
+                        )))
+                    }
                     _ => (),
                 }
                 buf.clear();
             }
         }
-        Err(_) => panic!("Could not find xl/workbook.xml"),
+        Err(_) => Err(FlError::new_common_error("Could not find xl/workbook.xml")),
     }
 }

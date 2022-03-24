@@ -420,6 +420,37 @@ mod test_executor {
     }
 
     #[tokio::test]
+    async fn test_save_and_select() {
+        let mut exc = SqlExecutor::from_str(CONN3).unwrap();
+
+        exc.connect().await.expect("connection is ok");
+
+        let df = df![
+            "id" =>	[96,97,98,99,100],
+            "first_name" =>	["Blondie","Etti","Early","Adelina","Kristien"],
+            "last_name" => ["D'Ruel","Klimko","Dowtry","Tunn","Rabl"],
+            "email" => ["bdruel2n@sun.com","eklimko2o@arizona.edu","edowtry2p@nba.com","atunn2q@reuters.com","krabl2r@yahoo.com"],
+            "gender" =>	["Genderqueer","Bigender","Non-binary","Agender","Polygender"],
+            "ip_address" =>	["151.50.91.25","41.14.13.78","39.216.183.46","156.252.19.192","213.123.199.87"],
+            "company" => [Some("Tekfly"),Some("Twinder"),None,Some("Omba"),Some("Mita")],
+            "city" => ["Changshengqiao","Papetoai","Kabarnet","Nanqi","Colmar"],
+            "birth" => ["6/16/1984","8/2/1994","7/16/1998","9/14/1980","3/20/1991"],
+        ]
+        .unwrap();
+
+        let res = exc
+            .save(
+                TABLE_NAME,
+                df,
+                &sql_adt::SaveStrategy::Replace { ignore_index: true },
+            )
+            .await;
+
+        println!("{:?}", res);
+        // assert_eq!(res, 3);
+    }
+
+    #[tokio::test]
     async fn test_save_fail_if_exists() {
         // df
         let df = df![

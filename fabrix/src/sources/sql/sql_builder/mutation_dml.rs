@@ -94,6 +94,8 @@ impl DmlMutation for SqlBuilder {
 
 #[cfg(test)]
 mod test_mutation_dml {
+    use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
+
     use super::*;
     use crate::{df, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
@@ -114,6 +116,44 @@ mod test_mutation_dml {
             insert,
             r#"INSERT INTO "test" ("v1", "v2", "v3", "v4") VALUES (1, 'a', 1, TRUE), (2, 'b', 2, FALSE), (3, 'c', 3, TRUE)"#
         );
+    }
+
+    #[test]
+    fn test_insert2() {
+        let df = df![
+            "id" =>	[96,97,98,99,100],
+            "first_name" =>	["Blondie","Etti","Early","Adelina","Kristien"],
+            "last_name" => ["D'Ruel","Klimko","Dowtry","Tunn","Rabl"],
+            "email" => ["bdruel2n@sun.com","eklimko2o@arizona.edu","edowtry2p@nba.com","atunn2q@reuters.com","krabl2r@yahoo.com"],
+            "gender" =>	["Genderqueer","Bigender","Non-binary","Agender","Polygender"],
+            "ip_address" =>	["151.50.91.25","41.14.13.78","39.216.183.46","156.252.19.192","213.123.199.87"],
+            "company" => [Some("Tekfly"),Some("Twinder"),None,Some("Omba"),Some("Mita")],
+            "city" => ["Changshengqiao","Papetoai","Kabarnet","Nanqi","Colmar"],
+            "birth" => ["6/16/1984","8/2/1994","7/16/1998","9/14/1980","3/20/1991"],
+        ]
+        .unwrap();
+
+        let insert = SqlBuilder::Sqlite.insert("test", df, true).unwrap();
+        println!("{:?}", insert);
+    }
+
+    #[test]
+    fn test_insert3() {
+        let query = Query::insert()
+            .into_table(alias!("test"))
+            .columns(vec![alias!("name"), alias!("age")])
+            .values_panic(vec!["D'Ruel".into(), 2i32.into()])
+            .values_panic(vec!["A'd".into(), 3i32.into()])
+            .to_owned();
+
+        let str_sqlite = query.to_string(SqliteQueryBuilder);
+        println!("sqlite: {:?}", str_sqlite);
+
+        let str_postgres = query.to_string(PostgresQueryBuilder);
+        println!("postgres: {:?}", str_postgres);
+
+        let str_mysql = query.to_string(MysqlQueryBuilder);
+        println!("mysql: {:?}", str_mysql);
     }
 
     #[test]

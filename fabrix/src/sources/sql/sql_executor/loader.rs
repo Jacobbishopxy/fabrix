@@ -502,6 +502,17 @@ mod test_pool {
         unimplemented!()
     }
 
+    #[tokio::test]
+    async fn test_sqlx_execute() {
+        let pool3 = sqlx::SqlitePool::connect(CONN3).await.unwrap();
+
+        let que = "INSERT INTO \"test\" (\"id\", \"first_name\", \"last_name\", \"email\", \"gender\", \"ip_address\", \"company\", \"city\", \"birth\") VALUES (96, 'Blondie', 'D\\'Ruel', 'bdruel2n@sun.com', 'Genderqueer', '151.50.91.25', 'Tekfly', 'Changshengqiao', '6/16/1984'), (97, 'Etti', 'Klimko', 'eklimko2o@arizona.edu', 'Bigender', '41.14.13.78', 'Twinder', 'Papetoai', '8/2/1994'), (98, 'Early', 'Dowtry', 'edowtry2p@nba.com', 'Non-binary', '39.216.183.46', NULL, 'Kabarnet', '7/16/1998'), (99, 'Adelina', 'Tunn', 'atunn2q@reuters.com', 'Agender', '156.252.19.192', 'Omba', 'Nanqi', '9/14/1980'), (100, 'Kristien', 'Rabl', 'krabl2r@yahoo.com', 'Polygender', '213.123.199.87', 'Mita', 'Colmar', '3/20/1991')";
+
+        let res = sqlx::query(que).execute(&pool3).await;
+
+        println!("{:?}", res);
+    }
+
     // Test get a table's schema
     #[tokio::test]
     async fn test_get_table_schema() {

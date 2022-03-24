@@ -5,6 +5,7 @@ pub mod error;
 pub mod fmt;
 pub(crate) mod macros;
 pub mod row;
+pub mod rowframe;
 pub mod series;
 pub mod util;
 pub mod value;
@@ -12,6 +13,7 @@ pub mod value;
 pub use dataframe::*;
 pub use error::*;
 pub use row::*;
+pub use rowframe::*;
 pub use series::*;
 pub use value::*;
 

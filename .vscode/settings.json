@@ -22,6 +22,8 @@
 		"peekable",
 		"Postgres",
 		"rechunk",
+		"rels",
+		"rowframe",
 		"Sqlite",
 		"sqlx",
 		"sqlz",
