@@ -78,50 +78,95 @@ impl XlDbConvertor {
         Ok(collection)
     }
 
+    // TODO:
+    // 2. numeric index from Xl::Value to i64
+
     /// a row-wised 2D-value -> DataFrame, with index
     /// index is always the first column
-    pub fn convert_row_wised_with_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
-        self.set_row_wised_fields(&mut data, true);
-
-        let mut df = DataFrame::from_row_values(data, Some(0))?;
-        df.set_column_names(self.fields.as_ref().unwrap())?;
-        Ok(df)
+    pub fn convert_row_wised(
+        &mut self,
+        mut data: D2Value,
+        index_col: XlIndexSelection,
+    ) -> FabrixResult<DataFrame> {
+        match index_col {
+            XlIndexSelection::Num(num) => {
+                self.set_row_wised_fields(&mut data, true);
+                let mut df = DataFrame::from_row_values(data, Some(num))?;
+                df.set_column_names(self.fields.as_ref().unwrap())?;
+                Ok(df)
+            }
+            XlIndexSelection::Name(name) => {
+                self.set_row_wised_fields(&mut data, true);
+                let idx = self
+                    .fields
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .position(|f| f == name)
+                    .ok_or_else(|| {
+                        FabrixError::new_common_error(format!("index name: {name} not found"))
+                    })?;
+                let mut df = DataFrame::from_row_values(data, Some(idx))?;
+                df.set_column_names(self.fields.as_ref().unwrap())?;
+                Ok(df)
+            }
+            XlIndexSelection::None => {
+                self.set_row_wised_fields(&mut data, false);
+                let mut df = DataFrame::from_row_values(data, None)?;
+                df.set_column_names(self.fields.as_ref().unwrap())?;
+                Ok(df)
+            }
+        }
     }
 
-    /// a row-wised 2D-value -> DataFrame, without index
-    pub fn convert_row_wised_no_index(&mut self, mut data: D2Value) -> FabrixResult<DataFrame> {
-        self.set_row_wised_fields(&mut data, false);
-
-        let mut df = DataFrame::from_row_values(data, None)?;
-        df.set_column_names(self.fields.as_ref().unwrap())?;
-        Ok(df)
-    }
+    // TODO:
+    // 2. numeric index from Xl::Value to i64
 
     /// a column-wised 2D-value -> DataFrame, with index
     /// index is always the first row
-    pub fn convert_col_wised_with_index(&self, data: D2Value) -> FabrixResult<DataFrame> {
+    pub fn convert_col_wised(
+        &self,
+        data: D2Value,
+        index_col: XlIndexSelection,
+    ) -> FabrixResult<DataFrame> {
         let mut collection = Self::transform_col_wised_data(data)?;
 
-        // let the 1st column as the index column
-        let mut index = collection.remove(0);
-        // remove the 1st cell, which is the index name
-        index.remove(0)?;
+        match index_col {
+            XlIndexSelection::Num(num) => {
+                // let the 1st column as the index column
+                let mut index = collection.remove(num);
+                // remove the 1st cell, which is the index name
+                index.remove(num)?;
 
-        Ok(DataFrame::from_series(collection, index)?)
+                Ok(DataFrame::from_series(collection, index)?)
+            }
+            XlIndexSelection::Name(name) => {
+                let idx = collection
+                    .iter()
+                    .position(|s| s.name() == name)
+                    .ok_or_else(|| {
+                        FabrixError::new_common_error(format!("index name: {name} not found"))
+                    })?;
+                let mut index = collection.remove(idx);
+                index.remove(idx)?;
+
+                Ok(DataFrame::from_series(collection, index)?)
+            }
+            XlIndexSelection::None => Ok(DataFrame::from_series_default_index(collection)?),
+        }
     }
+}
 
-    /// a column-wised 2D-value -> DataFrame, without index
-    pub fn convert_col_wised_no_index(&self, data: D2Value) -> FabrixResult<DataFrame> {
-        let collection = Self::transform_col_wised_data(data)?;
-
-        Ok(DataFrame::from_series_default_index(collection)?)
-    }
+/// XlIndexSelection
+pub enum XlIndexSelection<'a> {
+    Num(usize),
+    Name(&'a str),
+    None,
 }
 
 /// XlToDbConsumer
 ///
 /// Used for consuming DataFrame and interacts with database, for instance, inserting or updating data.
-///
 pub struct XlToDbConsumer {
     pub executor: SqlExecutor,
     pub consume_count: usize,
@@ -306,7 +351,9 @@ mod test_xl_reader {
 
         // iterate through the sheet, and save the data to db
         for (i, row) in iter.enumerate() {
-            let df = convertor.convert_row_wised_no_index(row).unwrap();
+            let df = convertor
+                .convert_row_wised(row, XlIndexSelection::None)
+                .unwrap();
             if consumer
                 .replace_existing_table("test_table", df, true)
                 .await
@@ -352,7 +399,7 @@ mod test_xl_reader {
             .async_consume_fn_mut(
                 Some(40),
                 "test_table",
-                |d| convertor.convert_col_wised_no_index(d),
+                |d| convertor.convert_col_wised(d, XlIndexSelection::None),
                 |d| {
                     Box::pin(async {
                         let am = Arc::clone(&am_consumer);
@@ -385,7 +432,7 @@ mod test_xl_reader {
             .async_consume_fn_mut(
                 Some(40),
                 "test_table",
-                |d| xl2db.convertor.convert_col_wised_no_index(d),
+                |d| xl2db.convertor.convert_col_wised(d, XlIndexSelection::None),
                 |d| {
                     Box::pin(async {
                         xl2db

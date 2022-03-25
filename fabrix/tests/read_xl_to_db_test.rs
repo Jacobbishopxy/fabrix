@@ -23,7 +23,7 @@ async fn test_xl2db_async_no_index() {
         .async_consume_fn_mut(
             Some(30),
             "data",
-            |d| xl2db.convertor.convert_row_wised_no_index(d),
+            |d| xl2db.convertor.convert_row_wised(d, XlIndexSelection::None),
             |d| {
                 Box::pin(async {
                     xl2db

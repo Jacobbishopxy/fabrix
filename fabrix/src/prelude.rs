@@ -35,4 +35,6 @@ pub use crate::dispatcher::XlBson;
 #[cfg(all(feature = "xl", feature = "json"))]
 pub use crate::dispatcher::XlJson;
 #[cfg(all(feature = "xl", feature = "sql"))]
-pub use crate::dispatcher::{XlDbConvertor, XlDbExecutor, XlDbHelper, XlToDbConsumer};
+pub use crate::dispatcher::{
+    XlDbConvertor, XlDbExecutor, XlDbHelper, XlIndexSelection, XlToDbConsumer,
+};

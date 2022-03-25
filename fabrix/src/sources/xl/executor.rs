@@ -475,6 +475,7 @@ mod test_xl_executor {
                 &cell.cell_type,
                 &cell.raw_value
             );
+            println!("========================================================");
             cell.value.to_string()
         }
     }
