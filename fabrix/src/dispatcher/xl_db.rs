@@ -39,20 +39,21 @@ impl XlDbConvertor {
     }
 
     /// set fields, only works for row-wised data
-    fn set_row_wised_fields(&mut self, data: &mut D2Value, with_index: bool) {
+    fn set_row_wised_fields(&mut self, data: &mut D2Value, index_loc: Option<usize>) {
         // if no fields are defined, use the first row as the fields
         if self.fields.is_none() {
             if data.is_empty() {
                 return;
             }
+            // the first row is the fields
             let mut fld = data
                 .remove(0)
                 .iter_mut()
                 .map(|v| v.to_string())
                 .collect_vec();
             // assuming the first cell is the index name, if with_index is true, remove it
-            if with_index {
-                fld.remove(0);
+            if let Some(i) = index_loc {
+                fld.remove(i);
             }
             self.fields = Some(fld);
         };
@@ -78,9 +79,6 @@ impl XlDbConvertor {
         Ok(collection)
     }
 
-    // TODO:
-    // 2. numeric index from Xl::Value to i64
-
     /// a row-wised 2D-value -> DataFrame, with index
     /// index is always the first column
     pub fn convert_row_wised(
@@ -90,13 +88,12 @@ impl XlDbConvertor {
     ) -> FabrixResult<DataFrame> {
         match index_col {
             XlIndexSelection::Num(num) => {
-                self.set_row_wised_fields(&mut data, true);
+                self.set_row_wised_fields(&mut data, Some(num));
                 let mut df = DataFrame::from_row_values(data, Some(num))?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
             XlIndexSelection::Name(name) => {
-                self.set_row_wised_fields(&mut data, true);
                 let idx = self
                     .fields
                     .as_ref()
@@ -106,21 +103,19 @@ impl XlDbConvertor {
                     .ok_or_else(|| {
                         FabrixError::new_common_error(format!("index name: {name} not found"))
                     })?;
+                self.set_row_wised_fields(&mut data, Some(idx));
                 let mut df = DataFrame::from_row_values(data, Some(idx))?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
             XlIndexSelection::None => {
-                self.set_row_wised_fields(&mut data, false);
+                self.set_row_wised_fields(&mut data, None);
                 let mut df = DataFrame::from_row_values(data, None)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
         }
     }
-
-    // TODO:
-    // 2. numeric index from Xl::Value to i64
 
     /// a column-wised 2D-value -> DataFrame, with index
     /// index is always the first row
@@ -252,9 +247,15 @@ impl XlToDbConsumer {
                     .await
             }
             _ => {
-                self.executor
-                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
-                    .await
+                if ignore_index {
+                    self.executor
+                        .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
+                        .await
+                } else {
+                    self.executor
+                        .save(table_name, data, &sql::sql_adt::SaveStrategy::Upsert)
+                        .await
+                }
             }
         };
 
@@ -334,10 +335,30 @@ mod test_xl_reader {
 
     const CONN3: &str = "sqlite://dev.sqlite";
 
+    const XL_SOURCE: &str = "../mock/test.xlsx";
+
+    #[test]
+    fn test_xl_db_convertor() {
+        let source = XlSource::Path(XL_SOURCE);
+
+        let mut convertor = XlDbConvertor::new();
+        let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+        let iter = xle.iter_sheet(Some(50), "data").unwrap();
+
+        for (i, row) in iter.enumerate() {
+            let df = convertor
+                .convert_row_wised(row, XlIndexSelection::Num(0))
+                .unwrap();
+
+            println!("{i} ==========================================================");
+            println!("{:?}", df);
+        }
+    }
+
     #[tokio::test]
     async fn test_xl2db_sync() {
         // Xl read from a path
-        let source = XlSource::Path("../mock/test.xlsx");
+        let source = XlSource::Path(XL_SOURCE);
 
         // converter & consumer instance
         let mut convertor = XlDbConvertor::new();
@@ -347,7 +368,7 @@ mod test_xl_reader {
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
 
         // xl sheet iterator
-        let iter = xle.iter_sheet(Some(50), "test_table").unwrap();
+        let iter = xle.iter_sheet(Some(40), "data").unwrap();
 
         // iterate through the sheet, and save the data to db
         for (i, row) in iter.enumerate() {
@@ -387,7 +408,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async() {
-        let source = XlSource::Path("../mock/test.xlsx");
+        let source = XlSource::Path(XL_SOURCE);
 
         let convertor = XlDbConvertor::new();
         let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
@@ -398,7 +419,7 @@ mod test_xl_reader {
         let foo = xle
             .async_consume_fn_mut(
                 Some(40),
-                "test_table",
+                "data",
                 |d| convertor.convert_col_wised(d, XlIndexSelection::None),
                 |d| {
                     Box::pin(async {
@@ -419,7 +440,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async_helper() {
-        let source = XlSource::Path("../mock/test.xlsx");
+        let source = XlSource::Path(XL_SOURCE);
 
         // same as the above test case: `test_xl2db_async`
         // simplify the process from naming convertor and consumer separately;
@@ -431,7 +452,7 @@ mod test_xl_reader {
         let foo = xle
             .async_consume_fn_mut(
                 Some(40),
-                "test_table",
+                "data",
                 |d| xl2db.convertor.convert_col_wised(d, XlIndexSelection::None),
                 |d| {
                     Box::pin(async {

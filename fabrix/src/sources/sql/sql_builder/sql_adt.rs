@@ -306,6 +306,8 @@ impl<'a> IndexOption<'a> {
             ValueType::I32 => Ok(IndexType::Int),
             ValueType::I64 => Ok(IndexType::BigInt),
             ValueType::Uuid => Ok(IndexType::Uuid),
+            ValueType::F32 => Ok(IndexType::Int),
+            ValueType::F64 => Ok(IndexType::BigInt),
             _ => Err(SqlError::new_common_error(format!(
                 "{:?} is not an appropriate index type",
                 dtype
@@ -334,6 +336,8 @@ impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
             ValueType::I32 => Ok(IndexType::Int),
             ValueType::I64 => Ok(IndexType::BigInt),
             ValueType::Uuid => Ok(IndexType::Uuid),
+            ValueType::F32 => Ok(IndexType::Int),
+            ValueType::F64 => Ok(IndexType::BigInt),
             _ => Err(SqlError::new_common_error(format!(
                 "{:?} cannot convert to index type",
                 dtype

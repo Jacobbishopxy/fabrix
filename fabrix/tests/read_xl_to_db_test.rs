@@ -33,7 +33,6 @@ async fn test_xl2db_async_no_index() {
                         .replace_existing_table("test_table", d, true)
                         // .append_table("test_table", d)
                         .await
-                        .map(|_| ())
                 })
             },
         )
@@ -76,37 +75,36 @@ async fn test_xl2db_async_no_index() {
     println!("{:?}", res);
 }
 
-// TODO: currently, this test case won't work, because:
-// 1. need various `sql_adt::IndexType` variants and its sql-type conversion's impl;
-// 2. `xl::ExcelValue` needs more variants, for example Int and other types who depends
+#[tokio::test]
+async fn test_xl2db_async_with_index() {
+    let source = XlSource::Path("../mock/test.xlsx");
 
-// #[tokio::test]
-// async fn test_xl2db_async_with_index() {
-//     let source = XlSource::Path("../mock/test.xlsx");
+    let mut xl2db = XlDbHelper::new(CONN2).await.unwrap();
 
-//     let xl2db = XlDbHelper::new(CONN2).await.unwrap();
+    let mut xle = XlDbExecutor::new_with_source(source).unwrap();
 
-//     let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+    let res = xle
+        .async_consume_fn_mut(
+            Some(30),
+            "data",
+            |d| {
+                xl2db
+                    .convertor
+                    .convert_row_wised(d, XlIndexSelection::Num(0))
+            },
+            |d| {
+                Box::pin(async {
+                    xl2db
+                        .consumer
+                        .lock()
+                        .await
+                        .replace_existing_table("test_table", d, false)
+                        // .append_table("test_table", d)
+                        .await
+                })
+            },
+        )
+        .await;
 
-//     let res = xle
-//         .async_consume_fn_mut(
-//             Some(30),
-//             "data",
-//             |d| xl2db.convertor.convert_col_wised_with_index(d),
-//             |d| {
-//                 Box::pin(async {
-//                     xl2db
-//                         .consumer
-//                         .lock()
-//                         .await
-//                         .replace_existing_table("test_table", d, false)
-//                         // .append_table("test_table", d)
-//                         .await
-//                         .map(|_| ())
-//                 })
-//             },
-//         )
-//         .await;
-
-//     println!("{:?}", res);
-// }
+    println!("{:?}", res);
+}
