@@ -39,13 +39,17 @@ impl XlDbConvertor {
     }
 
     /// set fields, only works for row-wised data
-    fn set_row_wised_fields(&mut self, data: &mut D2Value, index_loc: Option<usize>) {
+    fn set_row_wised_fields(
+        &mut self,
+        data: &mut D2Value,
+        index_loc: Option<usize>,
+    ) -> FabrixResult<()> {
         // if no fields are defined, use the first row as the fields
         if self.fields.is_none() {
             if data.is_empty() {
-                return;
+                return Ok(());
             }
-            // the first row is the fields
+            // the first row is the fields, remove it
             let mut fld = data
                 .remove(0)
                 .iter_mut()
@@ -53,10 +57,16 @@ impl XlDbConvertor {
                 .collect_vec();
             // assuming the first cell is the index name, if with_index is true, remove it
             if let Some(i) = index_loc {
+                if i >= fld.len() {
+                    return Err(FabrixError::new_common_error(format!(
+                        "index_loc: {i} is out of range"
+                    )));
+                }
                 fld.remove(i);
             }
             self.fields = Some(fld);
         };
+        Ok(())
     }
 
     /// transform row-wised data a collection of series
@@ -81,14 +91,14 @@ impl XlDbConvertor {
 
     /// a row-wised 2D-value -> DataFrame, with index
     /// index is always the first column
-    pub fn convert_row_wised(
+    pub fn convert_row_wised<'a, T: Into<XlIndexSelection<'a>>>(
         &mut self,
         mut data: D2Value,
-        index_col: XlIndexSelection,
+        index_col: T,
     ) -> FabrixResult<DataFrame> {
-        match index_col {
+        match index_col.into() {
             XlIndexSelection::Num(num) => {
-                self.set_row_wised_fields(&mut data, Some(num));
+                self.set_row_wised_fields(&mut data, Some(num))?;
                 let mut df = DataFrame::from_row_values(data, Some(num))?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
@@ -103,13 +113,13 @@ impl XlDbConvertor {
                     .ok_or_else(|| {
                         FabrixError::new_common_error(format!("index name: {name} not found"))
                     })?;
-                self.set_row_wised_fields(&mut data, Some(idx));
+                self.set_row_wised_fields(&mut data, Some(idx))?;
                 let mut df = DataFrame::from_row_values(data, Some(idx))?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
             XlIndexSelection::None => {
-                self.set_row_wised_fields(&mut data, None);
+                self.set_row_wised_fields(&mut data, None)?;
                 let mut df = DataFrame::from_row_values(data, None)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
@@ -119,19 +129,22 @@ impl XlDbConvertor {
 
     /// a column-wised 2D-value -> DataFrame, with index
     /// index is always the first row
-    pub fn convert_col_wised(
+    pub fn convert_col_wised<'a, T: Into<XlIndexSelection<'a>>>(
         &self,
         data: D2Value,
-        index_col: XlIndexSelection,
+        index_col: T,
     ) -> FabrixResult<DataFrame> {
         let mut collection = Self::transform_col_wised_data(data)?;
 
-        match index_col {
+        match index_col.into() {
             XlIndexSelection::Num(num) => {
-                // let the 1st column as the index column
-                let mut index = collection.remove(num);
-                // remove the 1st cell, which is the index name
-                index.remove(num)?;
+                // extract index
+                if num >= collection.len() {
+                    return Err(FabrixError::new_common_error(format!(
+                        "index_col: {num} is out of range"
+                    )));
+                }
+                let index = collection.remove(num);
 
                 Ok(DataFrame::from_series(collection, index)?)
             }
@@ -142,8 +155,7 @@ impl XlDbConvertor {
                     .ok_or_else(|| {
                         FabrixError::new_common_error(format!("index name: {name} not found"))
                     })?;
-                let mut index = collection.remove(idx);
-                index.remove(idx)?;
+                let index = collection.remove(idx);
 
                 Ok(DataFrame::from_series(collection, index)?)
             }
@@ -157,6 +169,24 @@ pub enum XlIndexSelection<'a> {
     Num(usize),
     Name(&'a str),
     None,
+}
+
+impl<'a> From<usize> for XlIndexSelection<'a> {
+    fn from(num: usize) -> Self {
+        XlIndexSelection::Num(num)
+    }
+}
+
+impl<'a> From<&'a str> for XlIndexSelection<'a> {
+    fn from(name: &'a str) -> Self {
+        XlIndexSelection::Name(name)
+    }
+}
+
+impl<'a> From<()> for XlIndexSelection<'a> {
+    fn from(_: ()) -> Self {
+        XlIndexSelection::None
+    }
 }
 
 /// XlToDbConsumer
@@ -337,18 +367,35 @@ mod test_xl_reader {
 
     const XL_SOURCE: &str = "../mock/test.xlsx";
 
+    const XL_SHEET_NAME: &str = "data";
+    const XL_SHEET_NAME2: &str = "data_t";
+
     #[test]
     fn test_xl_db_convertor() {
         let source = XlSource::Path(XL_SOURCE);
 
         let mut convertor = XlDbConvertor::new();
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
-        let iter = xle.iter_sheet(Some(50), "data").unwrap();
+        let iter = xle.iter_sheet(None, XL_SHEET_NAME).unwrap();
 
         for (i, row) in iter.enumerate() {
-            let df = convertor
-                .convert_row_wised(row, XlIndexSelection::Num(0))
-                .unwrap();
+            let df = convertor.convert_row_wised(row, 0).unwrap();
+
+            println!("{i} ==========================================================");
+            println!("{:?}", df);
+        }
+    }
+
+    #[test]
+    fn test_xl_db_convertor2() {
+        let source = XlSource::Path(XL_SOURCE);
+
+        let convertor = XlDbConvertor::new();
+        let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+        let iter = xle.iter_sheet(None, XL_SHEET_NAME2).unwrap();
+
+        for (i, row) in iter.enumerate() {
+            let df = convertor.convert_col_wised(row, 0).unwrap();
 
             println!("{i} ==========================================================");
             println!("{:?}", df);
