@@ -5,6 +5,7 @@
 //! Reference: https://github.com/actix/examples/blob/master/forms/multipart/src/main.rs
 
 use std::fmt::Display;
+use std::fs::File;
 use std::io::{Cursor, Write};
 
 use actix_multipart::Multipart;
@@ -13,6 +14,7 @@ use futures_util::TryStreamExt;
 // use uuid::Uuid;
 
 use fabrix::{dispatcher::xl_json, xl, FabrixError};
+use uuid::Uuid;
 
 #[derive(Debug)]
 struct WebError {
@@ -31,19 +33,36 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
         // A multipart/form-data stream has to contain `content_disposition`
-        // let content_disposition = field.content_disposition();
+        let content_disposition = field.content_disposition();
 
-        // let filename = content_disposition
-        //     .get_filename()
-        //     .map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
-        // dbg!(&filename);
+        let filename = content_disposition
+            .get_filename()
+            .map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
+        dbg!(&filename);
 
-        // let filepath = format!("./tmp/{}", filename);
-        // dbg!(&filepath);
+        let filepath = format!("./tmp/{}", filename);
+        dbg!(&filepath);
 
         // File::create is blocking operation, use threadpool
-        // let mut f = web::block(|| File::create(filepath)).await??;
+        let mut f = web::block(|| File::create(filepath)).await??;
 
+        // Field in turn is stream of *Bytes* object
+        while let Some(chunk) = field.try_next().await? {
+            // filesystem operations are blocking, we have to use threadpool
+            f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
+        }
+
+        // read from cached file
+    }
+
+    Ok(HttpResponse::Ok().into())
+}
+
+// TODO:
+// request_param: sheet_name, direction
+async fn xl_to_json(mut payload: Multipart) -> Result<HttpResponse, Error> {
+    // iterate over multipart stream
+    while let Some(mut field) = payload.try_next().await? {
         let mut buff = Cursor::new(vec![]);
 
         // Field in turn is stream of *Bytes* object
@@ -51,9 +70,6 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
             dbg!(&chunk);
 
             buff.write_all(&chunk)?;
-
-            // filesystem operations are blocking, we have to use threadpool
-            // f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
         }
 
         let source = xl::Workbook::new(buff).unwrap();
@@ -72,8 +88,6 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
         );
 
         println!("{:?}", res);
-
-        // read from cached file
     }
 
     Ok(HttpResponse::Ok().into())
@@ -84,7 +98,14 @@ async fn index() -> HttpResponse {
         <html>
         <head><title>Multipart Form</title></head>
         <body>
-            <form target="/" method="post" enctype="multipart/form-data">
+            <p>save file</p>
+            <form target="/save" method="post" enctype="multipart/form-data">
+                <input type="file" multiple name="file">
+                <button type="submit">Submit</button>
+            </form>
+            <br/>
+            <p>xl file extract</p>
+            <form target="/xl" method="post" enctype="multipart/form-data">
                 <input type="file" multiple name="file">
                 <button type="submit">Submit</button>
             </form>
@@ -101,11 +122,11 @@ async fn main() -> std::io::Result<()> {
     std::fs::create_dir_all("./tmp")?;
 
     HttpServer::new(|| {
-        App::new().wrap(middleware::Logger::default()).service(
-            web::resource("/")
-                .route(web::get().to(index))
-                .route(web::post().to(save_file)),
-        )
+        App::new()
+            .wrap(middleware::Logger::default())
+            .service(web::resource("/").route(web::get().to(index)))
+            .service(web::resource("/save").route(web::post().to(save_file)))
+            .service(web::resource("/xl").route(web::post().to(xl_to_json)))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
