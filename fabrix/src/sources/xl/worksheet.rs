@@ -210,7 +210,10 @@ impl Worksheet {
     ///     let row1 = rows.next().unwrap();
     ///     assert_eq!(row1[0].raw_value, "1");
     ///     assert_eq!(row1[1].value, ExcelValue::Number(2f64));
-    pub fn rows<'a>(&self, workbook: &'a mut Workbook) -> FlResult<RowIter<'a>> {
+    pub fn rows<'a, R: std::io::Read + std::io::Seek>(
+        &self,
+        workbook: &'a mut Workbook<R>,
+    ) -> FlResult<RowIter<'a>> {
         let reader = workbook.sheet_reader(&self.target)?;
         Ok(RowIter {
             worksheet_reader: reader,

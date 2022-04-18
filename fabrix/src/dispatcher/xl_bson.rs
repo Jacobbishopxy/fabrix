@@ -7,7 +7,7 @@ use chrono::Timelike;
 
 use crate::{xl, D2};
 
-pub type XlBsonExecutor = xl::XlExecutor<XlBson, XlBsonConvertor>;
+pub type XlBsonExecutor<R> = xl::XlExecutor<XlBson, XlBsonConvertor, R>;
 
 pub struct XlBson;
 
@@ -48,12 +48,14 @@ impl xl::XlConsumer<XlBsonConvertor> for XlBson {
 
 #[cfg(test)]
 mod xl_bson_tests {
+    use std::fs::File;
+
     use super::*;
-    use crate::sources::xl::XlSource;
+    use crate::{sources::xl::XlSource, xl::Workbook};
 
     #[test]
     fn convert_test() {
-        let source = XlSource::Path("../mock/test.xlsx");
+        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
 
         let mut xle = XlBsonExecutor::new_with_source(source).unwrap();
 

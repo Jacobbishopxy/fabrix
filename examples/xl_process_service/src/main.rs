@@ -4,15 +4,15 @@
 //!
 //! Reference: https://github.com/actix/examples/blob/master/forms/multipart/src/main.rs
 
-use std::io::Write;
-use std::{fmt::Display, fs::File};
+use std::fmt::Display;
+use std::io::{Cursor, Write};
 
 use actix_multipart::Multipart;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use futures_util::TryStreamExt;
-use uuid::Uuid;
+// use uuid::Uuid;
 
-use fabrix::FabrixError;
+use fabrix::{dispatcher::xl_json, xl, FabrixError};
 
 #[derive(Debug)]
 struct WebError {
@@ -31,41 +31,47 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
         // A multipart/form-data stream has to contain `content_disposition`
-        let content_disposition = field.content_disposition();
+        // let content_disposition = field.content_disposition();
 
-        let filename = content_disposition
-            .get_filename()
-            .map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
-        dbg!(&filename);
+        // let filename = content_disposition
+        //     .get_filename()
+        //     .map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
+        // dbg!(&filename);
 
-        let filepath = format!("./tmp/{}", filename);
-        dbg!(&filepath);
+        // let filepath = format!("./tmp/{}", filename);
+        // dbg!(&filepath);
 
         // File::create is blocking operation, use threadpool
-        let mut f = web::block(|| File::create(filepath)).await??;
+        // let mut f = web::block(|| File::create(filepath)).await??;
 
-        // let source = XlSource::File(f);
-
-        // let mut xle = XlJsonExecutor::new_with_source(source).map_err(|e| WebError { err: e })?;
-
-        // let res = xle.consume_fn(
-        //     Some(30),
-        //     "data",
-        //     |d| Ok(XlJsonConvertor::transform_data(d)),
-        //     |d| {
-        //         println!("{:?}\n\n", d);
-        //         Ok(())
-        //     },
-        // );
-
-        // println!("{:?}", res);
+        let mut buff = Cursor::new(vec![]);
 
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.try_next().await? {
             dbg!(&chunk);
+
+            buff.write_all(&chunk)?;
+
             // filesystem operations are blocking, we have to use threadpool
-            f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
+            // f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
         }
+
+        let source = xl::Workbook::new(buff).unwrap();
+
+        let mut xle =
+            xl_json::XlJsonExecutor::new_with_source(source).map_err(|e| WebError { err: e })?;
+
+        let res = xle.consume_fn(
+            Some(30),
+            "data",
+            |d| Ok(xl_json::XlJsonConvertor::transform_data(d)),
+            |d| {
+                println!("{:?}\n\n", d);
+                Ok(())
+            },
+        );
+
+        println!("{:?}", res);
 
         // read from cached file
     }

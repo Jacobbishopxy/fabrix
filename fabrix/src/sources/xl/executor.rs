@@ -2,7 +2,7 @@
 //!
 //! Executor
 
-use std::{fmt::Display, fs::File, marker::PhantomData};
+use std::{fmt::Display, fs::File, io::Cursor, marker::PhantomData};
 
 use async_trait::async_trait;
 use futures::future::BoxFuture;
@@ -95,29 +95,56 @@ pub enum XlSource<'a> {
     File(File),
     Path(&'a str),
     Url(&'a str),
+    Bytes(Cursor<bytes::Bytes>),
+}
+
+impl<'a> TryFrom<XlSource<'a>> for Workbook<File> {
+    type Error = FabrixError;
+
+    fn try_from(value: XlSource<'a>) -> Result<Self, Self::Error> {
+        match value {
+            XlSource::File(file) => Ok(Workbook::new(file)?),
+            XlSource::Path(path) => Ok(Workbook::new(File::open(path)?)?),
+            _ => Err(FabrixError::new_common_error("Unsupported XlSource type")),
+        }
+    }
+}
+
+impl<'a> TryFrom<XlSource<'a>> for Workbook<Cursor<bytes::Bytes>> {
+    type Error = FabrixError;
+
+    fn try_from(value: XlSource<'a>) -> Result<Self, Self::Error> {
+        match value {
+            XlSource::Bytes(bytes) => Ok(Workbook::new(bytes)?),
+            _ => Err(FabrixError::new_common_error("Unsupported XlSource type")),
+        }
+    }
 }
 
 /// Xl worker
 ///
 /// A private struct used for processing a single sheet, who accepts a batch_size and
 /// transform_fn to iterate over a worksheet
-struct XlWorker<'a, CONSUMER, CORE>
+struct XlWorker<'a, CONSUMER, CORE, R>
 where
     CONSUMER: XlConsumer<CORE>,
+    R: std::io::Read + std::io::Seek,
 {
     batch_size: Option<usize>,
     buffer: RowIter<'a>,
     consumer: PhantomData<CONSUMER>,
     core: PhantomData<CORE>,
+    xl_form: PhantomData<R>,
 }
 
-impl<'a, CONSUMER, CORE> XlWorker<'a, CONSUMER, CORE>
+impl<'a, CONSUMER, CORE, R> XlWorker<'a, CONSUMER, CORE, R>
 where
     CONSUMER: XlConsumer<CORE>,
+    R: std::io::Read + std::io::Seek,
 {
     fn new(
         batch_size: Option<usize>,
-        workbook: &'a mut Workbook,
+        workbook: &'a mut Workbook<R>,
         sheet_name: &str,
     ) -> FabrixResult<Self> {
         let sheets = workbook.sheets()?;
@@ -133,6 +160,7 @@ where
             buffer,
             consumer: PhantomData,
             core: PhantomData,
+            xl_form: PhantomData,
         })
     }
 }
@@ -215,9 +243,10 @@ where
 }
 
 /// impl IntoIterator for XlSheetIter
-impl<'a, CONSUMER, CORE> IntoIterator for XlWorker<'a, CONSUMER, CORE>
+impl<'a, CONSUMER, CORE, R> IntoIterator for XlWorker<'a, CONSUMER, CORE, R>
 where
     CONSUMER: XlConsumer<CORE>,
+    R: std::io::Read + std::io::Seek,
 {
     type Item = D2<CONSUMER::UnitOut>;
     type IntoIter = XlSheetIter<'a, CONSUMER, CORE>;
@@ -233,18 +262,21 @@ where
 /// workbook: working resource
 /// core: a phantom type to distinguish different consumers
 #[derive(Default)]
-pub struct XlExecutor<CONSUMER, CORE>
+pub struct XlExecutor<CONSUMER, CORE, R>
 where
     CONSUMER: XlConsumer<CORE> + Send,
+    R: std::io::Read + std::io::Seek,
 {
-    workbook: Option<Workbook>,
+    workbook: Option<Workbook<R>>,
     consumer: PhantomData<CONSUMER>,
     core: PhantomData<CORE>,
+    xl_form: PhantomData<R>,
 }
 
-impl<CONSUMER, CORE> XlExecutor<CONSUMER, CORE>
+impl<CONSUMER, CORE, R> XlExecutor<CONSUMER, CORE, R>
 where
     CONSUMER: XlConsumer<CORE> + Send,
+    R: std::io::Read + std::io::Seek,
 {
     /// constructor
     pub fn new() -> Self {
@@ -252,32 +284,23 @@ where
             workbook: None,
             consumer: PhantomData,
             core: PhantomData,
+            xl_form: PhantomData,
         }
     }
 
     /// constructor
-    pub fn new_with_source(source: XlSource<'_>) -> FabrixResult<Self> {
-        let wb = match source {
-            XlSource::File(file) => Workbook::new(file)?,
-            XlSource::Path(path) => Workbook::new(File::open(path)?)?,
-            XlSource::Url(_url) => unimplemented!(),
-        };
-        let wb = Some(wb);
+    pub fn new_with_source(source: Workbook<R>) -> FabrixResult<Self> {
         Ok(Self {
-            workbook: wb,
+            workbook: Some(source),
             consumer: PhantomData,
             core: PhantomData,
+            xl_form: PhantomData,
         })
     }
 
     /// replace or set a new workbook
-    pub fn add_source(&mut self, source: XlSource) -> FabrixResult<()> {
-        let wb = match source {
-            XlSource::File(file) => Workbook::new(file)?,
-            XlSource::Path(path) => Workbook::new(File::open(path)?)?,
-            XlSource::Url(_url) => unimplemented!(),
-        };
-        self.workbook = Some(wb);
+    pub fn add_source(&mut self, source: Workbook<R>) -> FabrixResult<()> {
+        self.workbook = Some(source);
         Ok(())
     }
 
@@ -299,7 +322,7 @@ where
         consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
-            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -318,7 +341,7 @@ where
         consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
-            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -337,7 +360,7 @@ where
         consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
-            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -356,7 +379,7 @@ where
         consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
-            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -375,7 +398,7 @@ where
         consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
         let iter =
-            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -397,7 +420,7 @@ where
         CONSUMER::FinalOut: 'a,
     {
         let iter =
-            gen_worksheet_iter::<CONSUMER, CORE>(&mut self.workbook, batch_size, sheet_name)?;
+            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
 
         let csm = &mut consume_fn;
 
@@ -414,8 +437,8 @@ where
 ///
 /// The purpose of this function is to simplify the construction of XlSheetIter,
 /// since it will be used in `iter_sheet`, `consume` and `async_consume` methods.
-fn gen_worksheet_iter<'a, CONSUMER, CORE>(
-    workbook: &'a mut Option<Workbook>,
+fn gen_worksheet_iter<'a, CONSUMER, CORE, R: std::io::Read + std::io::Seek>(
+    workbook: &'a mut Option<Workbook<R>>,
     batch_size: Option<usize>,
     sheet_name: &str,
 ) -> FabrixResult<XlSheetIter<'a, CONSUMER, CORE>>
@@ -424,7 +447,7 @@ where
 {
     match workbook {
         Some(wb) => {
-            let worker = XlWorker::<CONSUMER, CORE>::new(batch_size, wb, sheet_name)?;
+            let worker = XlWorker::<CONSUMER, CORE, R>::new(batch_size, wb, sheet_name)?;
 
             Ok(worker.into_iter())
         }
@@ -482,8 +505,8 @@ mod test_xl_executor {
 
     #[test]
     fn test_exec_iter_sheet() {
-        let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
+        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
         let foo = xle.iter_sheet(None, "data").unwrap();
 
@@ -524,8 +547,8 @@ mod test_xl_executor {
 
     #[test]
     fn test_value_console() {
-        let source = XlSource::Path("../mock/test2.xlsx");
-        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
+        let source: Workbook<File> = XlSource::Path("../mock/test2.xlsx").try_into().unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
         let foo = xle.consume(Some(20), "data", convert_fn, consume_fn);
 
@@ -535,8 +558,8 @@ mod test_xl_executor {
     // consume synchronously
     #[test]
     fn test_exec_consume() {
-        let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
+        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
         let foo = xle.consume(Some(20), "data", convert_fn, consume_fn);
 
@@ -546,8 +569,8 @@ mod test_xl_executor {
     // consume synchronously
     #[tokio::test]
     async fn test_exec_async_consume() {
-        let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
+        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
         let foo = xle
             .async_consume(Some(20), "data", convert_fn, |fo| {
@@ -561,8 +584,8 @@ mod test_xl_executor {
     // consume synchronously, mutable
     #[tokio::test]
     async fn test_exec_async_consume_mut() {
-        let source = XlSource::Path("../mock/test.xlsx");
-        let mut xle = XlExecutor::<TestExec, ()>::new_with_source(source).unwrap();
+        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
         let sc = Arc::new(Mutex::new(StatefulConsumer::new()));
 

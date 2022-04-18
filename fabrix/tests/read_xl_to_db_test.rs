@@ -101,7 +101,6 @@ async fn test_xl2db_async_with_index_row_wised() {
                         .lock()
                         .await
                         .replace_existing_table(SQL_TABLE_NAME, d, false)
-                        // .append_table("test_table", d)
                         .await
                 })
             },

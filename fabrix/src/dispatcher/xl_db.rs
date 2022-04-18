@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use crate::sql::{SqlEngine, SqlExecutor};
 use crate::{sql, value, xl, D2Value, DataFrame, FabrixError, FabrixResult, Series, Value};
 
-pub type XlDbExecutor = xl::XlExecutor<SqlExecutor, XlDbConvertor>;
+pub type XlDbExecutor<R> = xl::XlExecutor<SqlExecutor, XlDbConvertor, R>;
 
 /// XlDbConvertor
 ///
@@ -359,9 +359,12 @@ impl xl::XlConsumer<XlDbConvertor> for SqlExecutor {
 #[cfg(test)]
 mod test_xl_reader {
 
+    use std::fs::File;
+
     use super::*;
     use crate::sources::xl::XlSource;
     use crate::sql::SqlEngine;
+    use crate::xl::Workbook;
 
     const CONN3: &str = "sqlite://dev.sqlite";
 
@@ -372,7 +375,7 @@ mod test_xl_reader {
 
     #[test]
     fn test_xl_db_convertor() {
-        let source = XlSource::Path(XL_SOURCE);
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
 
         let mut convertor = XlDbConvertor::new();
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
@@ -388,7 +391,7 @@ mod test_xl_reader {
 
     #[test]
     fn test_xl_db_convertor2() {
-        let source = XlSource::Path(XL_SOURCE);
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
@@ -405,7 +408,7 @@ mod test_xl_reader {
     #[tokio::test]
     async fn test_xl2db_sync() {
         // Xl read from a path
-        let source = XlSource::Path(XL_SOURCE);
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
 
         // converter & consumer instance
         let mut convertor = XlDbConvertor::new();
@@ -455,7 +458,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async() {
-        let source = XlSource::Path(XL_SOURCE);
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
         let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
@@ -487,7 +490,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async_helper() {
-        let source = XlSource::Path(XL_SOURCE);
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
 
         // same as the above test case: `test_xl2db_async`
         // simplify the process from naming convertor and consumer separately;

@@ -4,7 +4,7 @@ use serde_json::{Number as JsonNumber, Value as JsonValue};
 
 use crate::{xl, D2};
 
-pub type XlJsonExecutor = xl::XlExecutor<XlJson, XlJsonConvertor>;
+pub type XlJsonExecutor<R> = xl::XlExecutor<XlJson, XlJsonConvertor, R>;
 
 pub struct XlJson;
 
@@ -38,12 +38,14 @@ impl xl::XlConsumer<XlJsonConvertor> for XlJson {
 
 #[cfg(test)]
 mod xl_json_tests {
+    use std::fs::File;
+
     use super::*;
-    use crate::sources::xl::XlSource;
+    use crate::{sources::xl::XlSource, xl::Workbook};
 
     #[test]
     fn convert_test() {
-        let source = XlSource::Path("../mock/test.xlsx");
+        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
 
         let mut xle = XlJsonExecutor::new_with_source(source).unwrap();
 

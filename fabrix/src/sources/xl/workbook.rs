@@ -4,7 +4,6 @@
 //! entire file).
 
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::BufReader;
 
 use lazy_static::lazy_static;
@@ -25,8 +24,8 @@ use crate::{FlError, FlResult};
 ///     let mut wb = Workbook::open("tests/data/Book1.xlsx").unwrap();
 ///
 #[derive(Debug)]
-pub struct Workbook {
-    xls: ZipArchive<File>,
+pub struct Workbook<R: std::io::Read + std::io::Seek> {
+    xls: ZipArchive<R>,
     encoding: String,
     date_system: DateSystem,
     strings: Vec<String>,
@@ -161,7 +160,10 @@ impl SheetMap {
     }
 }
 
-impl Workbook {
+impl<R> Workbook<R>
+where
+    R: std::io::Read + std::io::Seek,
+{
     /// xlsx zips contain an xml file that has a mapping of "ids" to "targets." The ids are used
     /// to uniquely identify sheets within the file. The targets have information on where the
     /// sheets can be found within the zip. This function returns a hashmap of id -> target so that
@@ -321,7 +323,7 @@ impl Workbook {
     ///     // non-xlsx file
     ///     let mut wb = Workbook::open("src/main.rs");
     ///     assert!(wb.is_err());
-    pub fn new(file: File) -> FlResult<Self> {
+    pub fn new(file: R) -> FlResult<Self> {
         match ZipArchive::new(file) {
             Ok(mut xls) => {
                 let strings = strings(&mut xls)?;
@@ -392,7 +394,63 @@ impl Workbook {
     }
 }
 
-fn strings(zip_file: &mut ZipArchive<File>) -> FlResult<Vec<String>> {
+// fn strings(zip_file: &mut ZipArchive<File>) -> FlResult<Vec<String>> {
+//     let mut strings = Vec::new();
+//     match zip_file.by_name("xl/sharedStrings.xml") {
+//         Ok(strings_file) => {
+//             let reader = BufReader::new(strings_file);
+//             let mut reader = Reader::from_reader(reader);
+//             reader.trim_text(true);
+//             let mut buf = Vec::new();
+//             let mut this_string = String::new();
+//             let mut preserve_space = false;
+
+//             loop {
+//                 match reader.read_event(&mut buf) {
+//                     Ok(Event::Start(ref e)) if e.name() == b"t" => {
+//                         if let Some(att) = util::get(e.attributes(), b"xml:space") {
+//                             if att == "preserve" {
+//                                 preserve_space = true;
+//                             } else {
+//                                 preserve_space = false;
+//                             }
+//                         } else {
+//                             preserve_space = false;
+//                         }
+//                     }
+//                     Ok(Event::Text(ref e)) => {
+//                         this_string.push_str(&e.unescape_and_decode(&reader).unwrap()[..])
+//                     }
+//                     Ok(Event::Empty(ref e)) if e.name() == b"t" => strings.push("".to_owned()),
+//                     Ok(Event::End(ref e)) if e.name() == b"t" => {
+//                         if preserve_space {
+//                             strings.push(this_string.to_owned());
+//                         } else {
+//                             strings.push(this_string.trim().to_owned());
+//                         }
+//                         this_string = String::new();
+//                     }
+//                     Ok(Event::Eof) => break,
+//                     Err(e) => {
+//                         return Err(FlError::new_common_error(format!(
+//                             "Error at position {}: {:?}",
+//                             reader.buffer_position(),
+//                             e,
+//                         )))
+//                     }
+//                     _ => (),
+//                 }
+//                 buf.clear();
+//             }
+//             Ok(strings)
+//         }
+//         Err(_) => Ok(strings),
+//     }
+// }
+
+fn strings<R: std::io::Read + std::io::Seek>(
+    zip_file: &mut ZipArchive<R>,
+) -> FlResult<Vec<String>> {
     let mut strings = Vec::new();
     match zip_file.by_name("xl/sharedStrings.xml") {
         Ok(strings_file) => {
@@ -449,7 +507,9 @@ fn strings(zip_file: &mut ZipArchive<File>) -> FlResult<Vec<String>> {
 /// find the number of rows and columns used in a particular worksheet. takes the workbook xlsx
 /// location as its first parameter, and the location of the worksheet in question (within the zip)
 /// as the second parameter. Returns a tuple of (rows, columns) in the worksheet.
-fn find_styles(xlsx: &mut ZipArchive<File>) -> FlResult<Vec<String>> {
+fn find_styles<R: std::io::Read + std::io::Seek>(
+    xlsx: &mut ZipArchive<R>,
+) -> FlResult<Vec<String>> {
     let mut styles = Vec::new();
     let mut number_formats = standard_styles();
     let styles_xml = match xlsx.by_name("xl/styles.xml") {
@@ -544,7 +604,9 @@ fn standard_styles() -> HashMap<String, String> {
     styles
 }
 
-fn get_date_system(xlsx: &mut ZipArchive<File>) -> FlResult<DateSystem> {
+fn get_date_system<R: std::io::Read + std::io::Seek>(
+    xlsx: &mut ZipArchive<R>,
+) -> FlResult<DateSystem> {
     match xlsx.by_name("xl/workbook.xml") {
         Ok(wb) => {
             let reader = BufReader::new(wb);
