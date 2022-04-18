@@ -672,7 +672,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "pin-project",
- "spin 0.9.2",
+ "spin 0.9.3",
 ]
 
 [[package]]
@@ -1914,9 +1914,9 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "sea-query"
-version = "0.24.1"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02d40859526b49cea8bce2f0846fd03909297cd9b48fcc8a0ce4d158e14ef247"
+checksum = "98c00ec63c36fc2c18c3aa5849e2f361d4f47fbaba9785d9251ec6b08ad5fe19"
 dependencies = [
  "bigdecimal 0.2.2",
  "chrono",
@@ -2132,9 +2132,9 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "511254be0c5bcf062b019a6c89c01a664aa359ded62f78aa72c6fc137c0590e5"
+checksum = "c530c2b0d0bf8b69304b39fe2001993e267461948b890cd037d8ad4293fa1a0d"
 dependencies = [
  "lock_api",
 ]
@@ -2162,9 +2162,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2be6e4d8b60285763c7a0c17f57839d5f1e864d948fe7ff26eaf38f04db95fc"
+checksum = "551873805652ba0d912fec5bbb0f8b4cdd96baf8e2ebf5970e5671092966019b"
 dependencies = [
  "sqlx-core",
  "sqlx-macros",
@@ -2172,9 +2172,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5728d5a4de38574e1a43139cf1d0124e978af8c19ea795d1d61c287785924cf2"
+checksum = "e48c61941ccf5ddcada342cd59e3e5173b007c509e1e8e990dafc830294d9dc5"
 dependencies = [
  "ahash",
  "atoi",
@@ -2232,9 +2232,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfce1fd7df05de96f76eb0d452e5ce8b106607933ac3c9a8f5c65c1ecc5955f5"
+checksum = "bc0fba2b0cae21fc00fe6046f8baa4c7fcb49e379f0f592b04696607f69ed2e1"
 dependencies = [
  "dotenv",
  "either",
@@ -2251,9 +2251,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f2cc78368bdd33ba6ad1c300f2b9ff4a844f9d7db140c34bc61ef304e1fc160"
+checksum = "4db708cd3e459078f85f39f96a00960bd841f66ee2a669e90bf36907f5a79aae"
 dependencies = [
  "native-tls",
  "once_cell",
