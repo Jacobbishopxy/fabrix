@@ -357,14 +357,14 @@ where
         batch_size: Option<usize>,
         sheet_name: &str,
         mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
-        consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
+        mut consume_fn: impl FnMut(CONSUMER::FinalOut) -> FabrixResult<()>,
     ) -> FabrixResult<()> {
         let iter =
             gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
 
         for d in iter {
             let cd = convert_fn(d)?;
-            CONSUMER::consume(cd, consume_fn)?;
+            CONSUMER::consume_mut(cd, &mut consume_fn)?;
         }
 
         Ok(())

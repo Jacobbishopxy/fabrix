@@ -11,10 +11,12 @@ use std::io::{Cursor, Write};
 use actix_multipart::Multipart;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use futures_util::TryStreamExt;
-// use uuid::Uuid;
+use uuid::Uuid;
 
 use fabrix::{dispatcher::xl_json, xl, FabrixError};
-use uuid::Uuid;
+
+const TMP_DIR: &str = "./tmp";
+const XL_FILE_TYPE: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 #[derive(Debug)]
 struct WebError {
@@ -40,7 +42,7 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
             .map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
         dbg!(&filename);
 
-        let filepath = format!("./tmp/{}", filename);
+        let filepath = format!("{TMP_DIR}/{filename}");
         dbg!(&filepath);
 
         // File::create is blocking operation, use threadpool
@@ -61,36 +63,48 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
 // TODO:
 // request_param: sheet_name, direction
 async fn xl_to_json(mut payload: Multipart) -> Result<HttpResponse, Error> {
+    let mut data = Vec::new();
+
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
+        let file_type = field.content_type().to_string();
+        dbg!(&file_type);
+
+        if file_type != XL_FILE_TYPE {
+            let err = FabrixError::new_common_error(format!("Invalid file type: {file_type}"));
+            return Err(WebError { err }.into());
+        }
+
         let mut buff = Cursor::new(vec![]);
 
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.try_next().await? {
-            dbg!(&chunk);
-
+            // dbg!(&chunk);
             buff.write_all(&chunk)?;
         }
 
         let source = xl::Workbook::new(buff).unwrap();
 
+        let mut helper = xl_json::XlJson::new();
+
         let mut xle =
             xl_json::XlJsonExecutor::new_with_source(source).map_err(|e| WebError { err: e })?;
 
-        let res = xle.consume_fn(
+        xle.consume_fn_mut(
             Some(30),
             "data",
             |d| Ok(xl_json::XlJsonConvertor::transform_data(d)),
             |d| {
-                println!("{:?}\n\n", d);
+                helper.append_data(d);
                 Ok(())
             },
-        );
+        )
+        .map_err(|e| WebError { err: e })?;
 
-        println!("{:?}", res);
+        data.push(helper.data);
     }
 
-    Ok(HttpResponse::Ok().into())
+    Ok(HttpResponse::Ok().body(serde_json::json!(data).to_string()))
 }
 
 async fn index() -> HttpResponse {

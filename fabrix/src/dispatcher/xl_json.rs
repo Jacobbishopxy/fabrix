@@ -6,7 +6,27 @@ use crate::{xl, D2};
 
 pub type XlJsonExecutor<R> = xl::XlExecutor<XlJson, XlJsonConvertor, R>;
 
-pub struct XlJson;
+pub struct XlJson {
+    pub data: Vec<JsonValue>,
+}
+
+impl XlJson {
+    pub fn new() -> Self {
+        Self { data: vec![] }
+    }
+
+    pub fn append_data(&mut self, data: JsonValue) {
+        self.data.push(data);
+    }
+
+    pub fn clear_data(&mut self) {
+        self.data.clear();
+    }
+
+    pub fn transform_data(data: D2<JsonValue>) -> JsonValue {
+        XlJsonConvertor::transform_data(data)
+    }
+}
 
 pub struct XlJsonConvertor;
 
@@ -43,22 +63,48 @@ mod xl_json_tests {
     use super::*;
     use crate::{sources::xl::XlSource, xl::Workbook};
 
+    const SOURCE_PATH: &str = "../mock/test.xlsx";
+    const SHEET_NAME: &str = "data";
+
     #[test]
     fn convert_test() {
-        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(SOURCE_PATH).try_into().unwrap();
 
         let mut xle = XlJsonExecutor::new_with_source(source).unwrap();
 
-        let foo = xle.consume_fn(
+        xle.consume_fn(
             Some(30),
-            "data",
-            |d| Ok(XlJsonConvertor::transform_data(d)),
+            SHEET_NAME,
+            |d| Ok(XlJson::transform_data(d)),
             |d| {
                 println!("{:?}\n\n", d);
                 Ok(())
             },
-        );
+        )
+        .expect("SUCCESS");
+    }
 
-        println!("{:?}", foo);
+    #[test]
+    fn convert_consume_test() {
+        let source: Workbook<File> = XlSource::Path(SOURCE_PATH).try_into().unwrap();
+
+        let mut helper = XlJson::new();
+
+        let mut xle = XlJsonExecutor::new_with_source(source).unwrap();
+
+        xle.consume_fn_mut(
+            Some(30),
+            SHEET_NAME,
+            |d| Ok(XlJson::transform_data(d)),
+            |d| {
+                // helper.append_data(d);
+                let foo: JsonValue = d;
+                helper.append_data(foo);
+                Ok(())
+            },
+        )
+        .expect("SUCCESS");
+
+        println!("{:?}", helper.data);
     }
 }
