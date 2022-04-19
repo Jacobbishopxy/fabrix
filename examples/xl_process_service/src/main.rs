@@ -11,6 +11,7 @@ use std::io::{Cursor, Write};
 use actix_multipart::Multipart;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use futures_util::TryStreamExt;
+use serde::Deserialize;
 use uuid::Uuid;
 
 use fabrix::{dispatcher::xl_json, xl, FabrixError};
@@ -60,9 +61,15 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().into())
 }
 
-// TODO:
-// request_param: sheet_name, direction
-async fn xl_to_json(mut payload: Multipart) -> Result<HttpResponse, Error> {
+#[derive(Deserialize)]
+struct XlToJsonQuery {
+    sheet_name: String,
+}
+
+async fn xl_to_json(
+    info: web::Query<XlToJsonQuery>,
+    mut payload: Multipart,
+) -> Result<HttpResponse, Error> {
     let mut data = Vec::new();
 
     // iterate over multipart stream
@@ -92,7 +99,7 @@ async fn xl_to_json(mut payload: Multipart) -> Result<HttpResponse, Error> {
 
         xle.consume_fn_mut(
             Some(30),
-            "data",
+            &info.sheet_name,
             |d| Ok(xl_json::XlJsonConvertor::transform_data(d)),
             |d| {
                 helper.append_data(d);
@@ -113,13 +120,16 @@ async fn index() -> HttpResponse {
         <head><title>Multipart Form</title></head>
         <body>
             <p>save file</p>
-            <form target="/save" method="post" enctype="multipart/form-data">
+            <form action="/save" method="post" enctype="multipart/form-data">
                 <input type="file" multiple name="file">
                 <button type="submit">Submit</button>
             </form>
             <br/>
             <p>xl file extract</p>
-            <form target="/xl" method="post" enctype="multipart/form-data">
+            <form action="/xl" method="post" enctype="multipart/form-data">
+                <lable for="sheet_name">Sheet name: </lable>
+                <input type="text" name="sheet_name">
+                <br/>
                 <input type="file" multiple name="file">
                 <button type="submit">Submit</button>
             </form>

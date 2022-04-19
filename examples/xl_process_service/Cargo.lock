@@ -3144,6 +3144,7 @@ dependencies = [
  "fabrix",
  "futures-util",
  "sanitize-filename",
+ "serde",
  "serde_json",
  "uuid",
 ]
