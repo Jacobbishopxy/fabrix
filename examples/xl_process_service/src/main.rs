@@ -35,6 +35,11 @@ impl actix_web::error::ResponseError for WebError {}
 async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
+        // skip field that is not a file
+        if field.name() != "file" {
+            continue;
+        }
+
         // A multipart/form-data stream has to contain `content_disposition`
         let content_disposition = field.content_disposition();
 
@@ -74,6 +79,11 @@ async fn xl_to_json(
 
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
+        // skip field that is not a file
+        if field.name() != "file" {
+            continue;
+        }
+
         let file_type = field.content_type().to_string();
         dbg!(&file_type);
 
@@ -126,13 +136,20 @@ async fn index() -> HttpResponse {
             </form>
             <br/>
             <p>xl file extract</p>
-            <form action="/xl" method="post" enctype="multipart/form-data">
-                <lable for="sheet_name">Sheet name: </lable>
-                <input type="text" name="sheet_name">
-                <br/>
-                <input type="file" multiple name="file">
+            <form action="/xl" method="post" enctype="multipart/form-data" id="xl-form">
+                <label for="sheet_name">Sheet name: </label>
+                <input type="text" id="sheet-name"><br/><br/>
+                <input type="file" multiple name="file"><br/><br/>
                 <button type="submit">Submit</button>
             </form>
+            <script>
+            document.getElementById("sheet-name").addEventListener("change", sheetNameOnChange)
+
+            function sheetNameOnChange() {
+                var x= document.getElementById("sheet-name");
+                document.getElementById("xl-form").action = "/xl?sheet_name=" + x.value;
+            }
+            </script>
         </body>
         </html>
     "#;
