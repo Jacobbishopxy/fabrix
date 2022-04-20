@@ -9,8 +9,8 @@ actix-multipart = "0"
 actix-web = "4"
 futures-util = "0"
 sanitize-filename = "0"
+serde_json = "1"
+serde = "1"
 uuid = { version = "0", features = ["v4"] }
 
 fabrix = { path = "../../fabrix" }
-serde_json = "1.0.79"
-serde = "1.0.136"

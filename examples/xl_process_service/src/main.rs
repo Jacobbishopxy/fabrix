@@ -32,6 +32,7 @@ impl Display for WebError {
 
 impl actix_web::error::ResponseError for WebError {}
 
+// save file to disk
 async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
@@ -59,8 +60,6 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
             // filesystem operations are blocking, we have to use threadpool
             f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
         }
-
-        // read from cached file
     }
 
     Ok(HttpResponse::Ok().into())
@@ -71,6 +70,7 @@ struct XlToJsonQuery {
     sheet_name: String,
 }
 
+// convert xlsx to json
 async fn xl_to_json(
     info: web::Query<XlToJsonQuery>,
     mut payload: Multipart,
@@ -144,7 +144,6 @@ async fn index() -> HttpResponse {
             </form>
             <script>
             document.getElementById("sheet-name").addEventListener("change", sheetNameOnChange)
-
             function sheetNameOnChange() {
                 var x= document.getElementById("sheet-name");
                 document.getElementById("xl-form").action = "/xl?sheet_name=" + x.value;
@@ -160,7 +159,7 @@ async fn index() -> HttpResponse {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
-    std::fs::create_dir_all("./tmp")?;
+    std::fs::create_dir_all(TMP_DIR)?;
 
     HttpServer::new(|| {
         App::new()

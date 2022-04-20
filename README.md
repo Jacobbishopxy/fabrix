@@ -77,4 +77,4 @@ There are three main parts in this crate:
 
 ## Examples
 
-1. _Not yet_ ~~[Excel process service](./examples/excel_process_service/src/main.rs)~~
+1. [Excel process service](./examples/xl_process_service/src/main.rs): a simple web server who accepts excel file and turn its data into json format.
