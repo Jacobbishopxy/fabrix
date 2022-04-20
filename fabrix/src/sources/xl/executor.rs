@@ -2,7 +2,10 @@
 //!
 //! Executor
 
-use std::{fmt::Display, fs::File, io::Cursor, marker::PhantomData};
+use std::fmt::Display;
+use std::fs::File;
+use std::io::{Cursor, Read, Seek};
+use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use futures::future::BoxFuture;
@@ -125,26 +128,26 @@ impl<'a> TryFrom<XlSource<'a>> for Workbook<Cursor<bytes::Bytes>> {
 ///
 /// A private struct used for processing a single sheet, who accepts a batch_size and
 /// transform_fn to iterate over a worksheet
-struct XlWorker<'a, CONSUMER, CORE, R>
+struct XlWorker<'a, CONSUMER, CORE, READER>
 where
     CONSUMER: XlConsumer<CORE>,
-    R: std::io::Read + std::io::Seek,
+    READER: Read + Seek,
 {
     batch_size: Option<usize>,
     buffer: RowIter<'a>,
     consumer: PhantomData<CONSUMER>,
     core: PhantomData<CORE>,
-    xl_form: PhantomData<R>,
+    xl_form: PhantomData<READER>,
 }
 
-impl<'a, CONSUMER, CORE, R> XlWorker<'a, CONSUMER, CORE, R>
+impl<'a, CONSUMER, CORE, READER> XlWorker<'a, CONSUMER, CORE, READER>
 where
     CONSUMER: XlConsumer<CORE>,
-    R: std::io::Read + std::io::Seek,
+    READER: Read + Seek,
 {
     fn new(
         batch_size: Option<usize>,
-        workbook: &'a mut Workbook<R>,
+        workbook: &'a mut Workbook<READER>,
         sheet_name: &str,
     ) -> FabrixResult<Self> {
         let sheets = workbook.sheets()?;
@@ -243,10 +246,10 @@ where
 }
 
 /// impl IntoIterator for XlSheetIter
-impl<'a, CONSUMER, CORE, R> IntoIterator for XlWorker<'a, CONSUMER, CORE, R>
+impl<'a, CONSUMER, CORE, READER> IntoIterator for XlWorker<'a, CONSUMER, CORE, READER>
 where
     CONSUMER: XlConsumer<CORE>,
-    R: std::io::Read + std::io::Seek,
+    READER: Read + Seek,
 {
     type Item = D2<CONSUMER::UnitOut>;
     type IntoIter = XlSheetIter<'a, CONSUMER, CORE>;
@@ -262,21 +265,21 @@ where
 /// workbook: working resource
 /// core: a phantom type to distinguish different consumers
 #[derive(Default)]
-pub struct XlExecutor<CONSUMER, CORE, R>
+pub struct XlExecutor<CONSUMER, CORE, READER>
 where
     CONSUMER: XlConsumer<CORE> + Send,
-    R: std::io::Read + std::io::Seek,
+    READER: Read + Seek,
 {
-    workbook: Option<Workbook<R>>,
+    workbook: Option<Workbook<READER>>,
     consumer: PhantomData<CONSUMER>,
     core: PhantomData<CORE>,
-    xl_form: PhantomData<R>,
+    xl_form: PhantomData<READER>,
 }
 
-impl<CONSUMER, CORE, R> XlExecutor<CONSUMER, CORE, R>
+impl<CONSUMER, CORE, READER> XlExecutor<CONSUMER, CORE, READER>
 where
     CONSUMER: XlConsumer<CORE> + Send,
-    R: std::io::Read + std::io::Seek,
+    READER: Read + Seek,
 {
     /// constructor
     pub fn new() -> Self {
@@ -289,7 +292,7 @@ where
     }
 
     /// constructor
-    pub fn new_with_source(source: Workbook<R>) -> FabrixResult<Self> {
+    pub fn new_with_source(source: Workbook<READER>) -> FabrixResult<Self> {
         Ok(Self {
             workbook: Some(source),
             consumer: PhantomData,
@@ -299,7 +302,7 @@ where
     }
 
     /// replace or set a new workbook
-    pub fn add_source(&mut self, source: Workbook<R>) -> FabrixResult<()> {
+    pub fn add_source(&mut self, source: Workbook<READER>) -> FabrixResult<()> {
         self.workbook = Some(source);
         Ok(())
     }
@@ -321,8 +324,11 @@ where
         convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
-        let iter =
-            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
+        let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
+            &mut self.workbook,
+            batch_size,
+            sheet_name,
+        )?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -340,8 +346,11 @@ where
         convert_fn: impl Fn(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
         consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
-        let iter =
-            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
+        let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
+            &mut self.workbook,
+            batch_size,
+            sheet_name,
+        )?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -359,8 +368,11 @@ where
         mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
         mut consume_fn: impl FnMut(CONSUMER::FinalOut) -> FabrixResult<()>,
     ) -> FabrixResult<()> {
-        let iter =
-            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
+        let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
+            &mut self.workbook,
+            batch_size,
+            sheet_name,
+        )?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -378,8 +390,11 @@ where
         convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
-        let iter =
-            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
+        let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
+            &mut self.workbook,
+            batch_size,
+            sheet_name,
+        )?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -397,8 +412,11 @@ where
         convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
     ) -> FabrixResult<()> {
-        let iter =
-            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
+        let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
+            &mut self.workbook,
+            batch_size,
+            sheet_name,
+        )?;
 
         for d in iter {
             let cd = convert_fn(d)?;
@@ -419,8 +437,11 @@ where
     where
         CONSUMER::FinalOut: 'a,
     {
-        let iter =
-            gen_worksheet_iter::<CONSUMER, CORE, R>(&mut self.workbook, batch_size, sheet_name)?;
+        let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
+            &mut self.workbook,
+            batch_size,
+            sheet_name,
+        )?;
 
         let csm = &mut consume_fn;
 
@@ -437,8 +458,8 @@ where
 ///
 /// The purpose of this function is to simplify the construction of XlSheetIter,
 /// since it will be used in `iter_sheet`, `consume` and `async_consume` methods.
-fn gen_worksheet_iter<'a, CONSUMER, CORE, R: std::io::Read + std::io::Seek>(
-    workbook: &'a mut Option<Workbook<R>>,
+fn gen_worksheet_iter<'a, CONSUMER, CORE, READER: Read + Seek>(
+    workbook: &'a mut Option<Workbook<READER>>,
     batch_size: Option<usize>,
     sheet_name: &str,
 ) -> FabrixResult<XlSheetIter<'a, CONSUMER, CORE>>
@@ -447,7 +468,7 @@ where
 {
     match workbook {
         Some(wb) => {
-            let worker = XlWorker::<CONSUMER, CORE, R>::new(batch_size, wb, sheet_name)?;
+            let worker = XlWorker::<CONSUMER, CORE, READER>::new(batch_size, wb, sheet_name)?;
 
             Ok(worker.into_iter())
         }
@@ -466,6 +487,10 @@ mod test_xl_executor {
     use tokio::sync::Mutex;
 
     use super::*;
+
+    const XL_PATH: &str = XL_PATH;
+    const XL_PATH2: &str = XL_PATH2;
+    const SHEET_NAME: &str = "data";
 
     // A test struct to implement XlConsumer
     struct TestExec;
@@ -505,10 +530,10 @@ mod test_xl_executor {
 
     #[test]
     fn test_exec_iter_sheet() {
-        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_PATH).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
-        let foo = xle.iter_sheet(None, "data").unwrap();
+        let foo = xle.iter_sheet(None, SHEET_NAME).unwrap();
 
         for chunk in foo {
             println!("{:?}", chunk);
@@ -547,10 +572,10 @@ mod test_xl_executor {
 
     #[test]
     fn test_value_console() {
-        let source: Workbook<File> = XlSource::Path("../mock/test2.xlsx").try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_PATH2).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
-        let foo = xle.consume(Some(20), "data", convert_fn, consume_fn);
+        let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
 
         assert!(foo.is_ok());
     }
@@ -558,10 +583,10 @@ mod test_xl_executor {
     // consume synchronously
     #[test]
     fn test_exec_consume() {
-        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_PATH).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
-        let foo = xle.consume(Some(20), "data", convert_fn, consume_fn);
+        let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
 
         println!("{:?}", foo);
     }
@@ -569,11 +594,11 @@ mod test_xl_executor {
     // consume synchronously
     #[tokio::test]
     async fn test_exec_async_consume() {
-        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_PATH).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
         let foo = xle
-            .async_consume(Some(20), "data", convert_fn, |fo| {
+            .async_consume(Some(20), SHEET_NAME, convert_fn, |fo| {
                 Box::pin(async_consume_fn(fo))
             })
             .await;
@@ -584,13 +609,13 @@ mod test_xl_executor {
     // consume synchronously, mutable
     #[tokio::test]
     async fn test_exec_async_consume_mut() {
-        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_PATH).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
 
         let sc = Arc::new(Mutex::new(StatefulConsumer::new()));
 
         let foo = xle
-            .async_consume_fn_mut(Some(20), "data", convert_fn, |fo| {
+            .async_consume_fn_mut(Some(20), SHEET_NAME, convert_fn, |fo| {
                 Box::pin(async {
                     let am = Arc::clone(&sc);
                     let mut lk = am.lock().await;

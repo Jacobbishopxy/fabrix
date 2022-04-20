@@ -3,7 +3,7 @@
 //! This module implements all the functionality specific to Excel worksheets.
 
 use std::borrow::Cow;
-use std::io::BufReader;
+use std::io::{BufReader, Read, Seek};
 
 use quick_xml::events::Event;
 use quick_xml::Reader;
@@ -210,9 +210,9 @@ impl Worksheet {
     ///     let row1 = rows.next().unwrap();
     ///     assert_eq!(row1[0].raw_value, "1");
     ///     assert_eq!(row1[1].value, ExcelValue::Number(2f64));
-    pub fn rows<'a, R: std::io::Read + std::io::Seek>(
+    pub fn rows<'a, READER: Read + Seek>(
         &self,
-        workbook: &'a mut Workbook<R>,
+        workbook: &'a mut Workbook<READER>,
     ) -> FlResult<RowIter<'a>> {
         let reader = workbook.sheet_reader(&self.target)?;
         Ok(RowIter {

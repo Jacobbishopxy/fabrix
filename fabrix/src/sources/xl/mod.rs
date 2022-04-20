@@ -1,6 +1,6 @@
 //! Xl
 //!
-//! Xl is a module for reading and writing Excel files.
+//! Xl is a module for reading (writing is temporary unsupported) Excel files.
 
 pub mod executor;
 mod util;
