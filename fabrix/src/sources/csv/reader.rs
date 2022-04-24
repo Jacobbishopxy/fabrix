@@ -2,12 +2,12 @@
 //!
 //! Reading CSV files.
 
-use polars::prelude::CsvReader;
+use polars::{io::mmap::MmapBytesReader, prelude::CsvReader};
 
-use crate::{DataFrame, FabrixError, FabrixResult};
+// use crate::{DataFrame, FabrixError, FabrixResult};
 
-pub struct Reader {
-    pub data: Option<DataFrame>,
+pub struct Reader<'a, READER: MmapBytesReader> {
+    _csv_reader: CsvReader<'a, READER>,
 }
 
 #[cfg(test)]

@@ -3,6 +3,8 @@
 //! The difference between `test_xl2db_async_no_index` and `test_xl2db_async_with_index` is that
 //! the former does not use index, while the latter uses first column as its index.
 
+use std::fs::File;
+
 use fabrix::prelude::*;
 use fabrix::sql::*;
 use fabrix::xl::*;
@@ -19,7 +21,7 @@ const SQL_TABLE_NAME: &str = "test_xl2db";
 
 #[tokio::test]
 async fn test_xl2db_async_no_index() {
-    let source = XlSource::Path(XL_PATH);
+    let source: Workbook<File> = XlSource::Path(XL_PATH).try_into().unwrap();
 
     let mut xl2db = XlDbHelper::new(CONN2).await.unwrap();
 
@@ -83,7 +85,7 @@ async fn test_xl2db_async_no_index() {
 
 #[tokio::test]
 async fn test_xl2db_async_with_index_row_wised() {
-    let source = XlSource::Path(XL_PATH);
+    let source: Workbook<File> = XlSource::Path(XL_PATH).try_into().unwrap();
 
     let mut xl2db = XlDbHelper::new(CONN2).await.unwrap();
 
@@ -112,7 +114,7 @@ async fn test_xl2db_async_with_index_row_wised() {
 
 #[tokio::test]
 async fn test_xl2db_async_with_index_col_wised() {
-    let source = XlSource::Path(XL_PATH);
+    let source: Workbook<File> = XlSource::Path(XL_PATH).try_into().unwrap();
 
     let xl2db = XlDbHelper::new(CONN2).await.unwrap();
 

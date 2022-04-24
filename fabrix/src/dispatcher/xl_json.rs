@@ -6,6 +6,7 @@ use crate::{xl, D2};
 
 pub type XlJsonExecutor<R> = xl::XlExecutor<XlJson, XlJsonConvertor, R>;
 
+#[derive(Default)]
 pub struct XlJson {
     pub data: Vec<JsonValue>,
 }
