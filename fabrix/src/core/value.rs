@@ -180,6 +180,31 @@ impl From<&Value> for ValueType {
     }
 }
 
+impl AsRef<ValueType> for Value {
+    fn as_ref(&self) -> &ValueType {
+        match self {
+            Value::Bool(_) => &ValueType::Bool,
+            Value::U8(_) => &ValueType::U8,
+            Value::U16(_) => &ValueType::U16,
+            Value::U32(_) => &ValueType::U32,
+            Value::U64(_) => &ValueType::U64,
+            Value::I8(_) => &ValueType::I8,
+            Value::I16(_) => &ValueType::I16,
+            Value::I32(_) => &ValueType::I32,
+            Value::I64(_) => &ValueType::I64,
+            Value::F32(_) => &ValueType::F32,
+            Value::F64(_) => &ValueType::F64,
+            Value::String(_) => &ValueType::String,
+            Value::Date(_) => &ValueType::Date,
+            Value::Time(_) => &ValueType::Time,
+            Value::DateTime(_) => &ValueType::DateTime,
+            Value::Decimal(_) => &ValueType::Decimal,
+            Value::Uuid(_) => &ValueType::Uuid,
+            Value::Null => &ValueType::Null,
+        }
+    }
+}
+
 impl From<Value> for ValueType {
     fn from(value: Value) -> Self {
         ValueType::from(&value)
@@ -270,6 +295,30 @@ impl From<&ValueType> for DataType {
 impl From<ValueType> for DataType {
     fn from(v: ValueType) -> Self {
         DataType::from(&v)
+    }
+}
+
+impl AsRef<ValueType> for DataType {
+    fn as_ref(&self) -> &ValueType {
+        match &self {
+            DataType::Boolean => &ValueType::Bool,
+            DataType::UInt8 => &ValueType::U8,
+            DataType::UInt32 => &ValueType::U16,
+            DataType::UInt64 => &ValueType::U32,
+            DataType::Int8 => &ValueType::I8,
+            DataType::Int32 => &ValueType::I16,
+            DataType::Int64 => &ValueType::I32,
+            DataType::Float32 => &ValueType::F32,
+            DataType::Float64 => &ValueType::F64,
+            DataType::Utf8 => &ValueType::String,
+            DataType::Object("Date") => &ValueType::Date,
+            DataType::Object("Time") => &ValueType::Time,
+            DataType::Object("DateTime") => &ValueType::DateTime,
+            DataType::Object("Decimal") => &ValueType::Decimal,
+            DataType::Object("Uuid") => &ValueType::Uuid,
+            DataType::Null => &ValueType::Null,
+            _ => unimplemented!(),
+        }
     }
 }
 

@@ -8,9 +8,7 @@ use std::io::Cursor;
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::{CsvReader, SerReader};
 
-use crate::FabrixError;
-
-// use crate::{DataFrame, FabrixError, FabrixResult};
+use crate::{DataFrame, FabrixError, FabrixResult, Schema, ValueType};
 
 const UNSUPPORTED_TYPE: &str = "Unsupported CSVSource type";
 
@@ -56,10 +54,20 @@ impl<'a, READER: MmapBytesReader> Reader<'a, READER> {
         self
     }
 
+    pub fn with_dtypes(mut self, schema: Option<&'a Schema>) -> Self {
+        self.csv_reader = self.csv_reader.with_dtypes(schema.map(|s| s.as_ref()));
+        self
+    }
+
     // TODO:
-    // pub fn with_dtypes(mut self, schema: Option<&'a Schema>) -> Self {
-    //     self
-    // }
+    pub fn with_dtypes_slice(mut self, dtypes: &'a [ValueType]) -> Self {
+        //
+        self
+    }
+
+    pub fn finish(self) -> FabrixResult<DataFrame> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -99,6 +107,8 @@ impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, Cursor<bytes::Bytes>> {
 mod test_csv_reader {
     use polars::io::RowCount;
 
+    use crate::{FieldInfo, ValueType};
+
     use super::*;
 
     const CSV_FILE_PATH: &str = "../mock/test.csv";
@@ -124,5 +134,19 @@ mod test_csv_reader {
         let foo = reader.csv_reader.with_row_count(Some(rc)).finish();
 
         println!("{:?}", foo.unwrap());
+    }
+
+    #[test]
+    fn with_dtypes() {
+        let fi = vec![
+            FieldInfo::new("a", ValueType::U32),
+            FieldInfo::new("b", ValueType::String),
+        ];
+        let foo = Schema::from_field_infos(fi);
+
+        let reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH).try_into().unwrap();
+
+        // TODO:
+        let _foo = reader.with_dtypes(Some(&foo)).finish();
     }
 }
