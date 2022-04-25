@@ -5,7 +5,7 @@
 pub use super::errors::*;
 pub use crate::core::{
     CoreError, CoreResult, D1Value, D2Value, DataFrame, Date, DateTime, Decimal, FieldInfo, Row,
-    Series, Time, Uuid, Value, ValueType, D1, D2,
+    Schema, Series, Time, Uuid, Value, ValueType, D1, D2,
 };
 
 // sources: db

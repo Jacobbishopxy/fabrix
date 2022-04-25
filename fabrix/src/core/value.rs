@@ -124,7 +124,7 @@ impl Value {
     }
 }
 
-#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
+#[derive(PartialEq, Clone, Debug, Deserialize, Serialize, Eq, Hash)]
 pub enum ValueType {
     Bool,
     U8,

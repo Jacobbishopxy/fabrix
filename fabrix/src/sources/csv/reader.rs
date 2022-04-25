@@ -12,17 +12,54 @@ use crate::FabrixError;
 
 // use crate::{DataFrame, FabrixError, FabrixResult};
 
+const UNSUPPORTED_TYPE: &str = "Unsupported CSVSource type";
+
 #[allow(dead_code)]
-pub struct Reader<'a, READER: MmapBytesReader> {
+pub struct Reader<'a, READER: MmapBytesReader + 'a> {
     csv_reader: CsvReader<'a, READER>,
 }
 
 impl<'a, READER: MmapBytesReader> Reader<'a, READER> {
-    fn new(reader: READER) -> Self {
+    pub fn new(reader: READER) -> Self {
         Self {
             csv_reader: CsvReader::new(reader),
         }
     }
+
+    pub fn has_header(mut self, has_header: bool) -> Self {
+        self.csv_reader = self.csv_reader.has_header(has_header);
+        self
+    }
+
+    pub fn with_ignore_parser_errors(mut self, ignore: bool) -> Self {
+        self.csv_reader = self.csv_reader.with_ignore_parser_errors(ignore);
+        self
+    }
+
+    pub fn with_skip_rows(mut self, skip_rows: usize) -> Self {
+        self.csv_reader = self.csv_reader.with_skip_rows(skip_rows);
+        self
+    }
+
+    pub fn with_rechunk(mut self, rechunk: bool) -> Self {
+        self.csv_reader = self.csv_reader.with_rechunk(rechunk);
+        self
+    }
+
+    pub fn with_delimiter(mut self, delimiter: u8) -> Self {
+        self.csv_reader = self.csv_reader.with_delimiter(delimiter);
+        self
+    }
+
+    pub fn with_comment_char(mut self, comment_char: Option<u8>) -> Self {
+        self.csv_reader = self.csv_reader.with_comment_char(comment_char);
+        self
+    }
+
+    // TODO:
+    // pub fn with_dtypes(mut self, schema: Option<&'a Schema>) -> Self {
+    //     self
+    // }
 }
 
 #[derive(Debug)]
@@ -42,7 +79,7 @@ impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, File> {
                 let file = File::open(path)?;
                 Ok(Self::new(file))
             }
-            _ => Err(FabrixError::new_common_error("Unsupported CsvSource type")),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -53,13 +90,15 @@ impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, Cursor<bytes::Bytes>> {
     fn try_from(value: CsvSource<'a>) -> Result<Self, Self::Error> {
         match value {
             CsvSource::Bytes(bytes) => Ok(Self::new(bytes)),
-            _ => Err(FabrixError::new_common_error("Unsupported CsvSource type")),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
 }
 
 #[cfg(test)]
 mod test_csv_reader {
+    use polars::io::RowCount;
+
     use super::*;
 
     const CSV_FILE_PATH: &str = "../mock/test.csv";
@@ -78,7 +117,11 @@ mod test_csv_reader {
     fn file_reader() {
         let reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH).try_into().unwrap();
 
-        let foo = reader.csv_reader.finish();
+        let rc = RowCount {
+            name: "new_index".to_owned(),
+            offset: 0,
+        };
+        let foo = reader.csv_reader.with_row_count(Some(rc)).finish();
 
         println!("{:?}", foo.unwrap());
     }

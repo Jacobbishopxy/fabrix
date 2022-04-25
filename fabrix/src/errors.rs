@@ -53,26 +53,38 @@ impl From<String> for CommonError {
 
 #[derive(Error, Debug)]
 pub enum FabrixError {
+    // common errors
     #[error("common error {0}")]
     Common(CommonError),
 
+    // IO errors
     #[error(transparent)]
     IO(#[from] std::io::Error),
 
+    // Core errors
     #[error(transparent)]
     CORE(#[from] CoreError),
 
+    // Sql errors
     #[cfg(feature = "sql")]
     #[error(transparent)]
     DB(#[from] SqlError),
 
+    // Mongo errors
+    // #[cfg(feature = "mongo")]
+    // #[error(transparent)]
+    // MONGO(#[from] MongoError),
+
+    // file errors
     #[cfg(feature = "file")]
     #[error(transparent)]
     FL(#[from] FlError),
 
+    // Tokio lock error
     #[error(transparent)]
     TokioLock(#[from] tokio::sync::TryLockError),
 
+    // unknown error
     #[error("unknown error")]
     Unknown,
 }
