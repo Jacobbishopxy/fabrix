@@ -3,7 +3,6 @@
 //! This module contains the DataFrame struct, which is used to store a collection of Series.
 //!
 //! Methods:
-//! 1. new
 //! 1. new_empty
 //! 1. from_series
 //! 1. from_series_with_index_name
@@ -59,9 +58,37 @@ pub struct DataFrame {
 }
 
 impl DataFrame {
-    /// DataFrame constructor
-    pub fn new(data: PDataFrame, index: Series) -> Self {
+    /// DataFrame constructor (only for internal use)
+    pub(crate) fn new(data: PDataFrame, index: Series) -> Self {
         DataFrame { data, index }
+    }
+
+    /// DataFrame constructor (only for internal use)
+    pub(crate) fn new_default_index(data: PDataFrame) -> Self {
+        let len = data.height() as u64;
+        DataFrame {
+            data,
+            index: Series::from_integer_default_name(&len).unwrap(),
+        }
+    }
+
+    #[allow(dead_code)]
+    /// DataFrame constructor (only for internal use)
+    pub(crate) fn new_with_index(data: PDataFrame, index_idx: usize) -> Self {
+        if let Some(name) = data.get_column_names_owned().get(index_idx) {
+            DataFrame::new_with_index_name(data, name)
+        } else {
+            DataFrame::new_default_index(data)
+        }
+    }
+
+    /// DataFrame constructor (only for internal use)
+    pub(crate) fn new_with_index_name(mut data: PDataFrame, index_name: &str) -> Self {
+        if let Ok(index) = data.drop_in_place(index_name) {
+            DataFrame::new(data, Series(index))
+        } else {
+            DataFrame::new_default_index(data)
+        }
     }
 
     /// DataFrame constructor, create an empty dataframe by data fields and index field

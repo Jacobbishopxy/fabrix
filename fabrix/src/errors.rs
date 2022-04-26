@@ -65,6 +65,10 @@ pub enum FabrixError {
     #[error(transparent)]
     CORE(#[from] CoreError),
 
+    // Polars errors
+    #[error(transparent)]
+    POLARS(#[from] polars::prelude::PolarsError),
+
     // Sql errors
     #[cfg(feature = "sql")]
     #[error(transparent)]

@@ -2,8 +2,6 @@
 //!
 //! DataFrame Schema
 
-use std::collections::HashSet;
-
 use polars::prelude::Schema as PolarsSchema;
 
 use crate::FieldInfo;
@@ -24,9 +22,7 @@ impl Schema {
     }
 
     pub fn from_field_infos<I: IntoIterator<Item = FieldInfo>>(field_infos: I) -> Self {
-        Self(PolarsSchema::from(HashSet::<FieldInfo>::from_iter(
-            field_infos,
-        )))
+        Self(PolarsSchema::from(Vec::<FieldInfo>::from_iter(field_infos)))
     }
 
     pub fn len(&self) -> usize {
@@ -46,6 +42,15 @@ impl Schema {
         self.0.insert_index(index, name, dtype.into());
     }
 
+    pub fn append(&mut self, field_info: FieldInfo) {
+        let FieldInfo { name, dtype } = field_info;
+        self.0.with_column(name, dtype.into());
+    }
+
+    pub fn extend(&mut self, other: Self) {
+        self.0.merge(other.0);
+    }
+
     pub fn get(&self, index: usize) -> Option<FieldInfo> {
         self.0.get_index(index).map(|(name, dtype)| FieldInfo {
             name: name.clone(),
@@ -53,7 +58,12 @@ impl Schema {
         })
     }
 
-    // TODO:
+    pub fn iter(&self) -> impl Iterator<Item = FieldInfo> + '_ {
+        self.0.iter().map(|(name, dtype)| FieldInfo {
+            name: name.clone(),
+            dtype: dtype.clone().into(),
+        })
+    }
 }
 
 impl AsRef<PolarsSchema> for Schema {

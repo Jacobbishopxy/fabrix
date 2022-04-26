@@ -322,6 +322,31 @@ impl AsRef<ValueType> for DataType {
     }
 }
 
+impl AsRef<DataType> for ValueType {
+    fn as_ref(&self) -> &DataType {
+        match &self {
+            ValueType::Bool => &DataType::Boolean,
+            ValueType::U8 => &DataType::UInt8,
+            ValueType::U16 => &DataType::UInt16,
+            ValueType::U32 => &DataType::UInt32,
+            ValueType::U64 => &DataType::UInt64,
+            ValueType::I8 => &DataType::Int8,
+            ValueType::I16 => &DataType::Int16,
+            ValueType::I32 => &DataType::Int32,
+            ValueType::I64 => &DataType::Int64,
+            ValueType::F32 => &DataType::Float32,
+            ValueType::F64 => &DataType::Float64,
+            ValueType::String => &DataType::Utf8,
+            ValueType::Date => &DataType::Object("Date"),
+            ValueType::Time => &DataType::Object("Time"),
+            ValueType::DateTime => &DataType::Object("DateTime"),
+            ValueType::Decimal => &DataType::Object("Decimal"),
+            ValueType::Uuid => &DataType::Object("Uuid"),
+            ValueType::Null => &DataType::Null,
+        }
+    }
+}
+
 impl From<&DataType> for ValueType {
     fn from(v: &DataType) -> Self {
         match v {
@@ -345,6 +370,40 @@ impl From<&DataType> for ValueType {
             DataType::Null => ValueType::Null,
             _ => unimplemented!(),
         }
+    }
+}
+
+pub struct ValueTypes {
+    inner: Vec<DataType>,
+}
+
+impl ValueTypes {
+    pub fn new<I, V>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<DataType>,
+    {
+        Self {
+            inner: iter.into_iter().map(|i| i.into()).collect(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    pub fn polars_dtypes(&self) -> &[DataType] {
+        &self.inner
+    }
+}
+
+impl From<Vec<ValueType>> for ValueTypes {
+    fn from(val: Vec<ValueType>) -> Self {
+        ValueTypes::new(val)
     }
 }
 

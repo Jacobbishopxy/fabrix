@@ -8,7 +8,7 @@ use std::io::Cursor;
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::{CsvReader, SerReader};
 
-use crate::{DataFrame, FabrixError, FabrixResult, Schema, ValueType};
+use crate::{DataFrame, FabrixError, FabrixResult, Schema, ValueTypes};
 
 const UNSUPPORTED_TYPE: &str = "Unsupported CSVSource type";
 
@@ -49,24 +49,38 @@ impl<'a, READER: MmapBytesReader> Reader<'a, READER> {
         self
     }
 
-    pub fn with_comment_char(mut self, comment_char: Option<u8>) -> Self {
-        self.csv_reader = self.csv_reader.with_comment_char(comment_char);
+    pub fn with_comment_char(mut self, comment_char: u8) -> Self {
+        self.csv_reader = self.csv_reader.with_comment_char(Some(comment_char));
         self
     }
 
-    pub fn with_dtypes(mut self, schema: Option<&'a Schema>) -> Self {
-        self.csv_reader = self.csv_reader.with_dtypes(schema.map(|s| s.as_ref()));
+    // schema must be a subset of the total schema
+    pub fn with_dtypes(mut self, schema: &'a Schema) -> Self {
+        self.csv_reader = self.csv_reader.with_dtypes(Some(schema.as_ref()));
         self
     }
 
-    // TODO:
-    pub fn with_dtypes_slice(mut self, dtypes: &'a [ValueType]) -> Self {
-        //
+    pub fn with_dtypes_slice(mut self, dtypes: &'a ValueTypes) -> Self {
+        self.csv_reader = self
+            .csv_reader
+            .with_dtypes_slice(Some(dtypes.polars_dtypes()));
         self
     }
 
-    pub fn finish(self) -> FabrixResult<DataFrame> {
-        todo!()
+    pub fn with_projection(mut self, projection: &'a [usize]) -> Self {
+        self.csv_reader = self.csv_reader.with_projection(Some(projection.to_vec()));
+        self
+    }
+
+    pub fn finish(self, index: Option<&str>) -> FabrixResult<DataFrame> {
+        let polars_df = self.csv_reader.finish()?;
+        let df = if let Some(index) = index {
+            DataFrame::new_with_index_name(polars_df, index)
+        } else {
+            DataFrame::new_default_index(polars_df)
+        };
+
+        Ok(df)
     }
 }
 
@@ -138,15 +152,17 @@ mod test_csv_reader {
 
     #[test]
     fn with_dtypes() {
+        // WARNING: ValueType such as Time/Date/DateTime and etc are not supported by polars' CsvReader
         let fi = vec![
-            FieldInfo::new("a", ValueType::U32),
-            FieldInfo::new("b", ValueType::String),
+            FieldInfo::new("id", ValueType::U32),
+            FieldInfo::new("issued_times", ValueType::U8),
         ];
         let foo = Schema::from_field_infos(fi);
 
         let reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH).try_into().unwrap();
 
-        // TODO:
-        let _foo = reader.with_dtypes(Some(&foo)).finish();
+        let foo = reader.with_dtypes(&foo).finish(None);
+
+        assert!(foo.is_ok());
     }
 }
