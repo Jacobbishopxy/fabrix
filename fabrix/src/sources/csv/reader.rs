@@ -128,16 +128,6 @@ mod test_csv_reader {
     const CSV_FILE_PATH: &str = "../mock/test.csv";
 
     #[test]
-    fn raw_read() {
-        let foo = CsvReader::from_path(CSV_FILE_PATH)
-            .expect("file exists")
-            .has_header(true)
-            .finish();
-
-        println!("{:?}", foo.unwrap());
-    }
-
-    #[test]
     fn file_reader() {
         let reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH).try_into().unwrap();
 

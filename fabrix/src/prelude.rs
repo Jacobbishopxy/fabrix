@@ -38,3 +38,5 @@ pub use crate::dispatcher::XlJson;
 pub use crate::dispatcher::{
     XlDbConvertor, XlDbExecutor, XlDbHelper, XlIndexSelection, XlToDbConsumer,
 };
+
+pub use crate::dispatcher::{Dispatcher, FromSource, IntoSource};
