@@ -46,7 +46,7 @@
 use itertools::Itertools;
 use polars::prelude::{BooleanChunked, DataFrame as PDataFrame, Field, IntoVec, NewChunkedArray};
 
-use super::{cis_err, inf_err, oob_err, FieldInfo, Series, IDX};
+use super::{cis_err, inf_err, lnm_err, oob_err, FieldInfo, Series, IDX};
 use crate::{CoreError, CoreResult, Value, ValueType};
 
 /// DataFrame is a data structure used in Fabrix crate, it wrapped `polars` Series as DF index and
@@ -109,7 +109,13 @@ impl DataFrame {
     /// Create a DataFrame from Vec<Series> (data) and Series (index)
     pub fn from_series(series: Vec<Series>, index: Series) -> CoreResult<Self> {
         let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
-        Ok(DataFrame { data, index })
+        let len1 = data.height();
+        let len2 = index.len();
+        if len1 != len2 {
+            Err(lnm_err(len1, len2))
+        } else {
+            Ok(DataFrame { data, index })
+        }
     }
 
     /// Create a DataFrame from Vec<Series> and index name

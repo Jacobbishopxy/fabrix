@@ -41,3 +41,8 @@ pub(crate) fn inf_err(index: &Value) -> CoreError {
 pub(crate) fn cis_err(name: &str) -> CoreError {
     CoreError::new_common_error(format!("{:?} is empty", name))
 }
+
+/// length does not match error
+pub(crate) fn lnm_err(len1: usize, len2: usize) -> CoreError {
+    CoreError::new_common_error(format!("length {len1} does not match length {len2}"))
+}

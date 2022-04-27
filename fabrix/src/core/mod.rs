@@ -21,7 +21,7 @@ pub use value::*;
 
 pub(crate) use macros::*;
 pub use util::IDX;
-pub(crate) use util::{cis_err, inf_err, oob_err, Stepper};
+pub(crate) use util::{cis_err, inf_err, lnm_err, oob_err, Stepper};
 
 use polars::datatypes::Field as PolarsField;
 

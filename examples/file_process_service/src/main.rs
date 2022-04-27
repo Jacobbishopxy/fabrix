@@ -124,6 +124,11 @@ async fn xl_to_json(
     Ok(HttpResponse::Ok().body(serde_json::json!(data).to_string()))
 }
 
+// convert csv to json
+async fn csv_to_json(mut _payload: Multipart) -> Result<HttpResponse, Error> {
+    todo!()
+}
+
 async fn index() -> HttpResponse {
     let html = r#"
         <html>
@@ -131,10 +136,12 @@ async fn index() -> HttpResponse {
         <body>
             <p>save file</p>
             <form action="/save" method="post" enctype="multipart/form-data">
-                <input type="file" multiple name="file">
+                <input type="file" multiple name="file"><br/><br/>
                 <button type="submit">Submit</button>
             </form>
+
             <br/>
+
             <p>xl file extract</p>
             <form action="/xl" method="post" enctype="multipart/form-data" id="xl-form">
                 <label for="sheet_name">Sheet name: </label>
@@ -149,6 +156,14 @@ async fn index() -> HttpResponse {
                 document.getElementById("xl-form").action = "/xl?sheet_name=" + x.value;
             }
             </script>
+
+            <br/>
+
+            <p>csv file extract</p>
+            <form action="/csv" method="post" enctype="multipart/form-data">
+                <input type="file" multiple name="file"><br/><br/>
+                <button type="submit">Submit</button>
+            </form>
         </body>
         </html>
     "#;
@@ -167,6 +182,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/save").route(web::post().to(save_file)))
             .service(web::resource("/xl").route(web::post().to(xl_to_json)))
+            .service(web::resource("/csv").route(web::post().to(csv_to_json)))
     })
     .bind(("127.0.0.1", 8080))?
     .run()

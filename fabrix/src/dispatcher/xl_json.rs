@@ -98,9 +98,7 @@ mod xl_json_tests {
             SHEET_NAME,
             |d| Ok(XlJson::transform_data(d)),
             |d| {
-                // helper.append_data(d);
-                let foo: JsonValue = d;
-                helper.append_data(foo);
+                helper.append_data(d);
                 Ok(())
             },
         )
