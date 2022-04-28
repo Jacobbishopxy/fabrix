@@ -3,10 +3,11 @@
 //! This module contains the DataFrame struct, which is used to store a collection of Series.
 //!
 //! Methods:
+//! 1. new
+//! 1. new_no_index
 //! 1. new_empty
 //! 1. from_series
-//! 1. from_series_with_index_name
-//! 1. from_series_default_index
+//! 1. from_series_no_index
 //! 1. rechunk
 //! 1. get_column
 //! 1. get_columns
@@ -44,118 +45,124 @@
 //! 1. take_cols
 
 use itertools::Itertools;
-use polars::prelude::{BooleanChunked, DataFrame as PDataFrame, Field, IntoVec, NewChunkedArray};
+use polars::{
+    datatypes::IdxCa,
+    prelude::{BooleanChunked, DataFrame, Field, IntoVec, NewChunkedArray},
+};
 
-use super::{cis_err, inf_err, lnm_err, oob_err, FieldInfo, Series, IDX};
-use crate::{CoreError, CoreResult, Value, ValueType};
+use super::{cis_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX};
+use crate::{CoreResult, Value, ValueType};
+
+// TODO:
+// 1. replace index field by Option<String>, and index is a specific column of dataframe;
+// 2. data field should be public
+// 3. all sources should also be modified
+
+#[derive(Clone, Debug, Default)]
+pub struct IndexTag {
+    pub loc: usize,
+    pub name: String,
+    pub data_type: ValueType,
+}
+
+pub trait IntoIndexTag {
+    fn into_index_tag(self, fields: &[Field]) -> CoreResult<IndexTag>;
+}
+
+impl IntoIndexTag for usize {
+    fn into_index_tag(self, fields: &[Field]) -> CoreResult<IndexTag> {
+        match fields.get(self) {
+            Some(field) => Ok(IndexTag {
+                loc: self,
+                name: field.name().clone(),
+                data_type: field.data_type().into(),
+            }),
+            None => Err(lnm_err(fields.len(), self)),
+        }
+    }
+}
+
+impl IntoIndexTag for &str {
+    fn into_index_tag(self, fields: &[Field]) -> CoreResult<IndexTag> {
+        match fields.iter().position(|f| f.name() == self) {
+            Some(loc) => Ok(IndexTag {
+                loc,
+                name: self.to_string(),
+                data_type: fields[loc].data_type().into(),
+            }),
+            None => Err(nnf_err(self)),
+        }
+    }
+}
+
+impl IntoIndexTag for String {
+    fn into_index_tag(self, fields: &[Field]) -> CoreResult<IndexTag> {
+        match fields.iter().position(|f| f.name() == &self) {
+            Some(loc) => Ok(IndexTag {
+                loc,
+                name: self,
+                data_type: fields[loc].data_type().into(),
+            }),
+            None => Err(nnf_err(&self)),
+        }
+    }
+}
 
 /// DataFrame is a data structure used in Fabrix crate, it wrapped `polars` Series as DF index and
 /// `polars` DataFrame for holding 2 dimensional data. Make sure index series is not nullable.
 #[derive(Clone)]
-pub struct DataFrame {
-    pub(crate) data: PDataFrame,
-    pub(crate) index: Series,
+pub struct Fabrix {
+    pub data: DataFrame,
+    pub index_tag: Option<IndexTag>,
 }
 
-impl DataFrame {
-    /// DataFrame constructor (only for internal use)
-    pub(crate) fn new(data: PDataFrame, index: Series) -> Self {
-        DataFrame { data, index }
-    }
-
-    /// DataFrame constructor (only for internal use)
-    pub(crate) fn new_default_index(data: PDataFrame) -> Self {
-        let len = data.height() as u64;
-        DataFrame {
+impl Fabrix {
+    /// DataFrame constructor
+    pub fn new(data: DataFrame, index_tag: impl IntoIndexTag) -> CoreResult<Self> {
+        let fields = data.fields();
+        Ok(Self {
             data,
-            index: Series::from_integer_default_name(&len).unwrap(),
-        }
+            index_tag: Some(index_tag.into_index_tag(&fields)?),
+        })
     }
 
-    #[allow(dead_code)]
-    /// DataFrame constructor (only for internal use)
-    pub(crate) fn new_with_index(data: PDataFrame, index_idx: usize) -> Self {
-        if let Some(name) = data.get_column_names_owned().get(index_idx) {
-            DataFrame::new_with_index_name(data, name)
-        } else {
-            DataFrame::new_default_index(data)
-        }
-    }
-
-    /// DataFrame constructor (only for internal use)
-    pub(crate) fn new_with_index_name(mut data: PDataFrame, index_name: &str) -> Self {
-        if let Ok(index) = data.drop_in_place(index_name) {
-            DataFrame::new(data, Series(index))
-        } else {
-            DataFrame::new_default_index(data)
+    /// DataFrame constructor, no index
+    pub fn new_no_index(data: DataFrame) -> Self {
+        Self {
+            data,
+            index_tag: None,
         }
     }
 
     /// DataFrame constructor, create an empty dataframe by data fields and index field
-    pub fn new_empty(
-        data_fields: Vec<Field>,
-        index_field: Field,
-        nullable: bool,
-    ) -> CoreResult<Self> {
-        let data = data_fields
-            .into_iter()
-            .map(|d| Series::empty_series_from_field(d, nullable))
-            .collect::<CoreResult<Vec<Series>>>()?;
-        let index = Series::empty_series_from_field(index_field, nullable)?;
-
-        DataFrame::from_series(data, index)
-    }
-
-    /// Create a DataFrame from Vec<Series> (data) and Series (index)
-    pub fn from_series(series: Vec<Series>, index: Series) -> CoreResult<Self> {
-        let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
-        let len1 = data.height();
-        let len2 = index.len();
-        if len1 != len2 {
-            Err(lnm_err(len1, len2))
-        } else {
-            Ok(DataFrame { data, index })
+    pub fn new_empty() -> Self {
+        Self {
+            data: DataFrame::default(),
+            index_tag: None,
         }
     }
 
-    /// Create a DataFrame from Vec<Series> and index name
-    pub fn from_series_with_index_name(series: Vec<Series>, index_name: &str) -> CoreResult<Self> {
-        let index;
-        let mut series = series;
-        match series.iter().position(|s| s.name() == index_name) {
-            Some(i) => {
-                index = series.remove(i);
-            }
-            None => {
-                return Err(CoreError::new_common_error(format!(
-                    "index {:?} does not exist",
-                    index_name
-                )))
-            }
-        }
-
-        let data = series.into_iter().map(|s| s.0).collect();
-        let data = PDataFrame::new(data)?;
-
-        Ok(DataFrame { data, index })
+    /// Create a DataFrame from Vec<Series>
+    pub fn from_series(series: Vec<Series>, index_tag: impl IntoIndexTag) -> CoreResult<Self> {
+        let data = DataFrame::new(series.into_iter().map(|s| s.0).collect())?;
+        Fabrix::new(data, index_tag)
     }
 
-    /// Create a DataFrame from Vec<Series>, index is automatically generated
-    pub fn from_series_default_index(series: Vec<Series>) -> CoreResult<Self> {
-        let len = series.first().ok_or_else(|| cis_err("Vec<Series>"))?.len() as u64;
-        let data = PDataFrame::new(series.into_iter().map(|s| s.0).collect())?;
-        let index = Series::from_integer_default_name(&len)?;
-
-        Ok(DataFrame { data, index })
+    /// Create a DataFrame from Vec<Series> without index
+    pub fn from_series_no_index(series: Vec<Series>) -> CoreResult<Self> {
+        let data = DataFrame::new(series.into_iter().map(|s| s.0).collect())?;
+        Ok(Self {
+            data,
+            index_tag: None,
+        })
     }
 
     /// rechunk: aggregate all chunks to a contiguous array of memory
     pub fn rechunk(&mut self) {
-        self.index.rechunk();
         self.data.rechunk();
     }
 
-    /// get a cloned column
+    /// get a column
     pub fn get_column<S>(&self, name: S) -> Option<Series>
     where
         S: AsRef<str>,
@@ -169,19 +176,28 @@ impl DataFrame {
     /// get a vector of cloned columns
     pub fn get_columns(&self, names: impl IntoVec<String>) -> Option<Vec<Series>> {
         match self.data.select_series(names) {
-            Ok(r) => Some(r.into_iter().map(Series).collect()),
+            Ok(r) => Some(r.into_iter().map(|s| Series(s)).collect()),
             Err(_) => None,
         }
     }
 
     /// get a reference of FDataFrame's data
-    pub fn data(&self) -> &PDataFrame {
+    pub fn data(&self) -> &DataFrame {
         &self.data
     }
 
+    pub fn index_tag(&self) -> Option<&IndexTag> {
+        self.index_tag.as_ref()
+    }
+
     /// get a reference of FDataFrame's index
-    pub fn index(&self) -> &Series {
-        &self.index
+    pub fn index(&self) -> Option<Series> {
+        self.index_tag.and_then(|it| {
+            self.data
+                .column(it.name.as_str())
+                .ok()
+                .map(|s| Series(s.clone()))
+        })
     }
 
     /// get column names
@@ -204,25 +220,22 @@ impl DataFrame {
         Ok(self)
     }
 
-    /// index field
-    pub fn index_field(&self) -> FieldInfo {
-        self.index.field()
-    }
-
-    /// series dtype
-    pub fn index_dtype(&self) -> ValueType {
-        self.index.dtype()
-    }
-
     /// dataframe dtypes
-    pub fn data_dtypes(&self) -> Vec<ValueType> {
+    pub fn dtypes(&self) -> Vec<ValueType> {
         self.data.dtypes().iter().map(|t| t.into()).collect_vec()
     }
 
     /// index check null.
     /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
-    pub fn index_has_null(&self) -> bool {
-        self.index.has_null()
+    pub fn index_has_null(&self) -> Option<bool> {
+        match &self.index_tag {
+            Some(it) => self
+                .data
+                .column(it.name.as_str())
+                .ok()
+                .map(|s| s.is_not_null().all()),
+            None => None,
+        }
     }
 
     /// dataframe check null columns
@@ -231,13 +244,8 @@ impl DataFrame {
         self.data.iter().map(|s| !s.is_not_null().all()).collect()
     }
 
-    /// series dtype + dataframe dtypes
-    pub fn dtypes(&self) -> (ValueType, Vec<ValueType>) {
-        (self.index_dtype(), self.data_dtypes())
-    }
-
     /// is dtypes match
-    pub fn is_dtypes_match(&self, df: &DataFrame) -> bool {
+    pub fn is_dtypes_match(&self, df: &Fabrix) -> bool {
         self.dtypes() == df.dtypes()
     }
 
@@ -265,67 +273,71 @@ impl DataFrame {
     }
 
     /// horizontal stack, return cloned data
-    pub fn hconcat(&self, columns: &[Series]) -> CoreResult<DataFrame> {
-        let raw_columns = columns.iter().cloned().map(|v| v.0).collect::<Vec<_>>();
-        let data = self.data.hstack(&raw_columns[..])?;
+    pub fn hconcat(&self, columns: &[Series]) -> CoreResult<Fabrix> {
+        let raw_columns = columns.iter().map(|v| v.0).collect::<Vec<_>>();
+        let data = self.data.hstack(&raw_columns)?;
 
-        Ok(DataFrame::new(data, self.index.clone()))
+        Ok(Self {
+            data,
+            index_tag: self.index_tag.clone(),
+        })
     }
 
     /// horizontal stack, self mutation
     pub fn hconcat_mut(&mut self, columns: &[Series]) -> CoreResult<&mut Self> {
-        let raw_columns = columns.iter().cloned().map(|v| v.0).collect::<Vec<_>>();
-
-        self.data = self.data.hstack(&raw_columns[..])?;
+        let raw_columns = columns.iter().map(|v| v.0).collect::<Vec<_>>();
+        self.data = self.data.hstack(&raw_columns)?;
 
         Ok(self)
     }
 
     /// vertical stack, return cloned data
-    pub fn vconcat(&self, df: &DataFrame) -> CoreResult<DataFrame> {
-        // if !self.is_dtypes_match(&df) {
-        //     return Err(CoreError::new_df_dtypes_mismatch_error(
-        //         self.dtypes(),
-        //         df.dtypes(),
-        //     ));
-        // }
+    pub fn vconcat(&self, df: &Fabrix) -> CoreResult<Fabrix> {
         let data = self.data.vstack(df.data())?;
-        let mut index = self.index.0.clone();
-        index.append(&df.index.0)?;
 
-        Ok(DataFrame::new(data, Series(index)))
+        Ok(Self {
+            data,
+            index_tag: self.index_tag.clone(),
+        })
     }
 
     /// vertical concat, self mutation
-    pub fn vconcat_mut(&mut self, df: &DataFrame) -> CoreResult<&mut Self> {
-        // if !self.is_dtypes_match(&df) {
-        //     return Err(CoreError::new_df_dtypes_mismatch_error(
-        //         self.dtypes(),
-        //         df.dtypes(),
-        //     ));
-        // }
+    pub fn vconcat_mut(&mut self, df: &Fabrix) -> CoreResult<&mut Self> {
         self.data.vstack_mut(df.data())?;
-        self.index.0.append(&df.index.0)?;
 
         Ok(self)
     }
 
     /// take cloned rows by an indices array
-    pub fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<DataFrame> {
+    pub fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<Fabrix> {
         let iter = indices.iter().copied();
         let data = self.data.take_iter(iter)?;
 
-        Ok(DataFrame {
+        Ok(Self {
             data,
-            index: self.index.take(indices)?,
+            index_tag: self.index_tag.clone(),
         })
     }
 
     /// take cloned DataFrame by an index Series
-    pub fn take_rows(&self, index: &Series) -> CoreResult<DataFrame> {
-        let idx = self.index.find_indices(index);
+    pub fn take_rows(&self, index: &Series) -> CoreResult<Fabrix> {
+        match &self.index_tag {
+            Some(it) => {
+                let s = self.data.column(it.name.as_str())?;
+                let iter = Series(s.clone())
+                    .find_indices(index)
+                    .into_iter()
+                    .map(|i| i as u32)
+                    .collect();
+                let data = self.data.take(&IdxCa::new_vec("idx", iter))?;
 
-        self.take_rows_by_idx(&idx)
+                Ok(Fabrix {
+                    data,
+                    index_tag: self.index_tag.clone(),
+                })
+            }
+            None => Err(inf_err()),
+        }
     }
 
     /// pop row
@@ -355,10 +367,16 @@ impl DataFrame {
     }
 
     /// remove a row
-    pub fn remove_row(&mut self, index: Value) -> CoreResult<&mut Self> {
-        match self.index.find_index(&index) {
-            Some(idx) => self.remove_row_by_idx(idx),
-            None => Err(inf_err(&index)),
+    pub fn remove_row(&mut self, index: &Value) -> CoreResult<&mut Self> {
+        match &self.index_tag {
+            Some(idx) => {
+                let s = self.data.column(idx.name.as_str())?;
+                match Series(s.clone()).find_index(index) {
+                    Some(idx) => self.remove_row_by_idx(idx as usize),
+                    None => Err(vnf_err(index)),
+                }
+            }
+            None => Err(inf_err()),
         }
     }
 
@@ -373,10 +391,8 @@ impl DataFrame {
         idx.iter().for_each(|i| data_rsd[*i] = false);
         let idx_rsd = BooleanChunked::from_slice(IDX, &data_rsd);
         let data_rsd = self.data.filter(&idx_rsd)?;
-        let index_rsd = Series(self.index.0.filter(&idx_rsd)?);
 
         self.data = data_rsd;
-        self.index = index_rsd;
 
         Ok(self)
     }
@@ -384,9 +400,21 @@ impl DataFrame {
     /// remove rows. expensive
     pub fn remove_rows(&mut self, indices: Vec<Value>) -> CoreResult<&mut Self> {
         let idx = Series::from_values_default_name(indices, false)?;
-        let idx = self.index.find_indices(&idx);
 
-        self.remove_rows_by_idx(&idx)
+        match &self.index_tag {
+            Some(it) => {
+                let s = self.data.column(it.name.as_str())?;
+                let idx = Series(s.clone())
+                    .find_indices(&idx)
+                    .into_iter()
+                    .map(|i| i as u32)
+                    .collect();
+                self.data = self.data.take(&IdxCa::new_vec("idx", idx))?;
+
+                Ok(self)
+            }
+            None => Err(inf_err()),
+        }
     }
 
     /// remove a slice of rows from the dataframe
@@ -409,7 +437,7 @@ impl DataFrame {
     }
 
     /// popup rows by indices array
-    pub fn popup_rows_by_idx(&mut self, indices: &[usize]) -> CoreResult<DataFrame> {
+    pub fn popup_rows_by_idx(&mut self, indices: &[usize]) -> CoreResult<Fabrix> {
         // get df
         let pop = self.take_rows_by_idx(indices)?;
         // create a `BooleanChunked` and get residual data
@@ -419,31 +447,40 @@ impl DataFrame {
     }
 
     /// popup rows
-    pub fn popup_rows(&mut self, index: &Series) -> CoreResult<DataFrame> {
-        let idx = self.index.find_indices(index);
+    pub fn popup_rows(&mut self, index: &Series) -> CoreResult<Fabrix> {
+        match &self.index_tag {
+            Some(it) => {
+                let s = self.data.column(it.name.as_str())?;
+                let idx = Series(s.clone()).find_indices(&index);
+                let pop = self.popup_rows_by_idx(&idx)?;
 
-        self.popup_rows_by_idx(&idx)
+                Ok(pop)
+            }
+            None => Err(inf_err()),
+        }
     }
 
     /// slice the DataFrame along the rows
     #[must_use]
     pub fn slice(&self, offset: i64, length: usize) -> Self {
         let data = self.data.slice(offset, length);
-        let index = self.index.slice(offset, length);
 
-        Self::new(data, index)
+        Self {
+            data,
+            index_tag: self.index_tag.clone(),
+        }
     }
 
     /// take cloned DataFrame by column names
-    pub fn take_cols<I, S>(&self, cols: I) -> CoreResult<DataFrame>
+    pub fn take_cols<I, S>(&self, cols: I) -> CoreResult<Fabrix>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
         let data = self.data.select(cols)?;
-        Ok(DataFrame {
+        Ok(Self {
             data,
-            index: self.index.clone(),
+            index_tag: self.index_tag.clone(),
         })
     }
 }
@@ -451,11 +488,11 @@ impl DataFrame {
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{df, series, FieldInfo, ValueType};
+    use crate::{fx, series, FieldInfo, ValueType};
 
     #[test]
     fn test_df_new1() {
-        let df = df![
+        let df = fx![
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
@@ -466,7 +503,7 @@ mod test_fabrix_dataframe {
         let df = df.unwrap();
 
         assert_eq!(
-            df.data_dtypes(),
+            df.dtypes(),
             vec![ValueType::String, ValueType::I32, ValueType::I32]
         );
 
@@ -475,7 +512,7 @@ mod test_fabrix_dataframe {
 
     #[test]
     fn test_df_new2() {
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
@@ -498,7 +535,7 @@ mod test_fabrix_dataframe {
 
     #[test]
     fn test_df_op1() {
-        let df = df![
+        let df = fx![
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
@@ -529,14 +566,14 @@ mod test_fabrix_dataframe {
 
     #[test]
     fn test_df_op2() {
-        let mut df1 = df![
+        let mut df1 = fx![
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
         ]
         .unwrap();
 
-        let df2 = df![
+        let df2 = fx![
             "names" => ["Sam", "James", "Jason"],
             "ord" => [2,3,4],
             "val" => [Some(20), None, Some(9)]

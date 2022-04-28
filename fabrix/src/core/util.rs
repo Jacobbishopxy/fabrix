@@ -33,13 +33,28 @@ pub(crate) fn oob_err(length: usize, len: usize) -> CoreError {
 }
 
 /// index not found error
-pub(crate) fn inf_err(index: &Value) -> CoreError {
-    CoreError::new_common_error(format!("index {:?} not found", index))
+pub(crate) fn inf_err() -> CoreError {
+    CoreError::new_common_error("index not found")
+}
+
+/// index mismatch error
+pub(crate) fn ims_err() -> CoreError {
+    CoreError::new_common_error("index mismatched")
+}
+
+/// value not found error
+pub(crate) fn vnf_err(value: &Value) -> CoreError {
+    CoreError::new_common_error(format!("{:?} not found", value))
 }
 
 /// content empty error
 pub(crate) fn cis_err(name: &str) -> CoreError {
     CoreError::new_common_error(format!("{:?} is empty", name))
+}
+
+/// name not found error
+pub(crate) fn nnf_err(name: &str) -> CoreError {
+    CoreError::new_common_error(format!("{:?} not found", name))
 }
 
 /// length does not match error

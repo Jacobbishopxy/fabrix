@@ -8,7 +8,7 @@ use std::io::Cursor;
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::{CsvReader, SerReader};
 
-use crate::{DataFrame, FabrixError, FabrixResult, Schema, ValueTypes};
+use crate::{Fabrix, FabrixError, FabrixResult, Schema, ValueTypes};
 
 const UNSUPPORTED_TYPE: &str = "Unsupported CSVSource type";
 
@@ -72,15 +72,13 @@ impl<'a, READER: MmapBytesReader> Reader<'a, READER> {
         self
     }
 
-    pub fn finish(self, index: Option<&str>) -> FabrixResult<DataFrame> {
+    pub fn finish(self, index: Option<&str>) -> FabrixResult<Fabrix> {
         let polars_df = self.csv_reader.finish()?;
-        let df = if let Some(index) = index {
-            DataFrame::new_with_index_name(polars_df, index)
+        if let Some(index) = index {
+            Ok(Fabrix::new(polars_df, index)?)
         } else {
-            DataFrame::new_default_index(polars_df)
-        };
-
-        Ok(df)
+            Ok(Fabrix::new_no_index(polars_df))
+        }
     }
 }
 

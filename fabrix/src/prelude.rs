@@ -4,7 +4,7 @@
 
 pub use super::errors::*;
 pub use crate::core::{
-    CoreError, CoreResult, D1Value, D2Value, DataFrame, Date, DateTime, Decimal, FieldInfo, Row,
+    CoreError, CoreResult, D1Value, D2Value, Date, DateTime, Decimal, Fabrix, FieldInfo, Row,
     Schema, Series, Time, Uuid, Value, ValueType, ValueTypes, D1, D2,
 };
 

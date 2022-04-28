@@ -3,41 +3,31 @@
 use sea_query::{Expr, Query};
 
 use super::{alias, filter_builder, sql_adt, statement, try_from_value_to_svalue, DeleteOrSelect};
-use crate::{DataFrame, DmlMutation, SqlBuilder, SqlResult};
+use crate::{DmlMutation, Fabrix, SqlBuilder, SqlResult};
 
 impl DmlMutation for SqlBuilder {
     /// given a `Dataframe`, insert it into an existing table
-    fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> SqlResult<String> {
+    fn insert(&self, table_name: &str, fx: Fabrix) -> SqlResult<String> {
         // announce an insert statement
         let mut statement = Query::insert();
         // given a table name, insert into it
         statement.into_table(alias!(table_name));
 
-        let mut columns = Vec::new();
-        let mut column_info = Vec::new();
-        // if the index is not ignored, insert as the primary key
-        if !ignore_index {
-            column_info = vec![df.index.field()];
-            columns = vec![alias!(df.index.name())];
-        }
-        // the rest of the dataframe's columns
-        columns.extend(df.fields().iter().map(|c| alias!(&c.name)));
+        let columns = fx
+            .fields()
+            .iter()
+            .map(|c| alias!(&c.name))
+            .collect::<Vec<_>>();
         statement.columns(columns);
+        let column_info = fx.fields();
 
-        column_info.extend(df.fields());
-        for c in df.into_iter() {
-            let mut record = Vec::new();
-            if !ignore_index {
-                let index_type = c.index_dtype();
-                record = vec![try_from_value_to_svalue(c.index, &index_type, false)?];
-            }
-            record.extend(
-                c.data
-                    .into_iter()
-                    .zip(column_info.iter())
-                    .map(|(v, inf)| try_from_value_to_svalue(v, inf.dtype(), true))
-                    .collect::<SqlResult<Vec<_>>>()?,
-            );
+        for row in fx.into_iter() {
+            let record = row
+                .data
+                .into_iter()
+                .zip(column_info.iter())
+                .map(|(v, inf)| try_from_value_to_svalue(v, inf.dtype(), true))
+                .collect::<SqlResult<Vec<_>>>()?;
 
             // make sure columns length equals records length
             statement.values(record)?;
@@ -50,14 +40,14 @@ impl DmlMutation for SqlBuilder {
     ///
     /// Since bulk update is not supported by `sea-query` yet, we need to stack each row-updated
     /// into a vector and then update the whole vector sequentially.
-    fn update(&self, table_name: &str, df: DataFrame) -> SqlResult<Vec<String>> {
-        let column_info = df.fields();
-        let index_field = df.index_field();
+    fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<Vec<String>> {
+        let column_info = fx.fields();
+        let index_field = fx.index_field();
         let index_type = index_field.dtype();
         let index_name = index_field.name();
         let mut res = vec![];
 
-        for row in df.into_iter() {
+        for row in fx.into_iter() {
             let mut statement = Query::update();
             statement.table(alias!(table_name));
 
@@ -97,11 +87,11 @@ mod test_mutation_dml {
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{df, xpr_and, xpr_nest, xpr_or, xpr_simple};
+    use crate::{fx, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
     #[test]
     fn test_insert() {
-        let df = df![
+        let df = fx![
             "v1" => [1, 2, 3],
             "v2" => ["a", "b", "c"],
             "v3" => [1.0, 2.0, 3.0],
@@ -120,7 +110,7 @@ mod test_mutation_dml {
 
     #[test]
     fn test_insert2() {
-        let df = df![
+        let df = fx![
             "id" =>	[96,97,98,99,100],
             "first_name" =>	["Blondie","Etti","Early","Adelina","Kristien"],
             "last_name" => ["D'Ruel","Klimko","Dowtry","Tunn","Rabl"],
@@ -158,7 +148,7 @@ mod test_mutation_dml {
 
     #[test]
     fn test_update() {
-        let df = df![
+        let df = fx![
             "id";
             "id" => [1, 2, 3],
             "v1" => [10, 20, 30],

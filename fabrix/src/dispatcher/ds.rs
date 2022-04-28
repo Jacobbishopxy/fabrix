@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 
-use crate::{DataFrame, FabrixResult};
+use crate::{Fabrix, FabrixResult};
 
 #[async_trait]
 pub trait FromSource {
@@ -27,7 +27,7 @@ where
 {
     from: PhantomData<F>,
     to: PhantomData<T>,
-    pub data: Option<DataFrame>,
+    pub data: Option<Fabrix>,
 }
 
 impl<F, T> Dispatcher<F, T>

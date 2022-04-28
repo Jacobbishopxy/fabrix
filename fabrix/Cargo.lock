@@ -622,7 +622,6 @@ dependencies = [
  "bson2",
  "bytes",
  "chrono",
- "comfy-table",
  "futures",
  "itertools",
  "lazy_static",

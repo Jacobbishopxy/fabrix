@@ -25,27 +25,25 @@
 use itertools::Itertools;
 use polars::prelude::Field;
 
-use super::{inf_err, oob_err, util::Stepper, SeriesIntoIterator};
-use crate::{CoreError, CoreResult, D2Value, DataFrame, Series, Value, ValueType};
+use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIntoIterator};
+use crate::{CoreResult, D2Value, Fabrix, Series, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub struct Row {
-    pub(crate) index: Value,
+    pub(crate) index: Option<usize>,
     pub(crate) data: Vec<Value>,
 }
 
 impl Row {
     /// Row constructor
-    pub fn new(index: Value, data: Vec<Value>) -> Self {
+    pub fn new(index: Option<usize>, data: Vec<Value>) -> Self {
+        let index = index.and_then(|i| if i >= data.len() { None } else { Some(i) });
         Row { index, data }
     }
 
     /// Row constructor, no index
     pub fn from_values(data: Vec<Value>) -> Self {
-        Row {
-            index: Value::Null,
-            data,
-        }
+        Row { index: None, data }
     }
 
     /// get data
@@ -54,13 +52,14 @@ impl Row {
     }
 
     /// get index
-    pub fn index(&self) -> &Value {
-        &self.index
+    pub fn index(&self) -> Option<&Value> {
+        self.index.and_then(|i| self.data.get(i))
     }
 
     /// get index type
-    pub fn index_dtype(&self) -> ValueType {
-        ValueType::from(&self.index)
+    pub fn index_dtype(&self) -> Option<ValueType> {
+        self.index
+            .and_then(|i| self.data.get(i).map(ValueType::from))
     }
 
     /// get data field
@@ -79,7 +78,7 @@ impl Row {
     }
 }
 
-impl DataFrame {
+impl Fabrix {
     /// create a DataFrame by Rows, slower than column-wise constructors.
     /// cannot build from an empty `Vec<Row>`
     pub fn from_rows(rows: Vec<Row>) -> CoreResult<Self> {
@@ -87,23 +86,29 @@ impl DataFrame {
         // rows length
         let m = rows.len();
         if m == 0 {
-            return Err(CoreError::new_empty_error());
+            return Err(cis_err("row"));
         }
         // rows width
         let n = rows.first().unwrap().len();
         let mut series = Vec::with_capacity(n);
+        let mut index_idx = rows.first().unwrap().index;
         for j in 0..n {
             let mut buf = Vec::with_capacity(m);
             for r in rows.iter_mut() {
+                if r.index != index_idx {
+                    return Err(ims_err());
+                }
                 let mut tmp = Value::Null;
                 std::mem::swap(&mut tmp, &mut r.data[j]);
                 buf.push(tmp);
             }
             series.push(Series::from_values(buf, &format!("Column_{:?}", j), true)?);
         }
-        let index = rows.iter().map(|r| r.index.clone()).collect();
 
-        DataFrame::from_series(series, Series::from_values_default_name(index, true)?)
+        match index_idx {
+            Some(i) => Fabrix::from_series(series, i),
+            None => Fabrix::from_series_no_index(series),
+        }
     }
 
     /// create a DataFrame by IntoIter<Vec<Value>>, slower than column-wise constructors
@@ -118,7 +123,7 @@ impl DataFrame {
         let mut iter = iter.peekable();
 
         if iter.peek().is_none() {
-            return Err(CoreError::new_empty_error());
+            return Err(cis_err("row"));
         }
 
         // length of the first row, and width of the dataframe. number of columns
@@ -131,20 +136,6 @@ impl DataFrame {
                 .for_each(|(i, v)| transposed_values[i].push(v));
         }
 
-        // take an index series from the `transposed_values` if index_col is not None
-        let index_series = index_col
-            .and_then(|i| {
-                // if index_col is out of range, simply ignore it and the dataframe will use the default index
-                if i >= n {
-                    None
-                } else {
-                    // take the index column, and remove it from the `transposed_values`
-                    let v = transposed_values.remove(i);
-                    Some(Series::from_values(v, "index", true))
-                }
-            })
-            .transpose()?;
-
         // from the `transposed_values` to a vec of series
         let series = transposed_values
             .into_iter()
@@ -152,16 +143,16 @@ impl DataFrame {
             .map(|(i, v)| Series::from_values(v, &format!("Column_{:?}", i), true))
             .collect::<CoreResult<Vec<_>>>()?;
 
-        match index_series {
-            Some(s) => DataFrame::from_series(series, s),
-            None => DataFrame::from_series_default_index(series),
+        match index_col {
+            Some(s) => Fabrix::from_series(series, s),
+            None => Fabrix::from_series_no_index(series),
         }
     }
 
     /// create a DataFrame by D2Value, slower than column-wise constructors
     pub fn from_row_values(values: D2Value, index_col: Option<usize>) -> CoreResult<Self> {
         let iter = values.into_iter();
-        DataFrame::from_row_values_iter(iter, index_col)
+        Fabrix::from_row_values_iter(iter, index_col)
     }
 
     /// get a row by idx. This method is slower than get a column (`self.data.get_row`).
@@ -174,12 +165,9 @@ impl DataFrame {
         let (data, index) = (
             self.data
                 .iter()
-                .map(|s| {
-                    let val: Value = s.get(idx).into();
-                    val
-                })
+                .map(|s| Value::from(s.get(idx)))
                 .collect_vec(),
-            self.index.get(idx)?,
+            self.index_tag.map(|it| it.loc),
         );
 
         Ok(Row { index, data })
@@ -187,14 +175,15 @@ impl DataFrame {
 
     /// get a row by index. This method is slower than get a column.
     pub fn get_row(&self, index: &Value) -> CoreResult<Row> {
-        self.index
-            .find_index(index)
-            .map_or(Err(inf_err(index)), |i| self.get_row_by_idx(i))
+        match self.index_tag {
+            Some(ref it) => self.get_row_by_idx(it.loc),
+            None => Err(inf_err()),
+        }
     }
 
     /// append a row to the dataframe. dtypes of the row must be equivalent to self dtypes
     pub fn append(&mut self, row: Row) -> CoreResult<&mut Self> {
-        let mut d = DataFrame::from_rows(vec![row])?;
+        let mut d = Fabrix::from_rows(vec![row])?;
         d.set_column_names(&self.get_column_names())?;
         self.vconcat_mut(&d)
     }
@@ -212,10 +201,16 @@ impl DataFrame {
     }
 
     /// insert a row into the dataframe
-    pub fn insert_row(&mut self, index: Value, row: Row) -> CoreResult<&mut Self> {
-        match self.index.find_index(&index) {
-            Some(idx) => self.insert_row_by_idx(idx, row),
-            None => Err(inf_err(&index)),
+    pub fn insert_row(&mut self, index: &Value, row: Row) -> CoreResult<&mut Self> {
+        match self.index_tag {
+            Some(it) => {
+                let idx = Series(self.data.column(&it.name)?.clone()).find_index(index);
+                match idx {
+                    Some(idx) => self.insert_row_by_idx(idx, row),
+                    None => Err(inf_err()),
+                }
+            }
+            None => Err(inf_err()),
         }
     }
 
@@ -224,7 +219,7 @@ impl DataFrame {
         let len = self.height();
         let mut d1 = self.slice(0, idx);
         let d2 = self.slice(idx as i64, len);
-        let mut di = DataFrame::from_rows(rows)?;
+        let mut di = Fabrix::from_rows(rows)?;
         di.set_column_names(&self.get_column_names())?;
 
         d1.vconcat_mut(&di)?.vconcat_mut(&d2)?;
@@ -234,15 +229,15 @@ impl DataFrame {
     }
 
     /// insert rows into the dataframe by index
-    pub fn insert_rows(&mut self, index: Value, rows: Vec<Row>) -> CoreResult<&mut Self> {
-        match self.index.find_index(&index) {
-            Some(idx) => self.insert_rows_by_idx(idx, rows),
-            None => Err(inf_err(&index)),
+    pub fn insert_rows(&mut self, index: &Value, rows: Vec<Row>) -> CoreResult<&mut Self> {
+        match self.index_tag {
+            Some(it) => self.insert_rows_by_idx(it.loc, rows),
+            None => Err(inf_err()),
         }
     }
 }
 
-impl IntoIterator for DataFrame {
+impl IntoIterator for Fabrix {
     type Item = Row;
     type IntoIter = DataFrameIntoIterator;
 
@@ -256,7 +251,7 @@ impl IntoIterator for DataFrame {
         }
 
         DataFrameIntoIterator {
-            index_iter: self.index.into_iter(),
+            index: self.index_tag.map(|it| it.loc),
             data_iters,
             stepper: Stepper::new(len),
         }
@@ -264,7 +259,7 @@ impl IntoIterator for DataFrame {
 }
 
 pub struct DataFrameIntoIterator {
-    index_iter: SeriesIntoIterator,
+    index: Option<usize>,
     data_iters: Vec<SeriesIntoIterator>,
     stepper: Stepper,
 }
@@ -276,7 +271,6 @@ impl Iterator for DataFrameIntoIterator {
         if self.stepper.exhausted() {
             None
         } else {
-            let index = self.index_iter.next().unwrap();
             let data = self
                 .data_iters
                 .iter_mut()
@@ -284,7 +278,7 @@ impl Iterator for DataFrameIntoIterator {
                 .collect::<Vec<_>>();
 
             self.stepper.forward();
-            Some(Row::new(index, data))
+            Some(Row::new(self.index, data))
         }
     }
 }
@@ -292,7 +286,7 @@ impl Iterator for DataFrameIntoIterator {
 #[cfg(test)]
 mod test_row {
 
-    use crate::{df, rows, value, DataFrame, Row};
+    use crate::{fx, rows, value, Fabrix, Row};
 
     #[test]
     fn test_from_rows() {
@@ -302,7 +296,7 @@ mod test_row {
             [2, "James", "A", 9],
         );
 
-        let df = DataFrame::from_rows(rows);
+        let df = Fabrix::from_rows(rows);
         assert!(df.is_ok());
         assert!(df.unwrap().shape() == (3, 4));
 
@@ -312,11 +306,10 @@ mod test_row {
             102 => [2, "James", "A", 9],
         );
 
-        let df = DataFrame::from_rows(rows);
+        let df = Fabrix::from_rows(rows);
         assert!(df.is_ok());
         let df = df.unwrap();
         assert!(df.shape() == (3, 4));
-        assert!(df.index().len() == 3);
     }
 
     #[test]
@@ -327,7 +320,7 @@ mod test_row {
             vec![value!(31), value!("James"), value!("A"), value!(9)],
         ];
 
-        let df = DataFrame::from_row_values(vvv, None);
+        let df = Fabrix::from_row_values(vvv, None);
         assert!(df.is_ok());
 
         let df = df.unwrap();
@@ -336,7 +329,7 @@ mod test_row {
 
     #[test]
     fn test_get_row() {
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
@@ -348,17 +341,17 @@ mod test_row {
         assert_eq!(df.shape(), (3, 2));
 
         let test1 = df.get_row_by_idx(1).unwrap();
-        assert_eq!(test1.index(), &value!(2));
+        assert_eq!(test1.index().unwrap(), &value!(2));
         assert_eq!(test1.data(), &[value!("Sam"), value!(None::<i32>)]);
 
         let test2 = df.get_row(&value!(2i32)).unwrap();
-        assert_eq!(test2.index(), &value!(2));
+        assert_eq!(test2.index().unwrap(), &value!(2));
         assert_eq!(test2.data(), &[value!("Sam"), value!(None::<i32>)]);
     }
 
     #[test]
     fn test_df_op() {
-        let mut df = df![
+        let mut df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
@@ -371,7 +364,7 @@ mod test_row {
         assert!(res1.is_ok());
 
         let row2 = Row::new(value!(5), vec![value!("Mandy"), value!(9)]);
-        let res2 = df.insert_row(value!(2), row2);
+        let res2 = df.insert_row(&value!(2), row2);
         assert!(res2.is_ok());
         assert!(df.shape() == (5, 2));
 
@@ -381,10 +374,10 @@ mod test_row {
             8 => ["Julia", 8]
         );
 
-        let res3 = df.insert_rows(value!(5), rows);
+        let res3 = df.insert_rows(&value!(5), rows);
         assert!(res3.is_ok());
 
-        let res4 = df.remove_row(value!(7));
+        let res4 = df.remove_row(&value!(7));
         assert!(res4.is_ok());
         assert_eq!(df.shape(), (7, 2));
 
@@ -399,7 +392,7 @@ mod test_row {
 
     #[test]
     fn test_df_iter() {
-        let df = df![
+        let df = fx![
             "name" => ["Jacob", "Sam", "James", "Julia"],
             "star" => [100, 99, 100, 69],
             "loc" => [2u8, 3, 1, 4]

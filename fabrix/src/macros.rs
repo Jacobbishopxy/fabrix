@@ -14,7 +14,7 @@ macro_rules! value {
 /// 1. dataframe with default index
 /// 1. dataframe with given index
 #[macro_export]
-macro_rules! df {
+macro_rules! fx {
     ($($col_name:expr => $slice:expr),+ $(,)*) => {{
         use polars::prelude::NamedFrom;
 
@@ -24,7 +24,7 @@ macro_rules! df {
             )+
         ];
 
-        $crate::DataFrame::from_series_default_index(columns)
+        $crate::Fabrix::from_series_no_index(columns)
     }};
     ($index_name:expr; $($col_name:expr => $slice:expr),+ $(,)*) => {{
         use polars::prelude::NamedFrom;
@@ -35,7 +35,7 @@ macro_rules! df {
             )+
         ];
 
-        $crate::DataFrame::from_series_with_index_name(columns, $index_name)
+        $crate::Fabrix::from_series(columns, $index_name)
     }};
 }
 
@@ -119,7 +119,7 @@ mod test_macros {
 
     #[test]
     fn test_df_new1() {
-        let df = df![
+        let df = fx![
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
@@ -127,13 +127,13 @@ mod test_macros {
         .unwrap();
 
         println!("{:?}", df);
-        println!("{:?}", df.data_dtypes());
+        println!("{:?}", df.dtypes());
         println!("{:?}", df.get_column("names").unwrap());
     }
 
     #[test]
     fn test_df_new2() {
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],

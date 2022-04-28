@@ -11,7 +11,7 @@ use itertools::Itertools;
 use tokio::sync::Mutex;
 
 use crate::sql::{SqlEngine, SqlExecutor};
-use crate::{sql, value, xl, D2Value, DataFrame, FabrixError, FabrixResult, Series, Value};
+use crate::{sql, value, xl, D2Value, Fabrix, FabrixError, FabrixResult, Series, Value};
 
 pub type XlDbExecutor<R> = xl::XlExecutor<SqlExecutor, XlDbConvertor, R>;
 
@@ -95,11 +95,11 @@ impl XlDbConvertor {
         &mut self,
         mut data: D2Value,
         index_col: T,
-    ) -> FabrixResult<DataFrame> {
+    ) -> FabrixResult<Fabrix> {
         match index_col.into() {
             XlIndexSelection::Num(num) => {
                 self.set_row_wised_fields(&mut data, Some(num))?;
-                let mut df = DataFrame::from_row_values(data, Some(num))?;
+                let mut df = Fabrix::from_row_values(data, Some(num))?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
@@ -114,13 +114,13 @@ impl XlDbConvertor {
                         FabrixError::new_common_error(format!("index name: {name} not found"))
                     })?;
                 self.set_row_wised_fields(&mut data, Some(idx))?;
-                let mut df = DataFrame::from_row_values(data, Some(idx))?;
+                let mut df = Fabrix::from_row_values(data, Some(idx))?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
             XlIndexSelection::None => {
                 self.set_row_wised_fields(&mut data, None)?;
-                let mut df = DataFrame::from_row_values(data, None)?;
+                let mut df = Fabrix::from_row_values(data, None)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
@@ -133,7 +133,7 @@ impl XlDbConvertor {
         &self,
         data: D2Value,
         index_col: T,
-    ) -> FabrixResult<DataFrame> {
+    ) -> FabrixResult<Fabrix> {
         let mut collection = Self::transform_col_wised_data(data)?;
 
         match index_col.into() {
@@ -144,9 +144,8 @@ impl XlDbConvertor {
                         "index_col: {num} is out of range"
                     )));
                 }
-                let index = collection.remove(num);
 
-                Ok(DataFrame::from_series(collection, index)?)
+                Ok(Fabrix::from_series(collection, num)?)
             }
             XlIndexSelection::Name(name) => {
                 let idx = collection
@@ -155,11 +154,10 @@ impl XlDbConvertor {
                     .ok_or_else(|| {
                         FabrixError::new_common_error(format!("index name: {name} not found"))
                     })?;
-                let index = collection.remove(idx);
 
-                Ok(DataFrame::from_series(collection, index)?)
+                Ok(Fabrix::from_series(collection, idx)?)
             }
-            XlIndexSelection::None => Ok(DataFrame::from_series_default_index(collection)?),
+            XlIndexSelection::None => Ok(Fabrix::from_series_no_index(collection)?),
         }
     }
 }
@@ -215,7 +213,7 @@ impl XlToDbConsumer {
     pub async fn create_new_table(
         &mut self,
         table_name: &str,
-        data: DataFrame,
+        data: Fabrix,
         ignore_index: bool,
     ) -> FabrixResult<()> {
         let exc = match self.consume_count {
@@ -244,7 +242,7 @@ impl XlToDbConsumer {
         }
     }
 
-    pub async fn append_table(&mut self, table_name: &str, data: DataFrame) -> FabrixResult<()> {
+    pub async fn append_table(&mut self, table_name: &str, data: Fabrix) -> FabrixResult<()> {
         let exc = self
             .executor
             .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
@@ -263,7 +261,7 @@ impl XlToDbConsumer {
     pub async fn replace_existing_table(
         &mut self,
         table_name: &str,
-        data: DataFrame,
+        data: Fabrix,
         ignore_index: bool,
     ) -> FabrixResult<()> {
         let exc = match self.consume_count {
@@ -302,7 +300,7 @@ impl XlToDbConsumer {
     pub async fn upsert_existing_table(
         &mut self,
         table_name: &str,
-        data: DataFrame,
+        data: Fabrix,
     ) -> FabrixResult<()> {
         self.executor
             .save(table_name, data, &sql::sql_adt::SaveStrategy::Upsert)
@@ -339,7 +337,7 @@ impl XlDbHelper {
 
 impl xl::XlConsumer<XlDbConvertor> for SqlExecutor {
     type UnitOut = Value;
-    type FinalOut = DataFrame;
+    type FinalOut = Fabrix;
 
     fn transform(cell: xl::Cell) -> Self::UnitOut {
         match cell.value {

@@ -10,7 +10,7 @@ use super::{
     FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
-    sql::sql_adt, D1Value, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series,
+    sql::sql_adt, D1Value, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Fabrix, Series,
     SqlBuilder, SqlError, SqlResult, Value, ValueType,
 };
 
@@ -36,10 +36,10 @@ pub trait SqlEngine: SqlHelper {
     async fn disconnect(&mut self) -> SqlResult<()>;
 
     /// insert data into a table, dataframe index is the primary key
-    async fn insert(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
+    async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
 
     /// update data in a table, dataframe index is the primary key
-    async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
+    async fn update(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // ================================================================================================
@@ -55,7 +55,7 @@ pub trait SqlEngine: SqlHelper {
     async fn save(
         &self,
         table_name: &str,
-        data: DataFrame,
+        data: Fabrix,
         strategy: &sql_adt::SaveStrategy,
     ) -> SqlResult<usize>;
 
@@ -63,7 +63,7 @@ pub trait SqlEngine: SqlHelper {
     async fn delete(&self, delete: &sql_adt::Delete) -> SqlResult<u64>;
 
     /// get data from db. If the table has primary key, DataFrame's index will be the primary key
-    async fn select(&self, select: &sql_adt::Select) -> SqlResult<DataFrame>;
+    async fn select(&self, select: &sql_adt::Select) -> SqlResult<Fabrix>;
 }
 
 /// Executor is the core struct of db mod.
@@ -197,7 +197,7 @@ impl SqlEngine for SqlExecutor {
         Ok(())
     }
 
-    async fn insert(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
+    async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.insert(table_name, data, false)?;
         let res = self.pool.as_ref().unwrap().execute(&que).await?;
@@ -205,7 +205,7 @@ impl SqlEngine for SqlExecutor {
         Ok(res.rows_affected)
     }
 
-    async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
+    async fn update(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.update(table_name, data)?;
 
@@ -223,7 +223,7 @@ impl SqlEngine for SqlExecutor {
     async fn save(
         &self,
         table_name: &str,
-        data: DataFrame,
+        data: Fabrix,
         strategy: &sql_adt::SaveStrategy,
     ) -> SqlResult<usize> {
         conn_n_err!(self.pool);
@@ -314,7 +314,7 @@ impl SqlEngine for SqlExecutor {
         Ok(res.rows_affected)
     }
 
-    async fn select(&self, select: &sql_adt::Select) -> SqlResult<DataFrame> {
+    async fn select(&self, select: &sql_adt::Select) -> SqlResult<Fabrix> {
         conn_n_err!(self.pool);
 
         // Generally, primary key always exists, and in this case, use it as index.
@@ -325,12 +325,12 @@ impl SqlEngine for SqlExecutor {
                 add_primary_key_to_select(&pk, &mut new_select);
                 let que = self.driver.select(&new_select);
                 let res = self.pool.as_ref().unwrap().fetch_all_to_rows(&que).await?;
-                DataFrame::from_rows(res)?
+                Fabrix::from_rows(res)?
             }
             Err(_) => {
                 let que = self.driver.select(select);
                 let res = self.pool.as_ref().unwrap().fetch_all(&que).await?;
-                DataFrame::from_row_values(res, None)?
+                Fabrix::from_row_values(res, None)?
             }
         };
         df.set_column_names(&select.columns_name(true))?;
@@ -359,7 +359,7 @@ async fn txn_create_and_insert<'a>(
     driver: &SqlBuilder,
     mut txn: LoaderTransaction<'a>,
     table_name: &str,
-    data: DataFrame,
+    data: Fabrix,
     ignore_index: bool,
 ) -> SqlResult<usize> {
     // create table string
@@ -394,7 +394,7 @@ async fn txn_create_and_insert<'a>(
 mod test_executor {
 
     use super::*;
-    use crate::{df, series, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
+    use crate::{fx, series, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -425,7 +425,7 @@ mod test_executor {
 
         exc.connect().await.expect("connection is ok");
 
-        let df = df![
+        let df = fx![
             "id" =>	[96,97,98,99,100],
             "first_name" =>	["Blondie","Etti","Early","Adelina","Kristien"],
             "last_name" => ["D'Ruel","Klimko","Dowtry","Tunn","Rabl"],
@@ -453,7 +453,7 @@ mod test_executor {
     #[tokio::test]
     async fn test_save_fail_if_exists() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "James", "Lucas", "Mia"],
             "ord" => [10,11,12,20,22],
@@ -497,7 +497,7 @@ mod test_executor {
     #[tokio::test]
     async fn test_save_replace() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "James", "Lucas", "Mia", "Livia"],
             "ord" => [10,11,12,20,22,31],
@@ -543,7 +543,7 @@ mod test_executor {
     #[tokio::test]
     async fn test_save_append() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Fila", "Ada", "Kevin"],
             "ord" => [25,17,32],
@@ -584,7 +584,7 @@ mod test_executor {
     #[tokio::test]
     async fn test_save_upsert() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "ord" => [10,15,20],
             "val" => [Some(12.7), Some(7.1), Some(8.9)],
