@@ -444,6 +444,12 @@ impl From<Series> for PSeries {
     }
 }
 
+impl AsRef<PSeries> for Series {
+    fn as_ref(&self) -> &PSeries {
+        &self.0
+    }
+}
+
 /// Series from values, series type is determined by the first not-null value,
 /// if the who vectors are null then use u64 as the default type.
 ///

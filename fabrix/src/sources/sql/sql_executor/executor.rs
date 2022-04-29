@@ -199,7 +199,7 @@ impl SqlEngine for SqlExecutor {
 
     async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {
         conn_n_err!(self.pool);
-        let que = self.driver.insert(table_name, data, false)?;
+        let que = self.driver.insert(table_name, data)?;
         let res = self.pool.as_ref().unwrap().execute(&que).await?;
 
         Ok(res.rows_affected)
@@ -229,7 +229,7 @@ impl SqlEngine for SqlExecutor {
         conn_n_err!(self.pool);
 
         match strategy {
-            sql_adt::SaveStrategy::FailIfExists { ignore_index } => {
+            sql_adt::SaveStrategy::FailIfExists => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
@@ -247,12 +247,11 @@ impl SqlEngine for SqlExecutor {
                 // start a transaction
                 let txn = ldr.begin_transaction().await?;
 
-                let res = txn_create_and_insert(&self.driver, txn, table_name, data, *ignore_index)
-                    .await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data).await?;
 
                 Ok(res as usize)
             }
-            sql_adt::SaveStrategy::Replace { ignore_index } => {
+            sql_adt::SaveStrategy::Replace => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
@@ -269,24 +268,23 @@ impl SqlEngine for SqlExecutor {
                     txn.execute(&del_str).await?;
                 }
 
-                let res = txn_create_and_insert(&self.driver, txn, table_name, data, *ignore_index)
-                    .await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data).await?;
 
                 Ok(res as usize)
             }
             sql_adt::SaveStrategy::Append => {
                 // insert to an existing table and ignore primary key
                 // this action is supposed that primary key can be auto generated
-                let que = self.driver.insert(table_name, data, true)?;
+                let que = self.driver.insert(table_name, data)?;
                 let res = self.pool.as_ref().unwrap().execute(&que).await?;
 
                 Ok(res.rows_affected as usize)
             }
             sql_adt::SaveStrategy::Upsert => {
-                // get existing ids from selected table
-                let existing_ids = self.get_existing_ids(table_name, data.index()).await?;
+                if let Some(s) = data.index() {
+                    // get existing ids from selected table
+                    let existing_ids = self.get_existing_ids(table_name, &s).await?;
 
-                if !existing_ids.is_empty() {
                     let existing_ids = Series::from_values_default_name(existing_ids, false)?;
 
                     // declare a df for inserting
@@ -360,12 +358,13 @@ async fn txn_create_and_insert<'a>(
     mut txn: LoaderTransaction<'a>,
     table_name: &str,
     data: Fabrix,
-    ignore_index: bool,
 ) -> SqlResult<usize> {
     // create table string
-    let fi = data.index_field();
-    let index_option = sql_adt::IndexOption::try_from(&fi)?;
-    let create_str = driver.create_table(table_name, &data.fields(), Some(&index_option));
+    let index_option = data
+        .index_field()
+        .map(sql_adt::IndexOption::try_from)
+        .transpose()?;
+    let create_str = driver.create_table(table_name, &data.fields(), index_option.as_ref());
 
     // create table
     if let Err(e) = txn.execute(&create_str).await {
@@ -374,7 +373,7 @@ async fn txn_create_and_insert<'a>(
     }
 
     // insert string
-    let insert_str = driver.insert(table_name, data, ignore_index)?;
+    let insert_str = driver.insert(table_name, data)?;
 
     // insert data
     match txn.execute(&insert_str).await {
@@ -439,11 +438,7 @@ mod test_executor {
         .unwrap();
 
         let res = exc
-            .save(
-                TABLE_NAME,
-                df,
-                &sql_adt::SaveStrategy::Replace { ignore_index: true },
-            )
+            .save(TABLE_NAME, df, &sql_adt::SaveStrategy::Replace)
             .await;
 
         println!("{:?}", res);
@@ -468,9 +463,7 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = sql_adt::SaveStrategy::FailIfExists {
-            ignore_index: false,
-        };
+        let save_strategy = sql_adt::SaveStrategy::FailIfExists;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1).unwrap();
@@ -514,9 +507,7 @@ mod test_executor {
         ]
         .unwrap();
 
-        let save_strategy = sql_adt::SaveStrategy::Replace {
-            ignore_index: false,
-        };
+        let save_strategy = sql_adt::SaveStrategy::Replace;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1).unwrap();

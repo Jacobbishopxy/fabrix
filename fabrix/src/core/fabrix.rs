@@ -12,18 +12,16 @@
 //! 1. get_column
 //! 1. get_columns
 //! 1. data
+//! 1. index_tag
 //! 1. index
 //! 1. get_column_names
 //! 1. set_column_names
 //! 1. rename
-//! 1. index_field
-//! 1. index_dtype
-//! 1. data_dtypes
+//! 1. dtypes
 //! 1. index_has_null
 //! 1. has_null
-//! 1. dtypes
-//! 1. is_dtypes_match
 //! 1. fields
+//! 1. index_fields
 //! 1. shape
 //! 1. width
 //! 1. height
@@ -176,7 +174,7 @@ impl Fabrix {
     /// get a vector of cloned columns
     pub fn get_columns(&self, names: impl IntoVec<String>) -> Option<Vec<Series>> {
         match self.data.select_series(names) {
-            Ok(r) => Some(r.into_iter().map(|s| Series(s)).collect()),
+            Ok(r) => Some(r.into_iter().map(Series).collect()),
             Err(_) => None,
         }
     }
@@ -192,7 +190,7 @@ impl Fabrix {
 
     /// get a reference of FDataFrame's index
     pub fn index(&self) -> Option<Series> {
-        self.index_tag.and_then(|it| {
+        self.index_tag.as_ref().and_then(|it| {
             self.data
                 .column(it.name.as_str())
                 .ok()
@@ -257,6 +255,12 @@ impl Fabrix {
             .collect_vec()
     }
 
+    pub fn index_field(&self) -> Option<FieldInfo> {
+        self.index_tag
+            .as_ref()
+            .map(|it| FieldInfo::new(it.name.clone(), it.data_type.clone()))
+    }
+
     /// get shape
     pub fn shape(&self) -> (usize, usize) {
         self.data.shape()
@@ -273,9 +277,9 @@ impl Fabrix {
     }
 
     /// horizontal stack, return cloned data
-    pub fn hconcat(&self, columns: &[Series]) -> CoreResult<Fabrix> {
-        let raw_columns = columns.iter().map(|v| v.0).collect::<Vec<_>>();
-        let data = self.data.hstack(&raw_columns)?;
+    pub fn hconcat(&self, columns: Vec<Series>) -> CoreResult<Fabrix> {
+        let raw_columns = columns.into_iter().map(|v| v.0).collect::<Vec<_>>();
+        let data = self.data.hstack(raw_columns.as_slice())?;
 
         Ok(Self {
             data,
@@ -284,9 +288,9 @@ impl Fabrix {
     }
 
     /// horizontal stack, self mutation
-    pub fn hconcat_mut(&mut self, columns: &[Series]) -> CoreResult<&mut Self> {
-        let raw_columns = columns.iter().map(|v| v.0).collect::<Vec<_>>();
-        self.data = self.data.hstack(&raw_columns)?;
+    pub fn hconcat_mut(&mut self, columns: Vec<Series>) -> CoreResult<&mut Self> {
+        let raw_columns = columns.into_iter().map(|v| v.0).collect::<Vec<_>>();
+        self.data = self.data.hstack(raw_columns.as_slice())?;
 
         Ok(self)
     }
@@ -451,7 +455,7 @@ impl Fabrix {
         match &self.index_tag {
             Some(it) => {
                 let s = self.data.column(it.name.as_str())?;
-                let idx = Series(s.clone()).find_indices(&index);
+                let idx = Series(s.clone()).find_indices(index);
                 let pop = self.popup_rows_by_idx(&idx)?;
 
                 Ok(pop)

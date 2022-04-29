@@ -134,7 +134,7 @@ impl XlDbConvertor {
         data: D2Value,
         index_col: T,
     ) -> FabrixResult<Fabrix> {
-        let mut collection = Self::transform_col_wised_data(data)?;
+        let collection = Self::transform_col_wised_data(data)?;
 
         match index_col.into() {
             XlIndexSelection::Num(num) => {
@@ -210,20 +210,11 @@ impl XlToDbConsumer {
     }
 
     /// create a table if not exists
-    pub async fn create_new_table(
-        &mut self,
-        table_name: &str,
-        data: Fabrix,
-        ignore_index: bool,
-    ) -> FabrixResult<()> {
+    pub async fn create_new_table(&mut self, table_name: &str, data: Fabrix) -> FabrixResult<()> {
         let exc = match self.consume_count {
             0 => {
                 self.executor
-                    .save(
-                        table_name,
-                        data,
-                        &sql::sql_adt::SaveStrategy::FailIfExists { ignore_index },
-                    )
+                    .save(table_name, data, &sql::sql_adt::SaveStrategy::FailIfExists)
                     .await
             }
             _ => {
@@ -267,11 +258,7 @@ impl XlToDbConsumer {
         let exc = match self.consume_count {
             0 => {
                 self.executor
-                    .save(
-                        table_name,
-                        data,
-                        &sql::sql_adt::SaveStrategy::Replace { ignore_index },
-                    )
+                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Replace)
                     .await
             }
             _ => {

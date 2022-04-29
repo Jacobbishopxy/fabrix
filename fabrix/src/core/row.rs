@@ -91,7 +91,7 @@ impl Fabrix {
         // rows width
         let n = rows.first().unwrap().len();
         let mut series = Vec::with_capacity(n);
-        let mut index_idx = rows.first().unwrap().index;
+        let index_idx = rows.first().unwrap().index;
         for j in 0..n {
             let mut buf = Vec::with_capacity(m);
             for r in rows.iter_mut() {
@@ -167,7 +167,7 @@ impl Fabrix {
                 .iter()
                 .map(|s| Value::from(s.get(idx)))
                 .collect_vec(),
-            self.index_tag.map(|it| it.loc),
+            self.index_tag.as_ref().map(|it| it.loc),
         );
 
         Ok(Row { index, data })
@@ -176,7 +176,13 @@ impl Fabrix {
     /// get a row by index. This method is slower than get a column.
     pub fn get_row(&self, index: &Value) -> CoreResult<Row> {
         match self.index_tag {
-            Some(ref it) => self.get_row_by_idx(it.loc),
+            Some(ref it) => {
+                let idx = Series(self.data.column(&it.name)?.clone()).find_index(index);
+                match idx {
+                    Some(i) => self.get_row_by_idx(i),
+                    None => Err(inf_err()),
+                }
+            }
             None => Err(inf_err()),
         }
     }
@@ -202,7 +208,7 @@ impl Fabrix {
 
     /// insert a row into the dataframe
     pub fn insert_row(&mut self, index: &Value, row: Row) -> CoreResult<&mut Self> {
-        match self.index_tag {
+        match &self.index_tag {
             Some(it) => {
                 let idx = Series(self.data.column(&it.name)?.clone()).find_index(index);
                 match idx {
@@ -230,8 +236,14 @@ impl Fabrix {
 
     /// insert rows into the dataframe by index
     pub fn insert_rows(&mut self, index: &Value, rows: Vec<Row>) -> CoreResult<&mut Self> {
-        match self.index_tag {
-            Some(it) => self.insert_rows_by_idx(it.loc, rows),
+        match &self.index_tag {
+            Some(it) => {
+                let idx = Series(self.data.column(&it.name)?.clone()).find_index(index);
+                match idx {
+                    Some(i) => self.insert_rows_by_idx(i, rows),
+                    None => Err(inf_err()),
+                }
+            }
             None => Err(inf_err()),
         }
     }
@@ -301,9 +313,10 @@ mod test_row {
         assert!(df.unwrap().shape() == (3, 4));
 
         let rows = rows!(
-            100 => [0, "Jacob", "A", 10],
-            101 => [1, "Sam", "A", 9],
-            102 => [2, "James", "A", 9],
+            0;
+            [0, "Jacob", "A", 10],
+            [1, "Sam", "A", 9],
+            [2, "James", "A", 9],
         );
 
         let df = Fabrix::from_rows(rows);
@@ -359,19 +372,20 @@ mod test_row {
         ]
         .unwrap();
 
-        let row1 = Row::new(value!(4), vec![value!("Mia"), value!(10)]);
+        let row1 = Row::new(Some(0), vec![value!(4), value!("Mia"), value!(10)]);
         let res1 = df.append(row1);
         assert!(res1.is_ok());
 
-        let row2 = Row::new(value!(5), vec![value!("Mandy"), value!(9)]);
+        let row2 = Row::new(Some(0), vec![value!(5), value!("Mandy"), value!(9)]);
         let res2 = df.insert_row(&value!(2), row2);
         assert!(res2.is_ok());
         assert!(df.shape() == (5, 2));
 
         let rows = rows!(
-            6 => ["Jamie", 9],
-            7 => ["Justin", 6],
-            8 => ["Julia", 8]
+            0;
+            [6, "Jamie", 9],
+            [7, "Justin", 6],
+            [8, "Julia", 8]
         );
 
         let res3 = df.insert_rows(&value!(5), rows);

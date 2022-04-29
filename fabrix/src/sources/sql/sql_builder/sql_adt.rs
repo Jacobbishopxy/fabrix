@@ -248,8 +248,8 @@ impl Delete {
 /// - `Upsert`: if table exists: insert if id not exists, update if id exists; index will not be ignored
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum SaveStrategy {
-    FailIfExists { ignore_index: bool },
-    Replace { ignore_index: bool },
+    FailIfExists,
+    Replace,
     // Index is always ignored
     Append,
     // Index is always used
@@ -263,6 +263,12 @@ pub enum IndexType {
     Int,
     BigInt,
     Uuid,
+}
+
+impl Default for IndexType {
+    fn default() -> Self {
+        IndexType::Int
+    }
 }
 
 impl From<&str> for IndexType {
@@ -280,21 +286,32 @@ impl From<&str> for IndexType {
 ///
 /// Only be used in `create_table`
 #[derive(Debug, Clone)]
-pub struct IndexOption<'a> {
-    pub name: &'a str,
+pub struct IndexOption {
+    pub name: String,
     pub index_type: IndexType,
 }
 
-impl<'a> IndexOption<'a> {
-    pub fn new<T>(name: &'a str, index_type: T) -> Self
+impl Default for IndexOption {
+    fn default() -> Self {
+        IndexOption {
+            name: "_id".to_string(),
+            index_type: IndexType::default(),
+        }
+    }
+}
+
+impl IndexOption {
+    pub fn new<N, T>(name: N, index_type: T) -> Self
     where
+        N: Into<String>,
         T: Into<IndexType>,
     {
+        let name = name.into();
         let index_type: IndexType = index_type.into();
         IndexOption { name, index_type }
     }
 
-    pub fn try_from_series(series: &'a Series) -> SqlResult<Self> {
+    pub fn try_from_series(series: &Series) -> SqlResult<Self> {
         let dtype = series.dtype();
         let index_type = match dtype {
             ValueType::U8 => Ok(IndexType::Int),
@@ -315,16 +332,16 @@ impl<'a> IndexOption<'a> {
         }?;
 
         Ok(IndexOption {
-            name: series.name(),
+            name: series.name().to_owned(),
             index_type,
         })
     }
 }
 
-impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
+impl TryFrom<FieldInfo> for IndexOption {
     type Error = SqlError;
 
-    fn try_from(value: &'a FieldInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: FieldInfo) -> Result<Self, Self::Error> {
         let dtype = value.dtype();
         let index_type = match dtype {
             ValueType::U8 => Ok(IndexType::Int),
@@ -345,7 +362,7 @@ impl<'a> TryFrom<&'a FieldInfo> for IndexOption<'a> {
         }?;
 
         Ok(IndexOption {
-            name: value.name(),
+            name: value.name().to_owned(),
             index_type,
         })
     }

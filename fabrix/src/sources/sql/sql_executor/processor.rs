@@ -120,9 +120,8 @@ impl SqlRowProcessor {
     {
         let sql_row: SqlRow = sql_row.into();
         self.caching(&sql_row);
-        let mut res = Vec::with_capacity(sql_row.len() - 1);
-        let mut itr = self.cache_markers.as_ref().unwrap().iter();
-        let index = itr.next().unwrap().unwrap().extract_value(&sql_row, 0)?;
+        let mut res = Vec::with_capacity(sql_row.len());
+        let itr = self.cache_markers.as_ref().unwrap().iter();
 
         for (idx, c) in itr.enumerate() {
             match c {
@@ -136,7 +135,7 @@ impl SqlRowProcessor {
             }
         }
 
-        Ok(Row::new(index, res))
+        Ok(Row::new(Some(0), res))
     }
 }
 

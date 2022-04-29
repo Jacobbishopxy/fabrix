@@ -4,8 +4,7 @@
 #[macro_export]
 macro_rules! value {
     ($val:expr) => {{
-        let res: $crate::Value = $val.into();
-        res
+        $crate::Value::from($val)
     }};
 }
 
@@ -64,27 +63,25 @@ macro_rules! series {
 #[macro_export]
 macro_rules! rows {
     ($([$($val:expr),* $(,)*]),+ $(,)*) => {{
-        let mut idx = 0u32;
         let mut buf: Vec<$crate::Row> = Vec::new();
         $({
             let mut row: Vec<$crate::Value> = Vec::new();
             $(
                 row.push($crate::value!($val));
             )*
-            idx += 1;
-            buf.push($crate::Row::new($crate::value!(idx - 1), row));
+            buf.push($crate::Row::new(None, row));
         })+
 
         buf
     }};
-    ($($index:expr => [$($val:expr),* $(,)*]),+ $(,)*) => {{
+    ($index_loc:expr; $([$($val:expr),* $(,)*]),+ $(,)*) => {{
         let mut buf: Vec<$crate::Row> = Vec::new();
         $({
             let mut row: Vec<$crate::Value> = Vec::new();
             $(
                 row.push($crate::value!($val));
             )*
-            buf.push($crate::Row::new($crate::value!($index), row));
+            buf.push($crate::Row::new(Some($index_loc), row));
         })+
 
         buf
@@ -157,9 +154,10 @@ mod test_macros {
         println!("{:?}", rows);
 
         let rows = rows!(
-            1 => ["Jacob", "A", 10],
-            2 => ["Sam", "A", 9],
-            3 => ["James", "A", 9],
+            0;
+            [1, "Jacob", "A", 10],
+            [2, "Sam", "A", 9],
+            [3, "James", "A", 9],
         );
 
         println!("{:?}", rows);

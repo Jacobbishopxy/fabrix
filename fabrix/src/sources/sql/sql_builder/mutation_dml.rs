@@ -36,39 +36,42 @@ impl DmlMutation for SqlBuilder {
         Ok(statement!(self, statement))
     }
 
+    // TODO:
+
     /// given a `Dataframe`, update to an existing table in terms of df index
     ///
     /// Since bulk update is not supported by `sea-query` yet, we need to stack each row-updated
     /// into a vector and then update the whole vector sequentially.
     fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<Vec<String>> {
-        let column_info = fx.fields();
-        let index_field = fx.index_field();
-        let index_type = index_field.dtype();
-        let index_name = index_field.name();
-        let mut res = vec![];
+        // let column_info = fx.fields();
+        // let index_field = fx.index_field();
+        // let index_type = index_field.dtype();
+        // let index_name = index_field.name();
+        // let mut res = vec![];
 
-        for row in fx.into_iter() {
-            let mut statement = Query::update();
-            statement.table(alias!(table_name));
+        // for row in fx.into_iter() {
+        //     let mut statement = Query::update();
+        //     statement.table(alias!(table_name));
 
-            let itr = row.data.into_iter().zip(column_info.iter());
-            let mut updates = vec![];
+        //     let itr = row.data.into_iter().zip(column_info.iter());
+        //     let mut updates = vec![];
 
-            for (v, inf) in itr {
-                let alias = alias!(&inf.name);
-                let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
-                updates.push((alias, svalue));
-            }
+        //     for (v, inf) in itr {
+        //         let alias = alias!(&inf.name);
+        //         let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
+        //         updates.push((alias, svalue));
+        //     }
 
-            statement.values(updates).and_where(
-                Expr::col(alias!(index_name))
-                    .eq(try_from_value_to_svalue(row.index, index_type, false)?),
-            );
+        //     statement.values(updates).and_where(
+        //         Expr::col(alias!(index_name))
+        //             .eq(try_from_value_to_svalue(row.index, index_type, false)?),
+        //     );
 
-            statement!(res; self, statement)
-        }
+        //     statement!(res; self, statement)
+        // }
 
-        Ok(res)
+        // Ok(res)
+        todo!()
     }
 
     /// delete from an existing table
@@ -99,7 +102,7 @@ mod test_mutation_dml {
         ]
         .unwrap();
 
-        let insert = SqlBuilder::Postgres.insert("test", df, true).unwrap();
+        let insert = SqlBuilder::Postgres.insert("test", df).unwrap();
         println!("{:?}", insert);
 
         assert_eq!(
@@ -123,7 +126,7 @@ mod test_mutation_dml {
         ]
         .unwrap();
 
-        let insert = SqlBuilder::Sqlite.insert("test", df, true).unwrap();
+        let insert = SqlBuilder::Sqlite.insert("test", df).unwrap();
         println!("{:?}", insert);
     }
 
