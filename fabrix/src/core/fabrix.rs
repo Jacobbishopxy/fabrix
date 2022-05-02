@@ -63,6 +63,20 @@ pub struct IndexTag {
     pub data_type: ValueType,
 }
 
+impl IndexTag {
+    pub fn loc(&self) -> usize {
+        self.loc
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn data_type(&self) -> &ValueType {
+        &self.data_type
+    }
+}
+
 pub trait IntoIndexTag {
     fn into_index_tag(self, fields: &[Field]) -> CoreResult<IndexTag>;
 }

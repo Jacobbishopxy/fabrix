@@ -143,13 +143,13 @@ pub(crate) trait FabrixDatabaseLoader: Send + Sync {
         -> SqlResult<Option<D1Value>>;
 
     /// fetch many
-    async fn fetch_many(&self, queries: &[String]) -> SqlResult<Vec<ExecutionResultOrData>>;
+    async fn fetch_many(&self, queries: &str) -> SqlResult<Vec<ExecutionResultOrData>>;
 
     /// sql string execution
     async fn execute(&self, query: &str) -> SqlResult<ExecutionResult>;
 
     /// multiple sql string execution. Beware, this is not atomic, if needs to be atomic, use transaction
-    async fn execute_many(&self, queries: &[String]) -> SqlResult<ExecutionResult>;
+    async fn execute_many(&self, queries: &str) -> SqlResult<ExecutionResult>;
 
     /// create a transaction instance and begin
     async fn begin_transaction(&self) -> SqlResult<LoaderTransaction<'_>>;
@@ -347,14 +347,13 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_many(&self, queries: &[String]) -> SqlResult<Vec<ExecutionResultOrData>> {
-        let queries = queries.join(";");
+    async fn fetch_many(&self, queries: &str) -> SqlResult<Vec<ExecutionResultOrData>> {
         // let mut srp = SqlRowProcessor::new();
         let mut res = vec![];
 
         match self {
             Self::Mysql(pool) => {
-                let mut stream = pool.fetch_many(&queries[..]);
+                let mut stream = pool.fetch_many(queries);
                 while let Ok(Some(e)) = stream.try_next().await {
                     match e {
                         Either::Left(l) => {
@@ -365,7 +364,7 @@ impl FabrixDatabaseLoader for LoaderPool {
                 }
             }
             Self::Pg(pool) => {
-                let mut stream = pool.fetch_many(&queries[..]);
+                let mut stream = pool.fetch_many(queries);
                 while let Ok(Some(e)) = stream.try_next().await {
                     match e {
                         Either::Left(l) => {
@@ -376,7 +375,7 @@ impl FabrixDatabaseLoader for LoaderPool {
                 }
             }
             Self::Sqlite(pool) => {
-                let mut stream = pool.fetch_many(&queries[..]);
+                let mut stream = pool.fetch_many(queries);
                 while let Ok(Some(e)) = stream.try_next().await {
                     match e {
                         Either::Left(l) => {
@@ -400,25 +399,24 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(eff)
     }
 
-    async fn execute_many(&self, queries: &[String]) -> SqlResult<ExecutionResult> {
-        let queries = queries.join(";");
+    async fn execute_many(&self, queries: &str) -> SqlResult<ExecutionResult> {
         let mut rows_affected = 0;
 
         match self {
             Self::Mysql(pool) => {
-                let mut stream = pool.execute_many(&queries[..]);
+                let mut stream = pool.execute_many(queries);
                 while let Ok(Some(r)) = stream.try_next().await {
                     rows_affected += r.rows_affected();
                 }
             }
             Self::Pg(pool) => {
-                let mut stream = pool.execute_many(&queries[..]);
+                let mut stream = pool.execute_many(queries);
                 while let Ok(Some(r)) = stream.try_next().await {
                     rows_affected += r.rows_affected();
                 }
             }
             Self::Sqlite(pool) => {
-                let mut stream = pool.execute_many(&queries[..]);
+                let mut stream = pool.execute_many(queries);
                 while let Ok(Some(r)) = stream.try_next().await {
                     rows_affected += r.rows_affected();
                 }

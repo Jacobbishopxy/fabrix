@@ -53,7 +53,7 @@ pub trait DmlQuery {
 pub trait DmlMutation {
     fn insert(&self, table_name: &str, fx: Fabrix) -> SqlResult<String>;
 
-    fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<Vec<String>>;
+    fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<String>;
 
     fn delete(&self, delete: &sql_adt::Delete) -> String;
 }

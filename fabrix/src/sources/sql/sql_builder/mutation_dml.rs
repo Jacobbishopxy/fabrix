@@ -36,42 +36,47 @@ impl DmlMutation for SqlBuilder {
         Ok(statement!(self, statement))
     }
 
-    // TODO:
-
     /// given a `Dataframe`, update to an existing table in terms of df index
     ///
     /// Since bulk update is not supported by `sea-query` yet, we need to stack each row-updated
     /// into a vector and then update the whole vector sequentially.
-    fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<Vec<String>> {
-        // let column_info = fx.fields();
-        // let index_field = fx.index_field();
-        // let index_type = index_field.dtype();
-        // let index_name = index_field.name();
-        // let mut res = vec![];
+    fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<String> {
+        match fx.index_tag() {
+            Some(it) => {
+                let column_info = fx.fields();
+                let column_name = it.name().to_owned();
+                let column_loc = it.loc();
+                let mut res = String::new();
+                for row in fx.into_iter() {
+                    let mut statement = Query::update();
+                    statement.table(alias!(table_name));
 
-        // for row in fx.into_iter() {
-        //     let mut statement = Query::update();
-        //     statement.table(alias!(table_name));
+                    let index_value = row.data().get(column_loc).unwrap().to_owned();
+                    let index_type = row.index_dtype().unwrap();
+                    let itr = row.data.into_iter().zip(column_info.iter());
+                    let mut updates = vec![];
 
-        //     let itr = row.data.into_iter().zip(column_info.iter());
-        //     let mut updates = vec![];
+                    for (v, inf) in itr {
+                        let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
+                        updates.push((alias!(&inf.name), svalue));
+                    }
 
-        //     for (v, inf) in itr {
-        //         let alias = alias!(&inf.name);
-        //         let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
-        //         updates.push((alias, svalue));
-        //     }
+                    statement.values(updates).and_where(
+                        Expr::col(alias!(&column_name)).eq(try_from_value_to_svalue(
+                            index_value,
+                            &index_type,
+                            true,
+                        )?),
+                    );
 
-        //     statement.values(updates).and_where(
-        //         Expr::col(alias!(index_name))
-        //             .eq(try_from_value_to_svalue(row.index, index_type, false)?),
-        //     );
+                    res.push_str(&statement!(self, statement));
+                    res.push_str(";\n");
+                }
 
-        //     statement!(res; self, statement)
-        // }
-
-        // Ok(res)
-        todo!()
+                Ok(res)
+            }
+            None => self.insert(table_name, fx),
+        }
     }
 
     /// delete from an existing table
@@ -167,11 +172,11 @@ mod test_mutation_dml {
 
         assert_eq!(
             update,
-            vec![
-                r#"UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1"#,
-                r#"UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2"#,
-                r#"UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3"#,
-            ],
+            r#"""
+                UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1;
+                UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2;
+                UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3;
+                """#,
         );
     }
 
