@@ -169,7 +169,7 @@ impl Series {
     }
 
     /// new empty Series from field
-    pub fn empty_series_from_field(field: Field, nullable: bool) -> CoreResult<Self> {
+    pub fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Self> {
         empty_series_from_field(field, nullable)
     }
 
@@ -489,7 +489,7 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
 }
 
 /// empty series from field
-fn empty_series_from_field(field: Field, nullable: bool) -> CoreResult<Series> {
+fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> {
     match field.data_type() {
         DataType::Boolean => sfv!(nullable; field.name(); bool, BooleanType),
         DataType::Utf8 => sfv!(nullable; field.name(); String, Utf8Type),

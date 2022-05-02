@@ -89,6 +89,8 @@ impl XlDbConvertor {
         Ok(collection)
     }
 
+    // TODO: bug
+
     /// a row-wised 2D-value -> DataFrame, with index
     /// index is always the first column
     pub fn convert_row_wised<'a, T: Into<XlIndexSelection<'a>>>(

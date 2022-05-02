@@ -140,6 +140,6 @@ mod test_mutation_ddl {
 
         println!("{:?}", delete_table);
 
-        assert_eq!(delete_table, "DROP TABLE `test`");
+        assert_eq!(delete_table, r#"DROP TABLE "test""#);
     }
 }

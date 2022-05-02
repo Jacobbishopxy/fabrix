@@ -351,7 +351,7 @@ mod test_row {
         assert!(df.is_ok());
 
         let df = df.unwrap();
-        assert_eq!(df.shape(), (3, 2));
+        assert_eq!(df.shape(), (3, 3));
 
         let test1 = df.get_row_by_idx(1).unwrap();
         assert_eq!(test1.index().unwrap(), &value!(2));
@@ -367,25 +367,25 @@ mod test_row {
         let mut df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "James"],
-            "ord" => [1,2,3],
+            "ord" => [1, 2, 3],
             "val" => [10, 9, 8]
         ]
         .unwrap();
 
-        let row1 = Row::new(Some(0), vec![value!(4), value!("Mia"), value!(10)]);
+        let row1 = Row::new(Some(1), vec![value!("Mia"), value!(4), value!(10)]);
         let res1 = df.append(row1);
         assert!(res1.is_ok());
 
-        let row2 = Row::new(Some(0), vec![value!(5), value!("Mandy"), value!(9)]);
+        let row2 = Row::new(Some(1), vec![value!("Mandy"), value!(5), value!(9)]);
         let res2 = df.insert_row(&value!(2), row2);
         assert!(res2.is_ok());
-        assert!(df.shape() == (5, 2));
+        assert!(df.shape() == (5, 3));
 
         let rows = rows!(
-            0;
-            [6, "Jamie", 9],
-            [7, "Justin", 6],
-            [8, "Julia", 8]
+            1;
+            ["Jamie", 6, 9],
+            ["Justin", 7, 6],
+            ["Julia", 8, 8]
         );
 
         let res3 = df.insert_rows(&value!(5), rows);
@@ -393,15 +393,15 @@ mod test_row {
 
         let res4 = df.remove_row(&value!(7));
         assert!(res4.is_ok());
-        assert_eq!(df.shape(), (7, 2));
+        assert_eq!(df.shape(), (7, 3));
 
         let res4 = df.remove_slice(1, 2);
         assert!(res4.is_ok());
-        assert_eq!(df.shape(), (5, 2));
+        assert_eq!(df.shape(), (5, 3));
 
         let res5 = df.remove_rows(vec![value!(2), value!(4)]);
         assert!(res5.is_ok());
-        assert_eq!(df.shape(), (3, 2));
+        assert_eq!(df.shape(), (2, 3));
     }
 
     #[test]

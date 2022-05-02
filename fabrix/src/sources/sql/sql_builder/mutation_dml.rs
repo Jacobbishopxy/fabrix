@@ -56,9 +56,12 @@ impl DmlMutation for SqlBuilder {
                     let itr = row.data.into_iter().zip(column_info.iter());
                     let mut updates = vec![];
 
-                    for (v, inf) in itr {
-                        let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
-                        updates.push((alias!(&inf.name), svalue));
+                    for (i, (v, inf)) in itr.enumerate() {
+                        // skip the index column
+                        if i != column_loc {
+                            let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
+                            updates.push((alias!(&inf.name), svalue));
+                        }
                     }
 
                     statement.values(updates).and_where(
@@ -172,11 +175,10 @@ mod test_mutation_dml {
 
         assert_eq!(
             update,
-            r#"""
-                UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1;
-                UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2;
-                UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3;
-                """#,
+            r#"UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1;
+UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2;
+UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3;
+"#,
         );
     }
 

@@ -147,11 +147,23 @@ impl Fabrix {
     }
 
     /// DataFrame constructor, create an empty dataframe by data fields and index field
-    pub fn new_empty() -> Self {
-        Self {
-            data: DataFrame::default(),
-            index_tag: None,
-        }
+    pub fn new_empty(fields: Vec<FieldInfo>, index_tag: impl IntoIndexTag) -> CoreResult<Self> {
+        let fields: Vec<Field> = fields.into_iter().map(|fi| fi.into()).collect();
+        let empty_series = fields
+            .iter()
+            .map(|f| Series::empty_series_from_field(f, false))
+            .collect::<Result<Vec<_>, _>>()?;
+        Self::from_series(empty_series, index_tag)
+    }
+
+    /// DataFrame constructor, create an empty dataframe by data fields
+    pub fn new_empty_no_index(fields: Vec<FieldInfo>) -> CoreResult<Self> {
+        let fields: Vec<Field> = fields.into_iter().map(|fi| fi.into()).collect();
+        let empty_series = fields
+            .iter()
+            .map(|f| Series::empty_series_from_field(f, false))
+            .collect::<Result<Vec<_>, _>>()?;
+        Self::from_series_no_index(empty_series)
     }
 
     /// Create a DataFrame from Vec<Series>
@@ -198,8 +210,16 @@ impl Fabrix {
         &self.data
     }
 
+    /// get a reference of FDataFrame's index_tag
     pub fn index_tag(&self) -> Option<&IndexTag> {
         self.index_tag.as_ref()
+    }
+
+    /// set index_tag
+    pub fn set_index_tag(&mut self, index_tag: impl IntoIndexTag) -> CoreResult<&IndexTag> {
+        let fields = self.data.fields();
+        self.index_tag = Some(index_tag.into_index_tag(&fields)?);
+        Ok(self.index_tag.as_ref().unwrap())
     }
 
     /// get a reference of FDataFrame's index
@@ -546,6 +566,7 @@ mod test_fabrix_dataframe {
             df.fields(),
             vec![
                 FieldInfo::new("names", ValueType::String),
+                FieldInfo::new("ord", ValueType::I32),
                 FieldInfo::new("val", ValueType::I32)
             ]
         );
@@ -561,7 +582,9 @@ mod test_fabrix_dataframe {
 
         assert!(df.is_ok());
 
-        let df = df.unwrap();
+        let mut df = df.unwrap();
+        let it = df.set_index_tag(1);
+        assert!(it.is_ok());
 
         let test1 = df.get_columns(&["names", "val"]);
         assert!(test1.is_some());
@@ -579,7 +602,7 @@ mod test_fabrix_dataframe {
         let flt = series!([1u64, 3]);
         let test4 = df.take_rows(&flt);
         assert!(test4.is_ok());
-        assert_eq!(test4.unwrap().shape(), (1, 3)); // 1 row, since index 3u64 doesn't exist
+        assert_eq!(test4.unwrap().shape(), (0, 3)); // 1 row, since index 3u64 doesn't exist
     }
 
     #[test]
