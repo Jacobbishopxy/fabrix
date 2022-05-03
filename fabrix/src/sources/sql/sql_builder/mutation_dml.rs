@@ -140,6 +140,18 @@ mod test_mutation_dml {
 
     #[test]
     fn test_insert3() {
+        let df = fx![
+            "id" =>	[96,97],
+            "description" => ["'",r#"""#],
+        ]
+        .unwrap();
+
+        let insert = SqlBuilder::Sqlite.insert("test", df).unwrap();
+        println!("{:?}", insert);
+    }
+
+    #[test]
+    fn test_insert4() {
         let query = Query::insert()
             .into_table(alias!("test"))
             .columns(vec![alias!("name"), alias!("age")])
@@ -173,13 +185,15 @@ mod test_mutation_dml {
 
         println!("{:?}", update);
 
-        assert_eq!(
-            update,
-            r#"UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1;
-UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2;
-UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3;
-"#,
-        );
+        let u1 =
+            r#"UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1;"#;
+        let u2 =
+            r#"UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2;"#;
+        let u3 =
+            r#"UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3;"#;
+        let end = "";
+
+        assert_eq!(update, [u1, u2, u3, end].join("\n"));
     }
 
     #[test]

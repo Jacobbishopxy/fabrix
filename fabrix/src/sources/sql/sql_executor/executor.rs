@@ -446,6 +446,26 @@ mod test_executor {
     }
 
     #[tokio::test]
+    async fn test_save_quote() {
+        let mut exc = SqlExecutor::from_str(CONN3).unwrap();
+
+        exc.connect().await.expect("connection is ok");
+
+        let df = fx![
+            "id" =>	[96,97],
+            "string" => [r#"'"#,r#"""#,],
+        ]
+        .unwrap();
+
+        let res = exc
+            .save("string_test", df, &sql_adt::SaveStrategy::Replace)
+            .await;
+
+        println!("{:?}", res);
+        // assert_eq!(res, 3);
+    }
+
+    #[tokio::test]
     async fn test_save_fail_if_exists() {
         // df
         let df = fx![

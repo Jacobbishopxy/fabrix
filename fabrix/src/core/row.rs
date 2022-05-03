@@ -355,11 +355,17 @@ mod test_row {
 
         let test1 = df.get_row_by_idx(1).unwrap();
         assert_eq!(test1.index().unwrap(), &value!(2));
-        assert_eq!(test1.data(), &[value!("Sam"), value!(None::<i32>)]);
+        assert_eq!(
+            test1.data(),
+            &[value!("Sam"), value!(2), value!(None::<i32>)]
+        );
 
         let test2 = df.get_row(&value!(2i32)).unwrap();
         assert_eq!(test2.index().unwrap(), &value!(2));
-        assert_eq!(test2.data(), &[value!("Sam"), value!(None::<i32>)]);
+        assert_eq!(
+            test2.data(),
+            &[value!("Sam"), value!(2), value!(None::<i32>)]
+        );
     }
 
     #[test]
