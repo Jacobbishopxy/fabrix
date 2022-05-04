@@ -671,11 +671,10 @@ impl<'a> Iterator for SeriesIterator<'a> {
 #[cfg(test)]
 mod test_fabrix_series {
 
-    use chrono::NaiveDate;
     use polars::prelude::NamedFrom;
 
     use super::*;
-    use crate::{series, value, Date};
+    use crate::{date, series, value};
 
     #[test]
     fn test_series_creation() {
@@ -744,10 +743,10 @@ mod test_fabrix_series {
         let s = Series::new(
             "date",
             &[
-                Date(NaiveDate::from_ymd(2019, 1, 1)),
-                Date(NaiveDate::from_ymd(2019, 1, 2)),
-                Date(NaiveDate::from_ymd(2019, 1, 3)),
-                Date(NaiveDate::from_ymd(2019, 1, 4)),
+                date!(2019, 1, 1),
+                date!(2019, 1, 2),
+                date!(2019, 1, 3),
+                date!(2019, 1, 4),
             ],
         );
         assert_eq!(s.dtype(), ValueType::Date);
@@ -768,10 +767,10 @@ mod test_fabrix_series {
         assert!(!s.has_null());
 
         let s = series!("no" => &[
-            Date(NaiveDate::from_ymd(2019, 1, 1)),
-            Date(NaiveDate::from_ymd(2019, 1, 2)),
-            Date(NaiveDate::from_ymd(2019, 1, 3)),
-            Date(NaiveDate::from_ymd(2019, 1, 4)),
+            date!(2019, 1, 1),
+            date!(2019, 1, 2),
+            date!(2019, 1, 3),
+            date!(2019, 1, 4),
         ]);
         assert!(!s.has_null());
     }

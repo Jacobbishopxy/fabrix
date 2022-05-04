@@ -51,11 +51,9 @@ use polars::{
 use super::{cis_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX};
 use crate::{CoreResult, Value, ValueType};
 
-// TODO:
-// 1. replace index field by Option<String>, and index is a specific column of dataframe;
-// 2. data field should be public
-// 3. all sources should also be modified
-
+/// IndexTag
+///
+/// Used in Fabrix in order to identify the index of a DataFrame.
 #[derive(Clone, Debug, Default)]
 pub struct IndexTag {
     pub loc: usize,
@@ -120,8 +118,9 @@ impl IntoIndexTag for String {
     }
 }
 
-/// DataFrame is a data structure used in Fabrix crate, it wrapped `polars` Series as DF index and
-/// `polars` DataFrame for holding 2 dimensional data. Make sure index series is not nullable.
+/// Fabrix
+///
+/// A data structure used in Fabrix crate, it wrapped `polars` DataFrame as data.
 #[derive(Clone)]
 pub struct Fabrix {
     pub data: DataFrame,

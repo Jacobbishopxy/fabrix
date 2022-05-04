@@ -14,8 +14,9 @@ There are three main parts in this crate:
 ├── core
 │   ├── value.rs                        // the smallest data unit
 │   ├── series.rs                       // series of value
-│   ├── dataframe.rs                    // collection of series, with index series
+│   ├── fabrix.rs                       // dataframe holder
 │   ├── row.rs                          // row-wise data structure
+│   ├── schema.rs                       // dataframe schema
 │   ├── util.rs                         // utility functions
 │   ├── error.rs
 │   └── macros.rs
@@ -82,3 +83,4 @@ There are three main parts in this crate:
 ## Todo
 
 - optimize `Series` and its iterator
+- complete `dispatcher/ds`
