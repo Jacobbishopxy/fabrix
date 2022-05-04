@@ -10,7 +10,7 @@ use super::{
     FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
-    sql::sql_adt, D1Value, DataFrame, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Series,
+    sql::sql_adt, D1Value, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Fabrix, Series,
     SqlBuilder, SqlError, SqlResult, Value, ValueType,
 };
 
@@ -36,10 +36,10 @@ pub trait SqlEngine: SqlHelper {
     async fn disconnect(&mut self) -> SqlResult<()>;
 
     /// insert data into a table, dataframe index is the primary key
-    async fn insert(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
+    async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
 
     /// update data in a table, dataframe index is the primary key
-    async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64>;
+    async fn update(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
 
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // ================================================================================================
@@ -55,7 +55,7 @@ pub trait SqlEngine: SqlHelper {
     async fn save(
         &self,
         table_name: &str,
-        data: DataFrame,
+        data: Fabrix,
         strategy: &sql_adt::SaveStrategy,
     ) -> SqlResult<usize>;
 
@@ -63,7 +63,7 @@ pub trait SqlEngine: SqlHelper {
     async fn delete(&self, delete: &sql_adt::Delete) -> SqlResult<u64>;
 
     /// get data from db. If the table has primary key, DataFrame's index will be the primary key
-    async fn select(&self, select: &sql_adt::Select) -> SqlResult<DataFrame>;
+    async fn select(&self, select: &sql_adt::Select) -> SqlResult<Fabrix>;
 }
 
 /// Executor is the core struct of db mod.
@@ -197,15 +197,15 @@ impl SqlEngine for SqlExecutor {
         Ok(())
     }
 
-    async fn insert(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
+    async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {
         conn_n_err!(self.pool);
-        let que = self.driver.insert(table_name, data, false)?;
+        let que = self.driver.insert(table_name, data)?;
         let res = self.pool.as_ref().unwrap().execute(&que).await?;
 
         Ok(res.rows_affected)
     }
 
-    async fn update(&self, table_name: &str, data: DataFrame) -> SqlResult<u64> {
+    async fn update(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.update(table_name, data)?;
 
@@ -223,13 +223,13 @@ impl SqlEngine for SqlExecutor {
     async fn save(
         &self,
         table_name: &str,
-        data: DataFrame,
+        data: Fabrix,
         strategy: &sql_adt::SaveStrategy,
     ) -> SqlResult<usize> {
         conn_n_err!(self.pool);
 
         match strategy {
-            sql_adt::SaveStrategy::FailIfExists { ignore_index } => {
+            sql_adt::SaveStrategy::FailIfExists => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
@@ -247,12 +247,11 @@ impl SqlEngine for SqlExecutor {
                 // start a transaction
                 let txn = ldr.begin_transaction().await?;
 
-                let res = txn_create_and_insert(&self.driver, txn, table_name, data, *ignore_index)
-                    .await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data).await?;
 
                 Ok(res as usize)
             }
-            sql_adt::SaveStrategy::Replace { ignore_index } => {
+            sql_adt::SaveStrategy::Replace => {
                 // check if table exists
                 let ck_str = self.driver.check_table_exists(table_name);
 
@@ -269,24 +268,23 @@ impl SqlEngine for SqlExecutor {
                     txn.execute(&del_str).await?;
                 }
 
-                let res = txn_create_and_insert(&self.driver, txn, table_name, data, *ignore_index)
-                    .await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data).await?;
 
                 Ok(res as usize)
             }
             sql_adt::SaveStrategy::Append => {
                 // insert to an existing table and ignore primary key
                 // this action is supposed that primary key can be auto generated
-                let que = self.driver.insert(table_name, data, true)?;
+                let que = self.driver.insert(table_name, data)?;
                 let res = self.pool.as_ref().unwrap().execute(&que).await?;
 
                 Ok(res.rows_affected as usize)
             }
             sql_adt::SaveStrategy::Upsert => {
-                // get existing ids from selected table
-                let existing_ids = self.get_existing_ids(table_name, data.index()).await?;
+                if let Some(s) = data.index() {
+                    // get existing ids from selected table
+                    let existing_ids = self.get_existing_ids(table_name, &s).await?;
 
-                if !existing_ids.is_empty() {
                     let existing_ids = Series::from_values_default_name(existing_ids, false)?;
 
                     // declare a df for inserting
@@ -314,7 +312,7 @@ impl SqlEngine for SqlExecutor {
         Ok(res.rows_affected)
     }
 
-    async fn select(&self, select: &sql_adt::Select) -> SqlResult<DataFrame> {
+    async fn select(&self, select: &sql_adt::Select) -> SqlResult<Fabrix> {
         conn_n_err!(self.pool);
 
         // Generally, primary key always exists, and in this case, use it as index.
@@ -325,12 +323,12 @@ impl SqlEngine for SqlExecutor {
                 add_primary_key_to_select(&pk, &mut new_select);
                 let que = self.driver.select(&new_select);
                 let res = self.pool.as_ref().unwrap().fetch_all_to_rows(&que).await?;
-                DataFrame::from_rows(res)?
+                Fabrix::from_rows(res)?
             }
             Err(_) => {
                 let que = self.driver.select(select);
                 let res = self.pool.as_ref().unwrap().fetch_all(&que).await?;
-                DataFrame::from_row_values(res, None)?
+                Fabrix::from_row_values(res, None)?
             }
         };
         df.set_column_names(&select.columns_name(true))?;
@@ -359,13 +357,23 @@ async fn txn_create_and_insert<'a>(
     driver: &SqlBuilder,
     mut txn: LoaderTransaction<'a>,
     table_name: &str,
-    data: DataFrame,
-    ignore_index: bool,
+    data: Fabrix,
 ) -> SqlResult<usize> {
     // create table string
-    let fi = data.index_field();
-    let index_option = sql_adt::IndexOption::try_from(&fi)?;
-    let create_str = driver.create_table(table_name, &data.fields(), Some(&index_option));
+    let index_option = data
+        .index_field()
+        .map(sql_adt::IndexOption::try_from)
+        .transpose()?;
+    // if index_option is not None, data.fields should remove the index field
+    let fields = match data.index_tag() {
+        Some(it) => {
+            let mut fields = data.fields();
+            fields.remove(it.loc());
+            fields
+        }
+        None => data.fields(),
+    };
+    let create_str = driver.create_table(table_name, &fields, index_option.as_ref());
 
     // create table
     if let Err(e) = txn.execute(&create_str).await {
@@ -374,7 +382,7 @@ async fn txn_create_and_insert<'a>(
     }
 
     // insert string
-    let insert_str = driver.insert(table_name, data, ignore_index)?;
+    let insert_str = driver.insert(table_name, data)?;
 
     // insert data
     match txn.execute(&insert_str).await {
@@ -394,7 +402,7 @@ async fn txn_create_and_insert<'a>(
 mod test_executor {
 
     use super::*;
-    use crate::{df, series, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
+    use crate::{datetime, fx, series, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -425,7 +433,7 @@ mod test_executor {
 
         exc.connect().await.expect("connection is ok");
 
-        let df = df![
+        let df = fx![
             "id" =>	[96,97,98,99,100],
             "first_name" =>	["Blondie","Etti","Early","Adelina","Kristien"],
             "last_name" => ["D'Ruel","Klimko","Dowtry","Tunn","Rabl"],
@@ -439,38 +447,52 @@ mod test_executor {
         .unwrap();
 
         let res = exc
-            .save(
-                TABLE_NAME,
-                df,
-                &sql_adt::SaveStrategy::Replace { ignore_index: true },
-            )
+            .save(TABLE_NAME, df, &sql_adt::SaveStrategy::Replace)
             .await;
 
         println!("{:?}", res);
-        // assert_eq!(res, 3);
+        assert_eq!(res.unwrap(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_save_quotes_into_sqlite() {
+        let mut exc = SqlExecutor::from_str(CONN3).unwrap();
+
+        exc.connect().await.expect("connection is ok");
+
+        let df = fx![
+            "id" =>	[96,97],
+            "string" => [r#"'"#,r#"""#,],
+        ]
+        .unwrap();
+
+        let res = exc
+            .save("string_test", df, &sql_adt::SaveStrategy::Replace)
+            .await;
+
+        println!("{:?}", res);
+        assert_eq!(res.unwrap(), 3);
     }
 
     #[tokio::test]
     async fn test_save_fail_if_exists() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "James", "Lucas", "Mia"],
             "ord" => [10,11,12,20,22],
             "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8)],
             "dt" => [
-                DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
+                datetime!(2016,1,8,9,10,11),
+                datetime!(2017,1,7,9,10,11),
+                datetime!(2018,1,6,9,10,11),
+                datetime!(2019,1,5,9,10,11),
+                datetime!(2020,1,4,9,10,11),
             ]
         ]
         .unwrap();
 
-        let save_strategy = sql_adt::SaveStrategy::FailIfExists {
-            ignore_index: false,
-        };
+        let save_strategy = sql_adt::SaveStrategy::FailIfExists;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1).unwrap();
@@ -497,26 +519,24 @@ mod test_executor {
     #[tokio::test]
     async fn test_save_replace() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "James", "Lucas", "Mia", "Livia"],
             "ord" => [10,11,12,20,22,31],
             "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8), Some(11.2)],
             "note" => [Some("FS"), Some("OP"), Some("TEC"), None, Some("SS"), None],
             "dt" => [
-                DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
+                datetime!(2016,1,8,9,10,11),
+                datetime!(2017,1,7,9,10,11),
+                datetime!(2018,1,6,9,10,11),
+                datetime!(2019,1,5,9,10,11),
+                datetime!(2020,1,4,9,10,11),
+                datetime!(2021,1,3,9,10,11),
             ]
         ]
         .unwrap();
 
-        let save_strategy = sql_adt::SaveStrategy::Replace {
-            ignore_index: false,
-        };
+        let save_strategy = sql_adt::SaveStrategy::Replace;
 
         // mysql
         let mut exc = SqlExecutor::from_str(CONN1).unwrap();
@@ -543,16 +563,16 @@ mod test_executor {
     #[tokio::test]
     async fn test_save_append() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Fila", "Ada", "Kevin"],
             "ord" => [25,17,32],
             "val" => [None, Some(7.1), Some(2.4)],
             "note" => [Some(""), Some("M"), None],
             "dt" => [
-                DateTime(chrono::NaiveDate::from_ymd(2010, 2, 5).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2011, 2, 4).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2012, 2, 3).and_hms(9, 10, 11)),
+                datetime!(2010,2,5,9,10,11),
+                datetime!(2011,2,4,9,10,11),
+                datetime!(2012,2,3,9,10,11),
             ]
         ]
         .unwrap();
@@ -584,7 +604,7 @@ mod test_executor {
     #[tokio::test]
     async fn test_save_upsert() {
         // df
-        let df = df![
+        let df = fx![
             "ord";
             "ord" => [10,15,20],
             "val" => [Some(12.7), Some(7.1), Some(8.9)],
@@ -755,6 +775,7 @@ mod test_executor {
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
+        println!("{:?}", res.unwrap());
 
         // pg
         let mut exc = SqlExecutor::from_str(CONN2).unwrap();
@@ -762,6 +783,7 @@ mod test_executor {
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
+        println!("{:?}", res.unwrap());
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3).unwrap();
@@ -769,5 +791,6 @@ mod test_executor {
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
+        println!("{:?}", res.unwrap());
     }
 }

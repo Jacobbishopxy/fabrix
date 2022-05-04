@@ -3,7 +3,7 @@
 #![feature(assert_matches)]
 use std::assert_matches::assert_matches;
 
-use fabrix::{df, series, DateTime};
+use fabrix::{fx, series, DateTime};
 
 /*
 Create a dataframe with specified index column
@@ -12,7 +12,7 @@ cargo test --package fabrix --test declare_df_test -- test_new_df --exact --noca
 */
 #[test]
 fn test_new_df() {
-    let result_df = df![
+    let result_df = fx![
         "ord";
         "names" => ["Jacob", "Sam", "James", "Lucas", "Mia", "Livia"],
         "ord" => [10,11,12,20,22,31],
@@ -42,7 +42,7 @@ cargo test --package fabrix --test declare_df_test -- test_df_query --exact --no
 */
 #[test]
 fn test_df_query() {
-    let df = df![
+    let df = fx![
         "ord";
         "names" => ["Jacob", "Sam", "James", "Lucas", "Mia", "Livia"],
         "ord" => [10,11,12,20,22,31],

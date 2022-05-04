@@ -118,7 +118,7 @@ impl_named_from!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
 /// Series is a data structure used in Fabrix crate, it wrapped `polars` Series and provides
 /// additional customized functionalities
 #[derive(Clone)]
-pub struct Series(pub(crate) PSeries);
+pub struct Series(pub PSeries);
 
 impl Series {
     /// new Series from an integer type (Rust standard type)
@@ -169,7 +169,7 @@ impl Series {
     }
 
     /// new empty Series from field
-    pub fn empty_series_from_field(field: Field, nullable: bool) -> CoreResult<Self> {
+    pub fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Self> {
         empty_series_from_field(field, nullable)
     }
 
@@ -444,6 +444,12 @@ impl From<Series> for PSeries {
     }
 }
 
+impl AsRef<PSeries> for Series {
+    fn as_ref(&self) -> &PSeries {
+        &self.0
+    }
+}
+
 /// Series from values, series type is determined by the first not-null value,
 /// if the who vectors are null then use u64 as the default type.
 ///
@@ -483,7 +489,7 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
 }
 
 /// empty series from field
-fn empty_series_from_field(field: Field, nullable: bool) -> CoreResult<Series> {
+fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> {
     match field.data_type() {
         DataType::Boolean => sfv!(nullable; field.name(); bool, BooleanType),
         DataType::Utf8 => sfv!(nullable; field.name(); String, Utf8Type),

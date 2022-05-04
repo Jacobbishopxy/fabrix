@@ -1,7 +1,7 @@
 //! Fabrix core
 
-pub mod dataframe;
 pub mod error;
+pub mod fabrix;
 pub mod fmt;
 pub(crate) mod macros;
 pub mod row;
@@ -11,8 +11,8 @@ pub mod series;
 pub mod util;
 pub mod value;
 
-pub use dataframe::*;
 pub use error::*;
+pub use fabrix::*;
 pub use row::*;
 pub use rowframe::*;
 pub use schema::*;
@@ -21,7 +21,7 @@ pub use value::*;
 
 pub(crate) use macros::*;
 pub use util::IDX;
-pub(crate) use util::{cis_err, inf_err, lnm_err, oob_err, Stepper};
+pub(crate) use util::*;
 
 use polars::datatypes::Field as PolarsField;
 

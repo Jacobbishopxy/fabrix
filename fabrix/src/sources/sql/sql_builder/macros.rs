@@ -4,22 +4,17 @@ macro_rules! statement {
         match $builder {
             $crate::SqlBuilder::Mysql => $statement.to_string(sea_query::MysqlQueryBuilder),
             $crate::SqlBuilder::Postgres => $statement.to_string(sea_query::PostgresQueryBuilder),
-            $crate::SqlBuilder::Sqlite => $statement.to_string(sea_query::SqliteQueryBuilder),
+            $crate::SqlBuilder::Sqlite => $crate::sql::sql_builder::macros::sqlite_str_replace(
+                $statement.to_string(sea_query::SqliteQueryBuilder),
+            ),
         }
     }};
-    ($accumulator:expr; $builder:expr, $statement:expr) => {{
-        match $builder {
-            $crate::SqlBuilder::Postgres => {
-                $accumulator.push($statement.to_string(sea_query::PostgresQueryBuilder));
-            }
-            $crate::SqlBuilder::Mysql => {
-                $accumulator.push($statement.to_string(sea_query::MysqlQueryBuilder));
-            }
-            $crate::SqlBuilder::Sqlite => {
-                $accumulator.push($statement.to_string(sea_query::SqliteQueryBuilder));
-            }
-        }
-    }};
+}
+
+// WARNING: a temporary work-around to solve Sqlx parsing problems
+// when Sea-Query generating Sqlite SQL strings.
+pub(crate) fn sqlite_str_replace(s: String) -> String {
+    s.replace("\\'", "''").replace("\\\"", "\"")
 }
 
 pub(crate) use statement;

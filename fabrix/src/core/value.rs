@@ -146,6 +146,12 @@ pub enum ValueType {
     Null,
 }
 
+impl Default for ValueType {
+    fn default() -> Self {
+        ValueType::Null
+    }
+}
+
 impl std::fmt::Display for ValueType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

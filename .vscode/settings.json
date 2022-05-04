@@ -10,6 +10,7 @@
 		"Cond",
 		"conv",
 		"Dataframe",
+		"datetime",
 		"dtype",
 		"dtypes",
 		"Fabrix",

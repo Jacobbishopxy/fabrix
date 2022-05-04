@@ -4,9 +4,34 @@
 #[macro_export]
 macro_rules! value {
     ($val:expr) => {{
-        let res: $crate::Value = $val.into();
-        res
+        $crate::Value::from($val)
     }};
+}
+
+/// date creation macro
+#[macro_export]
+macro_rules! date {
+    ($year:expr, $month:expr, $day:expr) => {
+        $crate::Date(chrono::NaiveDate::from_ymd($year, $month, $day))
+    };
+}
+
+/// time creation macro
+#[macro_export]
+macro_rules! time {
+    ($hour:expr, $minute:expr, $second:expr) => {
+        $crate::Time(chrono::NaiveTime::from_hms($hour, $minute, $second))
+    };
+}
+
+/// datetime creation macro
+#[macro_export]
+macro_rules! datetime {
+    ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
+        $crate::DateTime(
+            chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second),
+        )
+    };
 }
 
 /// df creation macro
@@ -14,7 +39,7 @@ macro_rules! value {
 /// 1. dataframe with default index
 /// 1. dataframe with given index
 #[macro_export]
-macro_rules! df {
+macro_rules! fx {
     ($($col_name:expr => $slice:expr),+ $(,)*) => {{
         use polars::prelude::NamedFrom;
 
@@ -24,7 +49,7 @@ macro_rules! df {
             )+
         ];
 
-        $crate::DataFrame::from_series_default_index(columns)
+        $crate::Fabrix::from_series_no_index(columns)
     }};
     ($index_name:expr; $($col_name:expr => $slice:expr),+ $(,)*) => {{
         use polars::prelude::NamedFrom;
@@ -35,7 +60,7 @@ macro_rules! df {
             )+
         ];
 
-        $crate::DataFrame::from_series_with_index_name(columns, $index_name)
+        $crate::Fabrix::from_series(columns, $index_name)
     }};
 }
 
@@ -64,27 +89,25 @@ macro_rules! series {
 #[macro_export]
 macro_rules! rows {
     ($([$($val:expr),* $(,)*]),+ $(,)*) => {{
-        let mut idx = 0u32;
         let mut buf: Vec<$crate::Row> = Vec::new();
         $({
             let mut row: Vec<$crate::Value> = Vec::new();
             $(
                 row.push($crate::value!($val));
             )*
-            idx += 1;
-            buf.push($crate::Row::new($crate::value!(idx - 1), row));
+            buf.push($crate::Row::new(None, row));
         })+
 
         buf
     }};
-    ($($index:expr => [$($val:expr),* $(,)*]),+ $(,)*) => {{
+    ($index_loc:expr; $([$($val:expr),* $(,)*]),+ $(,)*) => {{
         let mut buf: Vec<$crate::Row> = Vec::new();
         $({
             let mut row: Vec<$crate::Value> = Vec::new();
             $(
                 row.push($crate::value!($val));
             )*
-            buf.push($crate::Row::new($crate::value!($index), row));
+            buf.push($crate::Row::new(Some($index_loc), row));
         })+
 
         buf
@@ -119,7 +142,7 @@ mod test_macros {
 
     #[test]
     fn test_df_new1() {
-        let df = df![
+        let df = fx![
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
             "val" => [Some(10), None, Some(8)]
@@ -127,13 +150,13 @@ mod test_macros {
         .unwrap();
 
         println!("{:?}", df);
-        println!("{:?}", df.data_dtypes());
+        println!("{:?}", df.dtypes());
         println!("{:?}", df.get_column("names").unwrap());
     }
 
     #[test]
     fn test_df_new2() {
-        let df = df![
+        let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
@@ -157,9 +180,10 @@ mod test_macros {
         println!("{:?}", rows);
 
         let rows = rows!(
-            1 => ["Jacob", "A", 10],
-            2 => ["Sam", "A", 9],
-            3 => ["James", "A", 9],
+            0;
+            [1, "Jacob", "A", 10],
+            [2, "Sam", "A", 9],
+            [3, "James", "A", 9],
         );
 
         println!("{:?}", rows);

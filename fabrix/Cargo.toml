@@ -10,7 +10,6 @@ async-trait = "0"
 anyhow = "1"
 bigdecimal = "0"
 chrono = { version = "0", features = ["serde"] }
-comfy-table = "5"
 futures = "0"
 itertools = "0"
 lazy_static = "1"
@@ -35,6 +34,9 @@ uuid = { version = "0", features = ["serde", "v4"] }
 
 # Featured dependencies
 sea-query = { version = "0", features = [
+    #"sqlx-postgres",
+    #"sqlx-mysql",
+    #"sqlx-sqlite",
     "with-chrono",
     "with-json",
     "with-rust_decimal",

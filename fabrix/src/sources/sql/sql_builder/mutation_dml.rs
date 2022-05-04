@@ -3,41 +3,31 @@
 use sea_query::{Expr, Query};
 
 use super::{alias, filter_builder, sql_adt, statement, try_from_value_to_svalue, DeleteOrSelect};
-use crate::{DataFrame, DmlMutation, SqlBuilder, SqlResult};
+use crate::{DmlMutation, Fabrix, SqlBuilder, SqlResult};
 
 impl DmlMutation for SqlBuilder {
     /// given a `Dataframe`, insert it into an existing table
-    fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> SqlResult<String> {
+    fn insert(&self, table_name: &str, fx: Fabrix) -> SqlResult<String> {
         // announce an insert statement
         let mut statement = Query::insert();
         // given a table name, insert into it
         statement.into_table(alias!(table_name));
 
-        let mut columns = Vec::new();
-        let mut column_info = Vec::new();
-        // if the index is not ignored, insert as the primary key
-        if !ignore_index {
-            column_info = vec![df.index.field()];
-            columns = vec![alias!(df.index.name())];
-        }
-        // the rest of the dataframe's columns
-        columns.extend(df.fields().iter().map(|c| alias!(&c.name)));
+        let columns = fx
+            .fields()
+            .iter()
+            .map(|c| alias!(&c.name))
+            .collect::<Vec<_>>();
         statement.columns(columns);
+        let column_info = fx.fields();
 
-        column_info.extend(df.fields());
-        for c in df.into_iter() {
-            let mut record = Vec::new();
-            if !ignore_index {
-                let index_type = c.index_dtype();
-                record = vec![try_from_value_to_svalue(c.index, &index_type, false)?];
-            }
-            record.extend(
-                c.data
-                    .into_iter()
-                    .zip(column_info.iter())
-                    .map(|(v, inf)| try_from_value_to_svalue(v, inf.dtype(), true))
-                    .collect::<SqlResult<Vec<_>>>()?,
-            );
+        for row in fx.into_iter() {
+            let record = row
+                .data
+                .into_iter()
+                .zip(column_info.iter())
+                .map(|(v, fi)| try_from_value_to_svalue(v, fi.dtype(), true))
+                .collect::<SqlResult<Vec<_>>>()?;
 
             // make sure columns length equals records length
             statement.values(record)?;
@@ -50,35 +40,46 @@ impl DmlMutation for SqlBuilder {
     ///
     /// Since bulk update is not supported by `sea-query` yet, we need to stack each row-updated
     /// into a vector and then update the whole vector sequentially.
-    fn update(&self, table_name: &str, df: DataFrame) -> SqlResult<Vec<String>> {
-        let column_info = df.fields();
-        let index_field = df.index_field();
-        let index_type = index_field.dtype();
-        let index_name = index_field.name();
-        let mut res = vec![];
+    fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<String> {
+        match fx.index_tag() {
+            Some(it) => {
+                let column_info = fx.fields();
+                let column_name = it.name().to_owned();
+                let column_loc = it.loc();
+                let mut res = String::new();
+                for row in fx.into_iter() {
+                    let mut statement = Query::update();
+                    statement.table(alias!(table_name));
 
-        for row in df.into_iter() {
-            let mut statement = Query::update();
-            statement.table(alias!(table_name));
+                    let index_value = row.data().get(column_loc).unwrap().to_owned();
+                    let index_type = row.index_dtype().unwrap();
+                    let itr = row.data.into_iter().zip(column_info.iter());
+                    let mut updates = vec![];
 
-            let itr = row.data.into_iter().zip(column_info.iter());
-            let mut updates = vec![];
+                    for (i, (v, inf)) in itr.enumerate() {
+                        // skip the index column
+                        if i != column_loc {
+                            let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
+                            updates.push((alias!(&inf.name), svalue));
+                        }
+                    }
 
-            for (v, inf) in itr {
-                let alias = alias!(&inf.name);
-                let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
-                updates.push((alias, svalue));
+                    statement.values(updates).and_where(
+                        Expr::col(alias!(&column_name)).eq(try_from_value_to_svalue(
+                            index_value,
+                            &index_type,
+                            true,
+                        )?),
+                    );
+
+                    res.push_str(&statement!(self, statement));
+                    res.push_str(";\n");
+                }
+
+                Ok(res)
             }
-
-            statement.values(updates).and_where(
-                Expr::col(alias!(index_name))
-                    .eq(try_from_value_to_svalue(row.index, index_type, false)?),
-            );
-
-            statement!(res; self, statement)
+            None => self.insert(table_name, fx),
         }
-
-        Ok(res)
     }
 
     /// delete from an existing table
@@ -97,11 +98,11 @@ mod test_mutation_dml {
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{df, xpr_and, xpr_nest, xpr_or, xpr_simple};
+    use crate::{fx, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
     #[test]
     fn test_insert() {
-        let df = df![
+        let df = fx![
             "v1" => [1, 2, 3],
             "v2" => ["a", "b", "c"],
             "v3" => [1.0, 2.0, 3.0],
@@ -109,7 +110,7 @@ mod test_mutation_dml {
         ]
         .unwrap();
 
-        let insert = SqlBuilder::Postgres.insert("test", df, true).unwrap();
+        let insert = SqlBuilder::Postgres.insert("test", df).unwrap();
         println!("{:?}", insert);
 
         assert_eq!(
@@ -120,7 +121,7 @@ mod test_mutation_dml {
 
     #[test]
     fn test_insert2() {
-        let df = df![
+        let df = fx![
             "id" =>	[96,97,98,99,100],
             "first_name" =>	["Blondie","Etti","Early","Adelina","Kristien"],
             "last_name" => ["D'Ruel","Klimko","Dowtry","Tunn","Rabl"],
@@ -133,12 +134,24 @@ mod test_mutation_dml {
         ]
         .unwrap();
 
-        let insert = SqlBuilder::Sqlite.insert("test", df, true).unwrap();
+        let insert = SqlBuilder::Sqlite.insert("test", df).unwrap();
         println!("{:?}", insert);
     }
 
     #[test]
     fn test_insert3() {
+        let df = fx![
+            "id" =>	[96,97],
+            "string" => ["'","\""],
+        ]
+        .unwrap();
+
+        let insert = SqlBuilder::Sqlite.insert("string_test", df).unwrap();
+        println!("{:?}", insert);
+    }
+
+    #[test]
+    fn test_insert4() {
         let query = Query::insert()
             .into_table(alias!("test"))
             .columns(vec![alias!("name"), alias!("age")])
@@ -158,7 +171,7 @@ mod test_mutation_dml {
 
     #[test]
     fn test_update() {
-        let df = df![
+        let df = fx![
             "id";
             "id" => [1, 2, 3],
             "v1" => [10, 20, 30],
@@ -172,14 +185,15 @@ mod test_mutation_dml {
 
         println!("{:?}", update);
 
-        assert_eq!(
-            update,
-            vec![
-                r#"UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1"#,
-                r#"UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2"#,
-                r#"UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3"#,
-            ],
-        );
+        let u1 =
+            r#"UPDATE "test" SET "v1" = 10, "v2" = 'a', "v3" = 1, "v4" = TRUE WHERE "id" = 1;"#;
+        let u2 =
+            r#"UPDATE "test" SET "v1" = 20, "v2" = 'b', "v3" = 2, "v4" = FALSE WHERE "id" = 2;"#;
+        let u3 =
+            r#"UPDATE "test" SET "v1" = 30, "v2" = 'c', "v3" = 3, "v4" = TRUE WHERE "id" = 3;"#;
+        let end = "";
+
+        assert_eq!(update, [u1, u2, u3, end].join("\n"));
     }
 
     #[test]

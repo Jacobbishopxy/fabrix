@@ -143,13 +143,13 @@ pub(crate) trait FabrixDatabaseLoader: Send + Sync {
         -> SqlResult<Option<D1Value>>;
 
     /// fetch many
-    async fn fetch_many(&self, queries: &[String]) -> SqlResult<Vec<ExecutionResultOrData>>;
+    async fn fetch_many(&self, queries: &str) -> SqlResult<Vec<ExecutionResultOrData>>;
 
     /// sql string execution
     async fn execute(&self, query: &str) -> SqlResult<ExecutionResult>;
 
     /// multiple sql string execution. Beware, this is not atomic, if needs to be atomic, use transaction
-    async fn execute_many(&self, queries: &[String]) -> SqlResult<ExecutionResult>;
+    async fn execute_many(&self, queries: &str) -> SqlResult<ExecutionResult>;
 
     /// create a transaction instance and begin
     async fn begin_transaction(&self) -> SqlResult<LoaderTransaction<'_>>;
@@ -347,14 +347,13 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(res)
     }
 
-    async fn fetch_many(&self, queries: &[String]) -> SqlResult<Vec<ExecutionResultOrData>> {
-        let queries = queries.join(";");
+    async fn fetch_many(&self, queries: &str) -> SqlResult<Vec<ExecutionResultOrData>> {
         // let mut srp = SqlRowProcessor::new();
         let mut res = vec![];
 
         match self {
             Self::Mysql(pool) => {
-                let mut stream = pool.fetch_many(&queries[..]);
+                let mut stream = pool.fetch_many(queries);
                 while let Ok(Some(e)) = stream.try_next().await {
                     match e {
                         Either::Left(l) => {
@@ -365,7 +364,7 @@ impl FabrixDatabaseLoader for LoaderPool {
                 }
             }
             Self::Pg(pool) => {
-                let mut stream = pool.fetch_many(&queries[..]);
+                let mut stream = pool.fetch_many(queries);
                 while let Ok(Some(e)) = stream.try_next().await {
                     match e {
                         Either::Left(l) => {
@@ -376,7 +375,7 @@ impl FabrixDatabaseLoader for LoaderPool {
                 }
             }
             Self::Sqlite(pool) => {
-                let mut stream = pool.fetch_many(&queries[..]);
+                let mut stream = pool.fetch_many(queries);
                 while let Ok(Some(e)) = stream.try_next().await {
                     match e {
                         Either::Left(l) => {
@@ -400,25 +399,24 @@ impl FabrixDatabaseLoader for LoaderPool {
         Ok(eff)
     }
 
-    async fn execute_many(&self, queries: &[String]) -> SqlResult<ExecutionResult> {
-        let queries = queries.join(";");
+    async fn execute_many(&self, queries: &str) -> SqlResult<ExecutionResult> {
         let mut rows_affected = 0;
 
         match self {
             Self::Mysql(pool) => {
-                let mut stream = pool.execute_many(&queries[..]);
+                let mut stream = pool.execute_many(queries);
                 while let Ok(Some(r)) = stream.try_next().await {
                     rows_affected += r.rows_affected();
                 }
             }
             Self::Pg(pool) => {
-                let mut stream = pool.execute_many(&queries[..]);
+                let mut stream = pool.execute_many(queries);
                 while let Ok(Some(r)) = stream.try_next().await {
                     rows_affected += r.rows_affected();
                 }
             }
             Self::Sqlite(pool) => {
-                let mut stream = pool.execute_many(&queries[..]);
+                let mut stream = pool.execute_many(queries);
                 while let Ok(Some(r)) = stream.try_next().await {
                     rows_affected += r.rows_affected();
                 }
@@ -449,6 +447,8 @@ mod test_pool {
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
     const CONN3: &str = "sqlite://dev.sqlite";
+
+    const TABLE_NAME: &str = "dev";
 
     #[tokio::test]
     async fn test_sqlx_execute_many() {
@@ -499,18 +499,6 @@ mod test_pool {
     #[tokio::test]
     async fn test_sqlx_fetch_many() {
         // TODO: test query.fetch_many
-        unimplemented!()
-    }
-
-    #[tokio::test]
-    async fn test_sqlx_execute() {
-        let pool3 = sqlx::SqlitePool::connect(CONN3).await.unwrap();
-
-        let que = "INSERT INTO \"test\" (\"id\", \"first_name\", \"last_name\", \"email\", \"gender\", \"ip_address\", \"company\", \"city\", \"birth\") VALUES (96, 'Blondie', 'D\\'Ruel', 'bdruel2n@sun.com', 'Genderqueer', '151.50.91.25', 'Tekfly', 'Changshengqiao', '6/16/1984'), (97, 'Etti', 'Klimko', 'eklimko2o@arizona.edu', 'Bigender', '41.14.13.78', 'Twinder', 'Papetoai', '8/2/1994'), (98, 'Early', 'Dowtry', 'edowtry2p@nba.com', 'Non-binary', '39.216.183.46', NULL, 'Kabarnet', '7/16/1998'), (99, 'Adelina', 'Tunn', 'atunn2q@reuters.com', 'Agender', '156.252.19.192', 'Omba', 'Nanqi', '9/14/1980'), (100, 'Kristien', 'Rabl', 'krabl2r@yahoo.com', 'Polygender', '213.123.199.87', 'Mita', 'Colmar', '3/20/1991')";
-
-        let res = sqlx::query(que).execute(&pool3).await;
-
-        println!("{:?}", res);
     }
 
     // Test get a table's schema
@@ -519,7 +507,7 @@ mod test_pool {
         // MySQL
         let pool1 = sqlx::MySqlPool::connect(CONN1).await.unwrap();
 
-        let que = SqlBuilder::Mysql.check_table_schema("dev");
+        let que = SqlBuilder::Mysql.check_table_schema(TABLE_NAME);
 
         let res = sqlx::query(&que)
             .try_map(|row: sqlx::mysql::MySqlRow| {
@@ -536,7 +524,7 @@ mod test_pool {
         // Pg
         let pool2 = LoaderPool::from(sqlx::PgPool::connect(CONN2).await.unwrap());
 
-        let que = SqlBuilder::Postgres.check_table_schema("dev");
+        let que = SqlBuilder::Postgres.check_table_schema(TABLE_NAME);
 
         let d2value = pool2.fetch_all(&que).await.unwrap();
 
@@ -545,7 +533,7 @@ mod test_pool {
         // Sqlite
         let sqlx_pool = sqlx::SqlitePool::connect(CONN3).await.unwrap();
 
-        let que = SqlBuilder::Sqlite.check_table_schema("tag");
+        let que = SqlBuilder::Sqlite.check_table_schema(TABLE_NAME);
 
         let res = sqlx::query(&que)
             .try_map(|row: sqlx::sqlite::SqliteRow| {
@@ -566,7 +554,7 @@ mod test_pool {
         // MySQL
         let pool1 = LoaderPool::from(sqlx::MySqlPool::connect(CONN1).await.unwrap());
 
-        let que = SqlBuilder::Mysql.check_table_exists("test_table");
+        let que = SqlBuilder::Mysql.check_table_exists(TABLE_NAME);
 
         let res = pool1.fetch_optional(&que).await.unwrap();
 
@@ -576,7 +564,7 @@ mod test_pool {
         // Pg
         let pool2 = LoaderPool::from(sqlx::PgPool::connect(CONN2).await.unwrap());
 
-        let que = SqlBuilder::Postgres.check_table_exists("author");
+        let que = SqlBuilder::Postgres.check_table_exists(TABLE_NAME);
 
         let res = pool2.fetch_optional(&que).await.unwrap();
 
@@ -586,7 +574,7 @@ mod test_pool {
         // Sqlite
         let pool3 = LoaderPool::from(sqlx::SqlitePool::connect(CONN3).await.unwrap());
 
-        let que = SqlBuilder::Sqlite.check_table_exists("tag");
+        let que = SqlBuilder::Sqlite.check_table_exists(TABLE_NAME);
 
         let res = pool3.fetch_optional(&que).await.unwrap();
 

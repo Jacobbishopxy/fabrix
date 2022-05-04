@@ -160,8 +160,9 @@ macro_rules! sv_2_v {
     };
 }
 
+#[allow(dead_code)]
 /// Type conversion: from `SeaQuery` Value to Value
-pub(crate) fn _from_svalue_to_value(svalue: SValue, nullable: bool) -> SqlResult<Value> {
+pub(crate) fn from_svalue_to_value(svalue: SValue, nullable: bool) -> SqlResult<Value> {
     match svalue {
         SValue::Bool(ov) => sv_2_v!(ov, nullable),
         SValue::TinyInt(ov) => sv_2_v!(ov, nullable),

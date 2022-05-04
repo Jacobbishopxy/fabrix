@@ -78,3 +78,7 @@ There are three main parts in this crate:
 ## Examples
 
 1. [File process service](./examples/file_process_service/src/main.rs): a simple web server who accepts multiple types of file and turn their data into json format or ~~into database~~ (not yet).
+
+## Todo
+
+- optimize `Series` and its iterator

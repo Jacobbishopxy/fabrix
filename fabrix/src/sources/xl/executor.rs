@@ -488,8 +488,8 @@ mod test_xl_executor {
 
     use super::*;
 
-    const XL_PATH: &str = "XL_PATH";
-    const XL_PATH2: &str = "XL_PATH2";
+    const XL_PATH: &str = "../mock/test.xlsx";
+    const XL_PATH2: &str = "../mock/test2.xlsx";
     const SHEET_NAME: &str = "data";
 
     // A test struct to implement XlConsumer

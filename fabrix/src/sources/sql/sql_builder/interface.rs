@@ -1,7 +1,7 @@
 //! Sql builder interface
 
 use super::sql_adt;
-use crate::{DataFrame, FieldInfo, Series, SqlResult};
+use crate::{Fabrix, FieldInfo, Series, SqlResult};
 
 // DDL Query
 pub trait DdlQuery {
@@ -51,9 +51,9 @@ pub trait DmlQuery {
 
 // DML Mutation
 pub trait DmlMutation {
-    fn insert(&self, table_name: &str, df: DataFrame, ignore_index: bool) -> SqlResult<String>;
+    fn insert(&self, table_name: &str, fx: Fabrix) -> SqlResult<String>;
 
-    fn update(&self, table_name: &str, df: DataFrame) -> SqlResult<Vec<String>>;
+    fn update(&self, table_name: &str, fx: Fabrix) -> SqlResult<String>;
 
     fn delete(&self, delete: &sql_adt::Delete) -> String;
 }

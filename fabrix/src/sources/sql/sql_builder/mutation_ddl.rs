@@ -38,7 +38,7 @@ impl DdlMutation for SqlBuilder {
 
 /// generate a primary column
 fn gen_primary_col(index_option: &sql_adt::IndexOption) -> ColumnDef {
-    let mut cd = ColumnDef::new(alias!(index_option.name));
+    let mut cd = ColumnDef::new(alias!(&index_option.name));
 
     match index_option.index_type {
         sql_adt::IndexType::Int => cd.integer(),
@@ -140,6 +140,6 @@ mod test_mutation_ddl {
 
         println!("{:?}", delete_table);
 
-        assert_eq!(delete_table, "DROP TABLE `test`");
+        assert_eq!(delete_table, r#"DROP TABLE "test""#);
     }
 }

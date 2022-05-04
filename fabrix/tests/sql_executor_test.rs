@@ -14,7 +14,7 @@ use std::assert_matches::assert_matches;
 use std::str::FromStr;
 
 use fabrix::sql::{sql_adt, SqlEngine, SqlExecutor};
-use fabrix::{df, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
+use fabrix::{fx, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
 
 const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -69,7 +69,7 @@ cargo test --package fabrix --test sql_executor_test -- test_save_fail_if_exists
 */
 #[tokio::test]
 async fn test_save_fail_if_exists() {
-    let df = df![
+    let df = fx![
         "ord";
         "names" => ["Jacob", "Sam", "James", "Lucas", "Mia"],
         "ord" => [10,11,12,20,22],
@@ -84,9 +84,7 @@ async fn test_save_fail_if_exists() {
     ]
     .unwrap();
 
-    let save_strategy = sql_adt::SaveStrategy::FailIfExists {
-        ignore_index: false,
-    };
+    let save_strategy = sql_adt::SaveStrategy::FailIfExists;
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
@@ -116,7 +114,7 @@ cargo test --package fabrix --test sql_executor_test -- test_save_replace --exac
 #[tokio::test]
 async fn test_save_replace() {
     // df
-    let df = df![
+    let df = fx![
         "ord";
         "names" => ["Jacob", "Sam", "James", "Lucas", "Mia", "Livia"],
         "ord" => [10,11,12,20,22,31],
@@ -133,9 +131,7 @@ async fn test_save_replace() {
     ]
     .unwrap();
 
-    let save_strategy = sql_adt::SaveStrategy::Replace {
-        ignore_index: false,
-    };
+    let save_strategy = sql_adt::SaveStrategy::Replace;
 
     // mysql
     let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
@@ -165,7 +161,7 @@ cargo test --package fabrix --test sql_executor_test -- test_save_append --exact
 #[tokio::test]
 async fn test_save_append() {
     // df
-    let df = df![
+    let df = fx![
         "ord";
         "names" => ["Fila", "Ada", "Kevin"],
         "ord" => [25,17,32],
@@ -209,7 +205,7 @@ cargo test --package fabrix --test sql_executor_test -- test_save_upsert --exact
 #[tokio::test]
 async fn test_save_upsert() {
     // df
-    let df = df![
+    let df = fx![
         "ord";
         "ord" => [10,15,20],
         "val" => [Some(12.7), Some(7.1), Some(8.9)],
