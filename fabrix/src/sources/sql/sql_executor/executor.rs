@@ -364,7 +364,16 @@ async fn txn_create_and_insert<'a>(
         .index_field()
         .map(sql_adt::IndexOption::try_from)
         .transpose()?;
-    let create_str = driver.create_table(table_name, &data.fields(), index_option.as_ref());
+    // if index_option is not None, data.fields should remove the index field
+    let fields = match data.index_tag() {
+        Some(it) => {
+            let mut fields = data.fields();
+            fields.remove(it.loc());
+            fields
+        }
+        None => data.fields(),
+    };
+    let create_str = driver.create_table(table_name, &fields, index_option.as_ref());
 
     // create table
     if let Err(e) = txn.execute(&create_str).await {
@@ -393,7 +402,7 @@ async fn txn_create_and_insert<'a>(
 mod test_executor {
 
     use super::*;
-    use crate::{fx, series, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
+    use crate::{datetime, fx, series, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -442,11 +451,11 @@ mod test_executor {
             .await;
 
         println!("{:?}", res);
-        // assert_eq!(res, 3);
+        assert_eq!(res.unwrap(), 5);
     }
 
     #[tokio::test]
-    async fn test_save_quote() {
+    async fn test_save_quotes_into_sqlite() {
         let mut exc = SqlExecutor::from_str(CONN3).unwrap();
 
         exc.connect().await.expect("connection is ok");
@@ -462,7 +471,7 @@ mod test_executor {
             .await;
 
         println!("{:?}", res);
-        // assert_eq!(res, 3);
+        assert_eq!(res.unwrap(), 3);
     }
 
     #[tokio::test]
@@ -474,11 +483,11 @@ mod test_executor {
             "ord" => [10,11,12,20,22],
             "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8)],
             "dt" => [
-                DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
+                datetime!(2016,1,8,9,10,11),
+                datetime!(2017,1,7,9,10,11),
+                datetime!(2018,1,6,9,10,11),
+                datetime!(2019,1,5,9,10,11),
+                datetime!(2020,1,4,9,10,11),
             ]
         ]
         .unwrap();
@@ -517,12 +526,12 @@ mod test_executor {
             "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8), Some(11.2)],
             "note" => [Some("FS"), Some("OP"), Some("TEC"), None, Some("SS"), None],
             "dt" => [
-                DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
+                datetime!(2016,1,8,9,10,11),
+                datetime!(2017,1,7,9,10,11),
+                datetime!(2018,1,6,9,10,11),
+                datetime!(2019,1,5,9,10,11),
+                datetime!(2020,1,4,9,10,11),
+                datetime!(2021,1,3,9,10,11),
             ]
         ]
         .unwrap();
@@ -561,9 +570,9 @@ mod test_executor {
             "val" => [None, Some(7.1), Some(2.4)],
             "note" => [Some(""), Some("M"), None],
             "dt" => [
-                DateTime(chrono::NaiveDate::from_ymd(2010, 2, 5).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2011, 2, 4).and_hms(9, 10, 11)),
-                DateTime(chrono::NaiveDate::from_ymd(2012, 2, 3).and_hms(9, 10, 11)),
+                datetime!(2010,2,5,9,10,11),
+                datetime!(2011,2,4,9,10,11),
+                datetime!(2012,2,3,9,10,11),
             ]
         ]
         .unwrap();
@@ -766,6 +775,7 @@ mod test_executor {
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
+        println!("{:?}", res.unwrap());
 
         // pg
         let mut exc = SqlExecutor::from_str(CONN2).unwrap();
@@ -773,6 +783,7 @@ mod test_executor {
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
+        println!("{:?}", res.unwrap());
 
         // sqlite
         let mut exc = SqlExecutor::from_str(CONN3).unwrap();
@@ -780,5 +791,6 @@ mod test_executor {
 
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
+        println!("{:?}", res.unwrap());
     }
 }

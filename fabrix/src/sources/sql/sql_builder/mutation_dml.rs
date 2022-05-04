@@ -26,7 +26,7 @@ impl DmlMutation for SqlBuilder {
                 .data
                 .into_iter()
                 .zip(column_info.iter())
-                .map(|(v, inf)| try_from_value_to_svalue(v, inf.dtype(), true))
+                .map(|(v, fi)| try_from_value_to_svalue(v, fi.dtype(), true))
                 .collect::<SqlResult<Vec<_>>>()?;
 
             // make sure columns length equals records length
@@ -142,11 +142,11 @@ mod test_mutation_dml {
     fn test_insert3() {
         let df = fx![
             "id" =>	[96,97],
-            "description" => ["'",r#"""#],
+            "string" => ["'","\""],
         ]
         .unwrap();
 
-        let insert = SqlBuilder::Sqlite.insert("test", df).unwrap();
+        let insert = SqlBuilder::Sqlite.insert("string_test", df).unwrap();
         println!("{:?}", insert);
     }
 

@@ -8,6 +8,32 @@ macro_rules! value {
     }};
 }
 
+/// date creation macro
+#[macro_export]
+macro_rules! date {
+    ($year:expr, $month:expr, $day:expr) => {
+        $crate::Date(chrono::NaiveDate::from_ymd($year, $month, $day))
+    };
+}
+
+/// time creation macro
+#[macro_export]
+macro_rules! time {
+    ($hour:expr, $minute:expr, $second:expr) => {
+        $crate::Time(chrono::NaiveTime::from_hms($hour, $minute, $second))
+    };
+}
+
+/// datetime creation macro
+#[macro_export]
+macro_rules! datetime {
+    ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
+        $crate::DateTime(
+            chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second),
+        )
+    };
+}
+
 /// df creation macro
 /// Supporting:
 /// 1. dataframe with default index
