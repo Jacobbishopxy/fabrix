@@ -203,7 +203,7 @@ impl Series {
     }
 
     /// show Series type
-    pub fn dtype(&self) -> ValueType {
+    pub fn dtype(&self) -> &ValueType {
         self.0.dtype().into()
     }
 
@@ -682,7 +682,7 @@ mod test_fabrix_series {
         assert!(s.is_ok());
 
         let s = s.unwrap();
-        assert_eq!(s.dtype(), ValueType::U32);
+        assert_eq!(s.dtype(), &ValueType::U32);
         assert_eq!(s.get(9).unwrap(), value!(9u32));
         assert_eq!(s.take(&[0, 3, 9]).unwrap().len(), 3);
 
@@ -690,7 +690,7 @@ mod test_fabrix_series {
         assert!(s.is_ok());
 
         let s = s.unwrap();
-        assert_eq!(s.dtype(), ValueType::U8);
+        assert_eq!(s.dtype(), &ValueType::U8);
         assert!(s.get(100).is_err());
         assert_eq!(s.take(&[0, 4]).unwrap().len(), 2);
 
@@ -705,7 +705,7 @@ mod test_fabrix_series {
         assert!(s.is_ok());
 
         let s = s.unwrap();
-        assert_eq!(s.dtype(), ValueType::String);
+        assert_eq!(s.dtype(), &ValueType::String);
     }
 
     #[test]
@@ -749,10 +749,10 @@ mod test_fabrix_series {
                 date!(2019, 1, 4),
             ],
         );
-        assert_eq!(s.dtype(), ValueType::Date);
+        assert_eq!(s.dtype(), &ValueType::Date);
 
         let s = Series::new("num", &[1u8, 3, 5, 7, 9]);
-        assert_eq!(s.dtype(), ValueType::U8);
+        assert_eq!(s.dtype(), &ValueType::U8);
     }
 
     #[test]

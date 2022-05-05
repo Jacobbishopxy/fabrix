@@ -12,7 +12,7 @@ impl DmlQuery for SqlBuilder {
         let (index_name, index_dtype) = (index.name(), index.dtype());
         let ids = index
             .into_iter()
-            .map(|i| try_from_value_to_svalue(i, &index_dtype, false))
+            .map(|i| try_from_value_to_svalue(i, index_dtype, false))
             .collect::<SqlResult<Vec<_>>>()?;
 
         statement

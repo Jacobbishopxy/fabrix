@@ -158,12 +158,12 @@ impl SqlHelper for SqlExecutor {
     async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1Value> {
         conn_n_err!(self.pool);
         let que = self.driver.select_existing_ids(table_name, ids)?;
-        let schema = [ids.dtype()];
+        let schema = vec![ids.dtype().to_owned()];
         let res = self
             .pool
             .as_ref()
             .unwrap()
-            .fetch_all_with_schema(&que, &schema)
+            .fetch_all_with_schema(&que, schema.as_slice())
             .await?
             .iter_mut()
             .map(|v| v.remove(0))

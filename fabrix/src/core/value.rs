@@ -298,6 +298,30 @@ impl From<&ValueType> for DataType {
     }
 }
 
+impl From<&DataType> for &ValueType {
+    fn from(v: &DataType) -> Self {
+        match v {
+            DataType::Boolean => &ValueType::Bool,
+            DataType::UInt8 => &ValueType::U8,
+            DataType::UInt32 => &ValueType::U16,
+            DataType::UInt64 => &ValueType::U32,
+            DataType::Int8 => &ValueType::I8,
+            DataType::Int32 => &ValueType::I16,
+            DataType::Int64 => &ValueType::I32,
+            DataType::Float32 => &ValueType::F32,
+            DataType::Float64 => &ValueType::F64,
+            DataType::Utf8 => &ValueType::String,
+            DataType::Object("Date") => &ValueType::Date,
+            DataType::Object("Time") => &ValueType::Time,
+            DataType::Object("DateTime") => &ValueType::DateTime,
+            DataType::Object("Decimal") => &ValueType::Decimal,
+            DataType::Object("Uuid") => &ValueType::Uuid,
+            DataType::Null => &ValueType::Null,
+            _ => unimplemented!(),
+        }
+    }
+}
+
 impl From<ValueType> for DataType {
     fn from(v: ValueType) -> Self {
         DataType::from(&v)
