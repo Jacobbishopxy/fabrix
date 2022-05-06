@@ -14,9 +14,10 @@ futures = "0"
 itertools = "0"
 lazy_static = "1"
 nom = "7"
-polars = { version = "^0.20.0", features = [
+polars = { version = "0", features = [
     "strings",
     "serde",
+    "serde-lazy",
     "parquet",
     "json",
     "dtype-full",
