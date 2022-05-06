@@ -60,6 +60,7 @@ impl From<Value> for SValue {
             Value::DateTime(v) => SValue::ChronoDateTime(Some(Box::new(v.0))),
             Value::Decimal(v) => SValue::Decimal(Some(Box::new(v.0))),
             Value::Uuid(v) => SValue::Uuid(Some(Box::new(v.0))),
+            Value::Bytes(v) => SValue::Bytes(Some(Box::new(v.0))),
             // Temporary workaround
             Value::Null => SValue::Bool(None),
         }
@@ -92,6 +93,7 @@ fn from_data_type_to_null_svalue(dtype: &ValueType) -> SValue {
         ValueType::DateTime => SValue::ChronoDateTime(None),
         ValueType::Decimal => SValue::Decimal(None),
         ValueType::Uuid => SValue::Uuid(None),
+        ValueType::Bytes => SValue::Bytes(None),
         _ => panic!("unsupported data type conversion"),
     }
 }
@@ -120,6 +122,7 @@ pub(crate) fn try_from_value_to_svalue(
         Value::DateTime(v) => Ok(SValue::ChronoDateTime(Some(Box::new(v.0)))),
         Value::Decimal(v) => Ok(SValue::Decimal(Some(Box::new(v.0)))),
         Value::Uuid(v) => Ok(SValue::Uuid(Some(Box::new(v.0)))),
+        Value::Bytes(v) => Ok(SValue::Bytes(Some(Box::new(v.0)))),
         Value::Null => {
             if nullable {
                 Ok(from_data_type_to_null_svalue(dtype))

@@ -49,12 +49,12 @@ use polars::prelude::{
 
 use super::{
     cis_err, impl_named_from, oob_err, s_fn_next, sc_fn_next, series_from_values, sfv, si, sii,
-    tms_err, FieldInfo, Stepper, IDX,
+    tms_err, FieldInfo, ObjectTypeBytes, ObjectTypeDate, ObjectTypeDateTime, ObjectTypeDecimal,
+    ObjectTypeTime, ObjectTypeUuid, Stepper, BYTES, DATE, DATETIME, DECIMAL, IDX, TIME, UUID,
 };
-use crate::core::{
-    ObjectTypeDate, ObjectTypeDateTime, ObjectTypeDecimal, ObjectTypeTime, ObjectTypeUuid,
+use crate::{
+    series, value, Bytes, CoreResult, Date, DateTime, Decimal, Time, Uuid, Value, ValueType,
 };
-use crate::{series, value, CoreResult, Date, DateTime, Decimal, Time, Uuid, Value, ValueType};
 
 // Series constructors
 
@@ -496,6 +496,7 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
             ValueType::DateTime => sfv!(nullable; name, values; DateTime, ObjectTypeDateTime),
             ValueType::Decimal => sfv!(nullable; name, values; Decimal, ObjectTypeDecimal),
             ValueType::Uuid => sfv!(nullable; name, values; Uuid, ObjectTypeUuid),
+            ValueType::Bytes => sfv!(nullable; name, values; Bytes, ObjectTypeBytes),
             ValueType::Null => Ok(Series::from_integer(values.len() as u64, name)?),
         },
         None => Ok(Series::from_integer(values.len() as u64, name)?),
@@ -517,11 +518,12 @@ fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> 
         DataType::Int64 => sfv!(nullable; field.name(); i64, Int64Type),
         DataType::Float32 => sfv!(nullable; field.name(); f32, Float32Type),
         DataType::Float64 => sfv!(nullable; field.name(); f64, Float64Type),
-        DataType::Object("Date") => sfv!(nullable; field.name(); Date, ObjectTypeDate),
-        DataType::Object("Time") => sfv!(nullable; field.name(); Time, ObjectTypeTime),
-        DataType::Object("DateTime") => sfv!(nullable; field.name(); DateTime, ObjectTypeDateTime),
-        DataType::Object("Decimal") => sfv!(nullable; field.name(); Decimal, ObjectTypeDecimal),
-        DataType::Object("Uuid") => sfv!(nullable; field.name(); Uuid, ObjectTypeUuid),
+        DataType::Object(DATE) => sfv!(nullable; field.name(); Date, ObjectTypeDate),
+        DataType::Object(TIME) => sfv!(nullable; field.name(); Time, ObjectTypeTime),
+        DataType::Object(DATETIME) => sfv!(nullable; field.name(); DateTime, ObjectTypeDateTime),
+        DataType::Object(DECIMAL) => sfv!(nullable; field.name(); Decimal, ObjectTypeDecimal),
+        DataType::Object(UUID) => sfv!(nullable; field.name(); Uuid, ObjectTypeUuid),
+        DataType::Object(BYTES) => sfv!(nullable; field.name(); Bytes, ObjectTypeBytes),
         DataType::Null => sfv!(nullable; field.name(); u64, UInt64Type),
         _ => unimplemented!(),
     }
@@ -551,6 +553,7 @@ impl IntoIterator for Series {
             ValueType::DateTime => sii!(self.0.as_any(), DateTime, DateTime),
             ValueType::Decimal => sii!(self.0.as_any(), Decimal, Decimal),
             ValueType::Uuid => sii!(self.0.as_any(), Uuid, Uuid),
+            ValueType::Bytes => sii!(self.0.as_any(), Bytes, Bytes),
             ValueType::Null => panic!("Null value series"),
         }
     }
@@ -576,6 +579,7 @@ pub enum SeriesIntoIterator {
     DateTime(ObjectChunked<DateTime>, Stepper),
     Decimal(ObjectChunked<Decimal>, Stepper),
     Uuid(ObjectChunked<Uuid>, Stepper),
+    Bytes(ObjectChunked<Bytes>, Stepper),
 }
 
 impl Iterator for SeriesIntoIterator {
@@ -601,6 +605,7 @@ impl Iterator for SeriesIntoIterator {
             SeriesIntoIterator::DateTime(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIntoIterator::Decimal(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIntoIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
+            SeriesIntoIterator::Bytes(ref arr, s) => sc_fn_next!(arr, s),
         }
     }
 }
@@ -628,6 +633,7 @@ impl<'a> IntoIterator for &'a Series {
             ValueType::DateTime => si!(self.0.as_any(), DateTime, DateTime),
             ValueType::Decimal => si!(self.0.as_any(), Decimal, Decimal),
             ValueType::Uuid => si!(self.0.as_any(), Uuid, Uuid),
+            ValueType::Bytes => si!(self.0.as_any(), Bytes, Bytes),
             // temporary ignore the rest of DataType variants
             _ => unimplemented!(),
         }
@@ -653,6 +659,7 @@ pub enum SeriesIterator<'a> {
     DateTime(&'a ObjectChunked<DateTime>, Stepper),
     Decimal(&'a ObjectChunked<Decimal>, Stepper),
     Uuid(&'a ObjectChunked<Uuid>, Stepper),
+    Bytes(&'a ObjectChunked<Bytes>, Stepper),
 }
 
 impl<'a> Iterator for SeriesIterator<'a> {
@@ -678,6 +685,7 @@ impl<'a> Iterator for SeriesIterator<'a> {
             SeriesIterator::DateTime(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIterator::Decimal(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
+            SeriesIterator::Bytes(ref arr, s) => sc_fn_next!(arr, s),
         }
     }
 }
