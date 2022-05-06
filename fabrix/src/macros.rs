@@ -34,6 +34,35 @@ macro_rules! datetime {
     };
 }
 
+/// decimal creation macro
+#[macro_export]
+macro_rules! decimal {
+    ($value:expr, $scale:expr) => {
+        $crate::Decimal::new($value, $scale)
+    };
+}
+
+/// uuid creation macro
+#[macro_export]
+macro_rules! uuid {
+    () => {{
+        $crate::Uuid(uuid::Uuid::new_v4())
+    }};
+    ($string:expr) => {{
+        use std::str::FromStr;
+
+        $crate::Uuid(uuid::Uuid::from_str($string).unwrap_or_else(|_| uuid::Uuid::nil()))
+    }};
+}
+
+/// bytes creation macro
+#[macro_export]
+macro_rules! bytes {
+    ($string:expr) => {
+        $crate::Bytes::from_str($string)
+    };
+}
+
 /// df creation macro
 /// Supporting:
 /// 1. dataframe with default index

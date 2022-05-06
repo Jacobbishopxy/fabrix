@@ -84,6 +84,12 @@ pub struct Decimal(pub rust_decimal::Decimal);
 
 impl_custom_value!(Decimal, DECIMAL);
 
+impl Decimal {
+    pub fn new(num: i64, scale: u32) -> Self {
+        Decimal(rust_decimal::Decimal::new(num, scale))
+    }
+}
+
 /// Custom Value: Uuid
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
 pub struct Uuid(pub uuid::Uuid);
@@ -95,6 +101,12 @@ impl_custom_value!(Uuid, UUID);
 pub struct Bytes(pub Vec<u8>);
 
 impl_custom_value2!(Bytes, BYTES);
+
+impl Bytes {
+    pub fn from_str(s: &str) -> Self {
+        Bytes(s.to_string().into_bytes())
+    }
+}
 
 /// Value is the fundamental element in Fabrix.
 /// Providing type conversion between Rust/external type and polars `AnyValue`.
@@ -723,10 +735,7 @@ impl_try_from_value!(Bytes, Option<Bytes>, "Option<Bytes>");
 #[cfg(test)]
 mod test_value {
 
-    use crate::{value, Date, Decimal, Uuid, Value, ValueType};
-    use chrono::{NaiveDate, NaiveTime};
-    use rust_decimal::Decimal as RDecimal;
-    use uuid::Uuid as UUuid;
+    use crate::{bytes, date, decimal, time, uuid, value, Value, ValueType};
 
     #[test]
     fn test_conversion() {
@@ -750,27 +759,38 @@ mod test_value {
     #[test]
     fn test_custom_type_conversion() {
         // test case: external crate type (rust_decimal::Decimal)
-        let v = RDecimal::new(123, 0);
-        let v = Some(Decimal(v));
+        let v = decimal!(123, 0);
+        let v = Some(v);
         let v: Value = v.into();
         assert_eq!(ValueType::from(&v), ValueType::Decimal);
 
         // test case: external crate type (uuid::Uuid)
-        let v = UUuid::new_v4();
-        let v = Some(Uuid(v));
+        let v = uuid!();
+        let v = Some(v);
+        let v: Value = v.into();
+        assert_eq!(ValueType::from(&v), ValueType::Uuid);
+
+        let v = uuid!("invalid uuid string");
+        let v = Some(v);
         let v: Value = v.into();
         assert_eq!(ValueType::from(&v), ValueType::Uuid);
 
         // test case: external crate type (chrono::NaiveTime)
-        let v = NaiveTime::from_hms(1, 2, 3);
+        let v = time!(1, 2, 3);
         let v = Some(v);
         let v: Value = v.into();
         assert_eq!(ValueType::from(&v), ValueType::Time);
 
         // test case: custom type (crate::Date), which is a wrapper of chrono::NaiveDate
-        let v = NaiveDate::from_ymd(2019, 1, 1);
-        let v = Some(Date(v));
+        let v = date!(2019, 1, 1);
+        let v = Some(v);
         let v: Value = v.into();
         assert_eq!(ValueType::from(&v), ValueType::Date);
+
+        // test case: custom type (crate::Bytes)
+        let v = bytes!("bytes str");
+        let v = Some(v);
+        let v: Value = v.into();
+        assert_eq!(ValueType::from(&v), ValueType::Bytes);
     }
 }
