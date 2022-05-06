@@ -1,0 +1,39 @@
+<html>
+	<head>
+		<title>Multipart Form</title>
+	</head>
+	<body>
+		<p>save file</p>
+		<form action="/save" method="post" enctype="multipart/form-data">
+			<input type="file" multiple name="file" /><br /><br />
+			<button type="submit">Submit</button>
+		</form>
+
+		<br />
+
+		<p>xl file extract</p>
+		<form action="/xl" method="post" enctype="multipart/form-data" id="xl-form">
+			<label for="sheet_name">Sheet name: </label>
+			<input type="text" id="sheet-name" /><br /><br />
+			<input type="file" multiple name="file" /><br /><br />
+			<button type="submit">Submit</button>
+		</form>
+		<script>
+			document
+				.getElementById("sheet-name")
+				.addEventListener("change", sheetNameOnChange);
+			function sheetNameOnChange() {
+				var x = document.getElementById("sheet-name");
+				document.getElementById("xl-form").action = "/xl?sheet_name=" + x.value;
+			}
+		</script>
+
+		<br />
+
+		<p>csv file extract</p>
+		<form action="/csv" method="post" enctype="multipart/form-data">
+			<input type="file" multiple name="file" /><br /><br />
+			<button type="submit">Submit</button>
+		</form>
+	</body>
+</html>

@@ -7,9 +7,12 @@
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{Cursor, Write};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::str::FromStr;
 
 use actix_multipart::Multipart;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
+use clap::Parser;
 use futures_util::TryStreamExt;
 use serde::Deserialize;
 use uuid::Uuid;
@@ -130,51 +133,35 @@ async fn csv_to_json(mut _payload: Multipart) -> Result<HttpResponse, Error> {
 }
 
 async fn index() -> HttpResponse {
-    let html = r#"
-        <html>
-        <head><title>Multipart Form</title></head>
-        <body>
-            <p>save file</p>
-            <form action="/save" method="post" enctype="multipart/form-data">
-                <input type="file" multiple name="file"><br/><br/>
-                <button type="submit">Submit</button>
-            </form>
-
-            <br/>
-
-            <p>xl file extract</p>
-            <form action="/xl" method="post" enctype="multipart/form-data" id="xl-form">
-                <label for="sheet_name">Sheet name: </label>
-                <input type="text" id="sheet-name"><br/><br/>
-                <input type="file" multiple name="file"><br/><br/>
-                <button type="submit">Submit</button>
-            </form>
-            <script>
-            document.getElementById("sheet-name").addEventListener("change", sheetNameOnChange)
-            function sheetNameOnChange() {
-                var x= document.getElementById("sheet-name");
-                document.getElementById("xl-form").action = "/xl?sheet_name=" + x.value;
-            }
-            </script>
-
-            <br/>
-
-            <p>csv file extract</p>
-            <form action="/csv" method="post" enctype="multipart/form-data">
-                <input type="file" multiple name="file"><br/><br/>
-                <button type="submit">Submit</button>
-            </form>
-        </body>
-        </html>
-    "#;
+    let html = include_str!("index.html");
 
     HttpResponse::Ok().body(html)
 }
 
+#[derive(Parser, Debug)]
+#[clap(
+    name = "server",
+    about = "A simple server for file processing illustration"
+)]
+struct Opt {
+    #[clap(short = 'a', long = "addr", default_value = "::1")]
+    addr: String,
+    #[clap(short = 'p', long = "port", default_value = "8080")]
+    port: u16,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let opt = Opt::parse();
     std::env::set_var("RUST_LOG", "info");
     std::fs::create_dir_all(TMP_DIR)?;
+
+    let sock_addr = SocketAddr::from((
+        IpAddr::from_str(opt.addr.as_str()).unwrap_or(IpAddr::V6(Ipv6Addr::LOCALHOST)),
+        opt.port,
+    ));
+
+    println!("listening on http://{sock_addr}");
 
     HttpServer::new(|| {
         App::new()
@@ -184,7 +171,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/xl").route(web::post().to(xl_to_json)))
             .service(web::resource("/csv").route(web::post().to(csv_to_json)))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(sock_addr)?
     .run()
     .await
 }

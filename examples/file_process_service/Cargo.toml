@@ -14,3 +14,4 @@ serde = "1"
 uuid = { version = "0", features = ["v4"] }
 
 fabrix = { path = "../../fabrix" }
+clap = { version = "3.1.16", features = ["derive"] }
