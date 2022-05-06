@@ -14,16 +14,12 @@ futures = "0"
 itertools = "0"
 lazy_static = "1"
 nom = "7"
-polars = { version = "0", features = [
+polars = { version = "^0.20.0", features = [
     "strings",
     "serde",
-    "serde-lazy",
     "parquet",
     "json",
-    "dtype-i8",
-    "dtype-i16",
-    "dtype-u8",
-    "dtype-u16",
+    "dtype-full",
     "object",
 ] }
 rust_decimal = "1"
