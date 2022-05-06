@@ -17,6 +17,7 @@ nom = "7"
 polars = { version = "0", features = [
     "strings",
     "serde",
+    "serde-lazy",
     "parquet",
     "json",
     "dtype-i8",

@@ -42,6 +42,11 @@ pub(crate) fn ims_err() -> CoreError {
     CoreError::new_common_error("index mismatched")
 }
 
+/// type mismatch error
+pub(crate) fn tms_err(name: &str) -> CoreError {
+    CoreError::new_common_error(format!("type {:?} mismatch", name))
+}
+
 /// value not found error
 pub(crate) fn vnf_err(value: &Value) -> CoreError {
     CoreError::new_common_error(format!("{:?} not found", value))

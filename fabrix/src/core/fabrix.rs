@@ -14,6 +14,7 @@
 //! 1. data
 //! 1. index_tag
 //! 1. index
+//! 1. generate_index
 //! 1. get_column_names
 //! 1. set_column_names
 //! 1. rename
@@ -62,6 +63,14 @@ pub struct IndexTag {
 }
 
 impl IndexTag {
+    pub fn new(loc: usize, name: &str, data_type: ValueType) -> Self {
+        Self {
+            loc,
+            name: name.to_string(),
+            data_type,
+        }
+    }
+
     pub fn loc(&self) -> usize {
         self.loc
     }
@@ -231,6 +240,13 @@ impl Fabrix {
         })
     }
 
+    /// generate a new column with row count, be careful the index_tag will be overridden
+    pub fn generate_index(&mut self) -> &mut Self {
+        self.data.with_row_count_mut(IDX, None);
+        self.index_tag = Some(IndexTag::new(0, IDX, ValueType::U32));
+        self
+    }
+
     /// get column names
     pub fn get_column_names(&self) -> Vec<&str> {
         self.data.get_column_names()
@@ -326,6 +342,20 @@ impl Fabrix {
         self.data = self.data.hstack(raw_columns.as_slice())?;
 
         Ok(self)
+    }
+
+    // TODO:
+
+    pub fn drop_series_by_idx() {
+        unimplemented!()
+    }
+
+    pub fn drop_series_by_name() {
+        unimplemented!()
+    }
+
+    pub fn insert_series() {
+        unimplemented!()
     }
 
     /// vertical stack, return cloned data
@@ -519,6 +549,16 @@ impl Fabrix {
             data,
             index_tag: self.index_tag.clone(),
         })
+    }
+
+    // TODO:
+
+    pub fn apply() {
+        unimplemented!()
+    }
+
+    pub fn apply_at_idx() {
+        unimplemented!()
     }
 }
 

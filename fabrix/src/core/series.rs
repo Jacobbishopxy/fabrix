@@ -43,20 +43,20 @@ use polars::prelude::{
     Int8Type, ObjectChunked, TakeRandom, TakeRandomUtf8, UInt16Chunked, UInt16Type, UInt32Chunked,
     UInt32Type, UInt64Chunked, UInt64Type, UInt8Chunked, UInt8Type, Utf8Chunked, Utf8Type,
 };
-use polars::prelude::{DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PSeries};
+use polars::prelude::{
+    DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PolarsSeries,
+};
 
 use super::{
-    impl_named_from, oob_err, s_fn_next, sc_fn_next, series_from_values, sfv, si, sii, FieldInfo,
-    Stepper, IDX,
+    cis_err, impl_named_from, oob_err, s_fn_next, sc_fn_next, series_from_values, sfv, si, sii,
+    tms_err, FieldInfo, Stepper, IDX,
 };
 use crate::core::{
     ObjectTypeDate, ObjectTypeDateTime, ObjectTypeDecimal, ObjectTypeTime, ObjectTypeUuid,
 };
-use crate::{
-    series, value, CoreError, CoreResult, Date, DateTime, Decimal, Time, Uuid, Value, ValueType,
-};
+use crate::{series, value, CoreResult, Date, DateTime, Decimal, Time, Uuid, Value, ValueType};
 
-// Series new methods
+// Series constructors
 
 impl_named_from!([bool], BooleanType, from_slice);
 impl_named_from!([Option<bool>], BooleanType, from_slice_options);
@@ -118,28 +118,28 @@ impl_named_from!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
 /// Series is a data structure used in Fabrix crate, it wrapped `polars` Series and provides
 /// additional customized functionalities
 #[derive(Clone)]
-pub struct Series(pub PSeries);
+pub struct Series(pub PolarsSeries);
 
 impl Series {
     /// new Series from an integer type (Rust standard type)
-    pub fn from_integer<I, S>(value: &I, name: S) -> CoreResult<Self>
+    pub fn from_integer<I, S>(value: I, name: S) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
         S: AsRef<str>,
     {
-        from_integer((*value).into(), name.as_ref())
+        from_integer(value.into(), name.as_ref())
     }
 
     /// new Series from an integer type (Rust standard type)
-    pub fn from_integer_default_name<I>(value: &I) -> CoreResult<Self>
+    pub fn from_integer_default_name<I>(value: I) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
     {
-        from_integer((*value).into(), IDX)
+        from_integer(value.into(), IDX)
     }
 
     /// new Series from a range
-    pub fn from_range<I, S>(range: &[I; 2], name: S) -> CoreResult<Self>
+    pub fn from_range<I, S>(range: [I; 2], name: S) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
         S: AsRef<str>,
@@ -148,7 +148,7 @@ impl Series {
     }
 
     /// new Series from a range
-    pub fn from_range_default_name<I>(range: &[I; 2]) -> CoreResult<Self>
+    pub fn from_range_default_name<I>(range: [I; 2]) -> CoreResult<Self>
     where
         I: Into<Value> + Copy,
     {
@@ -173,6 +173,11 @@ impl Series {
         empty_series_from_field(field, nullable)
     }
 
+    // TODO:
+    // pub fn from_chunked_array<A>(array: ChunkedArray<A>) -> CoreResult<Self> {
+    //     Ok(Self(array.into_series()))
+    // }
+
     /// rechunk: aggregate all chunks to a contiguous array of memory
     pub fn rechunk(&mut self) {
         self.0 = self.0.rechunk();
@@ -193,7 +198,7 @@ impl Series {
     }
 
     /// show data
-    pub fn data(&self) -> &PSeries {
+    pub fn data(&self) -> &PolarsSeries {
         &self.0
     }
 
@@ -291,13 +296,14 @@ impl Series {
 
     /// find idx vector by a Series (`self.into_iter` is not zero copy)
     pub fn find_indices(&self, series: &Series) -> Vec<usize> {
-        self.into_iter().enumerate().fold(vec![], |sum, (idx, e)| {
-            let mut sum = sum;
-            if series.into_iter().contains(&e) {
-                sum.push(idx);
-            }
-            sum
-        })
+        self.into_iter()
+            .enumerate()
+            .fold(vec![], |mut accum, (idx, e)| {
+                if series.contains(&e) {
+                    accum.push(idx);
+                }
+                accum
+            })
     }
 
     /// drop nulls
@@ -355,7 +361,7 @@ impl Series {
     pub fn pop(&mut self) -> CoreResult<&mut Self> {
         let len = self.len();
         if len == 0 {
-            return Err(CoreError::new_common_error("series is empty"));
+            return Err(cis_err("series"));
         }
 
         *self = self.slice(0, len - 1);
@@ -395,6 +401,16 @@ impl Series {
 
         Ok(self)
     }
+
+    // TODO: apply methods
+
+    pub fn apply() {
+        unimplemented!()
+    }
+
+    pub fn apply_at_idx() {
+        unimplemented!()
+    }
 }
 
 /// new Series from an AnyValue (integer specific)
@@ -408,7 +424,7 @@ fn from_integer(val: Value, name: &str) -> CoreResult<Series> {
         Value::I16(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
         Value::I32(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
         Value::I64(v) => Ok(series!(name => (0..v).collect::<Vec<_>>())),
-        _ => Err(CoreError::new_common_error("val is not integer")),
+        _ => Err(tms_err("val")),
     }
 }
 
@@ -424,28 +440,26 @@ fn from_range(rng: [Value; 2], name: &str) -> CoreResult<Series> {
         [Value::I16(s), Value::I16(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
         [Value::I32(s), Value::I32(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
         [Value::I64(s), Value::I64(e)] => Ok(series!(name => (s..e).collect::<Vec<_>>())),
-        _ => Err(CoreError::new_common_error(
-            "rng is not integer or not the same type of pair",
-        )),
+        _ => Err(tms_err("rng")),
     }
 }
 
 // Simple conversion
-impl From<PSeries> for Series {
-    fn from(s: PSeries) -> Self {
+impl From<PolarsSeries> for Series {
+    fn from(s: PolarsSeries) -> Self {
         Series(s)
     }
 }
 
 // Simple conversion
-impl From<Series> for PSeries {
+impl From<Series> for PolarsSeries {
     fn from(s: Series) -> Self {
         s.0
     }
 }
 
-impl AsRef<PSeries> for Series {
-    fn as_ref(&self) -> &PSeries {
+impl AsRef<PolarsSeries> for Series {
+    fn as_ref(&self) -> &PolarsSeries {
         &self.0
     }
 }
@@ -456,7 +470,7 @@ impl AsRef<PSeries> for Series {
 /// if nullable is true, mismatched types will be converted to null.
 fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Series> {
     if values.is_empty() {
-        return Err(CoreError::new_common_error("values' length is 0!"));
+        return Err(cis_err("values"));
     }
 
     // iterate until get the first non-null value
@@ -482,9 +496,9 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
             ValueType::DateTime => sfv!(nullable; name, values; DateTime, ObjectTypeDateTime),
             ValueType::Decimal => sfv!(nullable; name, values; Decimal, ObjectTypeDecimal),
             ValueType::Uuid => sfv!(nullable; name, values; Uuid, ObjectTypeUuid),
-            ValueType::Null => Ok(Series::from_integer(&(values.len() as u64), name)?),
+            ValueType::Null => Ok(Series::from_integer(values.len() as u64, name)?),
         },
-        None => Ok(Series::from_integer(&(values.len() as u64), name)?),
+        None => Ok(Series::from_integer(values.len() as u64, name)?),
     }
 }
 
@@ -678,7 +692,7 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_creation() {
-        let s = Series::from_integer_default_name(&10u32);
+        let s = Series::from_integer_default_name(10u32);
         assert!(s.is_ok());
 
         let s = s.unwrap();
@@ -686,7 +700,7 @@ mod test_fabrix_series {
         assert_eq!(s.get(9).unwrap(), value!(9u32));
         assert_eq!(s.take(&[0, 3, 9]).unwrap().len(), 3);
 
-        let s = Series::from_range_default_name(&[3u8, 9]);
+        let s = Series::from_range_default_name([3u8, 9]);
         assert!(s.is_ok());
 
         let s = s.unwrap();
@@ -852,5 +866,51 @@ mod test_fabrix_series {
 
         s1.remove_slice(-3, 4).unwrap();
         assert_eq!(s1.len(), 1);
+    }
+
+    #[test]
+    fn test_series_iteration() {
+        let s = series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
+        let mut iter = s.into_iter();
+
+        assert_eq!(iter.next().unwrap(), value!("Jacob"));
+        assert_eq!(iter.next().unwrap(), value!("Sam"));
+        assert_eq!(iter.next().unwrap(), value!("James"));
+        assert_eq!(iter.next().unwrap(), value!("April"));
+        assert_eq!(iter.next().unwrap(), value!("Julia"));
+        assert_eq!(iter.next().unwrap(), value!("Jack"));
+        assert_eq!(iter.next().unwrap(), value!("Henry"));
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn test_series_apply() {
+        use polars::prelude::ChunkApply;
+        use std::borrow::Cow;
+
+        let s1 =
+            series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
+
+        println!("{:?}", s1);
+
+        let c =
+            s1.0.utf8()
+                .unwrap()
+                .apply(|s| Cow::Owned(s.to_owned() + "!"));
+
+        let s2 = Series(c.into_series());
+
+        println!("{:?}", s2);
+
+        let mut iter = s2.into_iter();
+
+        assert_eq!(iter.next().unwrap(), value!("Jacob!"));
+        assert_eq!(iter.next().unwrap(), value!("Sam!"));
+        assert_eq!(iter.next().unwrap(), value!("James!"));
+        assert_eq!(iter.next().unwrap(), value!("April!"));
+        assert_eq!(iter.next().unwrap(), value!("Julia!"));
+        assert_eq!(iter.next().unwrap(), value!("Jack!"));
+        assert_eq!(iter.next().unwrap(), value!("Henry!"));
+        assert!(iter.next().is_none());
     }
 }

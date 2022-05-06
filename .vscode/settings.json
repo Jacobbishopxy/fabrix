@@ -4,6 +4,7 @@
 		"examples/file_process_service/Cargo.toml"
 	],
 	"cSpell.words": [
+		"accum",
 		"BSON",
 		"chrono",
 		"concat",
