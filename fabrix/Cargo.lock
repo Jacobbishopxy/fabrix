@@ -281,9 +281,6 @@ name = "bytes"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "bzip2"
@@ -620,7 +617,6 @@ dependencies = [
  "async-trait",
  "bigdecimal 0.3.0",
  "bson2",
- "bytes",
  "chrono",
  "futures",
  "itertools",

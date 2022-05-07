@@ -19,6 +19,8 @@ pub use crate::sources::sql::{
 #[cfg(feature = "file")]
 pub use crate::sources::file_error::{FlError, FlResult};
 // sources: xl
+#[cfg(feature = "csv")]
+pub use crate::sources::csv;
 #[cfg(feature = "xl")]
 pub use crate::sources::xl;
 

@@ -29,7 +29,7 @@ impl<READER: MmapBytesReader> Reader<READER> {
 pub enum ParquetSource<'a> {
     File(File),
     Path(&'a str),
-    Bytes(Cursor<bytes::Bytes>),
+    Bytes(Cursor<Vec<u8>>),
 }
 
 impl<'a> TryFrom<ParquetSource<'a>> for Reader<File> {
@@ -47,7 +47,7 @@ impl<'a> TryFrom<ParquetSource<'a>> for Reader<File> {
     }
 }
 
-impl<'a> TryFrom<ParquetSource<'a>> for Reader<Cursor<bytes::Bytes>> {
+impl<'a> TryFrom<ParquetSource<'a>> for Reader<Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
     fn try_from(value: ParquetSource<'a>) -> Result<Self, Self::Error> {

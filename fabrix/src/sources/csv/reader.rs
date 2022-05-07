@@ -8,11 +8,9 @@ use std::io::Cursor;
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::{CsvReader, SerReader};
 
+use super::{CsvSource, UNSUPPORTED_TYPE};
 use crate::{Fabrix, FabrixError, FabrixResult, Schema, ValueTypes};
 
-const UNSUPPORTED_TYPE: &str = "Unsupported CSVSource type";
-
-#[allow(dead_code)]
 pub struct Reader<'a, READER: MmapBytesReader + 'a> {
     csv_reader: CsvReader<'a, READER>,
 }
@@ -73,27 +71,20 @@ impl<'a, READER: MmapBytesReader> Reader<'a, READER> {
     }
 
     pub fn finish(self, index: Option<&str>) -> FabrixResult<Fabrix> {
-        let polars_df = self.csv_reader.finish()?;
+        let df = self.csv_reader.finish()?;
         if let Some(index) = index {
-            Ok(Fabrix::new(polars_df, index)?)
+            Ok(Fabrix::new(df, index)?)
         } else {
-            Ok(Fabrix::new_no_index(polars_df))
+            Ok(Fabrix::new_no_index(df))
         }
     }
-}
-
-#[derive(Debug)]
-pub enum CsvSource<'a> {
-    File(File),
-    Path(&'a str),
-    Bytes(Cursor<bytes::Bytes>),
 }
 
 impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, File> {
     type Error = FabrixError;
 
-    fn try_from(value: CsvSource<'a>) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
+        match source {
             CsvSource::File(file) => Ok(Self::new(file)),
             CsvSource::Path(path) => {
                 let file = File::open(path)?;
@@ -102,13 +93,14 @@ impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, File> {
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
-}
+} 
 
-impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, Cursor<bytes::Bytes>> {
+// impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, Cursor<bytes::Bytes>> {
+impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(value: CsvSource<'a>) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
+        match source {
             CsvSource::Bytes(bytes) => Ok(Self::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }

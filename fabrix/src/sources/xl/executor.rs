@@ -98,7 +98,7 @@ pub enum XlSource<'a> {
     File(File),
     Path(&'a str),
     Url(&'a str),
-    Bytes(Cursor<bytes::Bytes>),
+    Bytes(Cursor<Vec<u8>>),
 }
 
 impl<'a> TryFrom<XlSource<'a>> for Workbook<File> {
@@ -113,7 +113,7 @@ impl<'a> TryFrom<XlSource<'a>> for Workbook<File> {
     }
 }
 
-impl<'a> TryFrom<XlSource<'a>> for Workbook<Cursor<bytes::Bytes>> {
+impl<'a> TryFrom<XlSource<'a>> for Workbook<Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
     fn try_from(value: XlSource<'a>) -> Result<Self, Self::Error> {
