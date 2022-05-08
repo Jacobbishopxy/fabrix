@@ -52,11 +52,13 @@ use polars::prelude::{
 use super::{
     chunked_array_from_values, cis_err, impl_named_from_owned, impl_named_from_ref, oob_err,
     s_fn_next, sc_fn_next, sfv, si, sii, tms_err, FieldInfo, ObjectTypeBytes, ObjectTypeDecimal,
-    ObjectTypeUuid, Stepper, BYTES, DECIMAL, IDX, UUID,
+    ObjectTypeUuid, Stepper, BYTES, DAYS19700101, DECIMAL, IDX, NANO10E9, UUID,
 };
 use crate::{series, value, Bytes, CoreResult, Decimal, Uuid, Value, ValueType};
 
+// ================================================================================================
 // Series constructors
+// ================================================================================================
 
 impl_named_from_ref!([bool], BooleanType, from_slice);
 impl_named_from_ref!([Option<bool>], BooleanType, from_slice_options);
@@ -115,7 +117,7 @@ impl<T: AsRef<[NaiveDate]>> NamedFrom<T, [NaiveDate]> for Series {
         let v = v
             .as_ref()
             .iter()
-            .map(|i| i.num_days_from_ce())
+            .map(|i| i.num_days_from_ce() - DAYS19700101)
             .collect::<Vec<_>>();
         let ca = Int32Chunked::from_slice(name, v.as_ref());
         let polars_series = DateChunked::from(ca).into_series();
@@ -128,7 +130,7 @@ impl<T: AsRef<[Option<NaiveDate>]>> NamedFrom<T, [Option<NaiveDate>]> for Series
         let v = v
             .as_ref()
             .iter()
-            .map(|oi| oi.map(|i| i.num_days_from_ce()))
+            .map(|oi| oi.map(|i| i.num_days_from_ce() - DAYS19700101))
             .collect::<Vec<_>>();
         let ca = Int32Chunked::from_slice_options(name, v.as_ref());
         let polars_series = DateChunked::from(ca).into_series();
@@ -141,7 +143,7 @@ impl<T: AsRef<[NaiveTime]>> NamedFrom<T, [NaiveTime]> for Series {
         let v = v
             .as_ref()
             .iter()
-            .map(|i| i.num_seconds_from_midnight() as i64)
+            .map(|i| i.num_seconds_from_midnight() as i64 * NANO10E9)
             .collect::<Vec<_>>();
         let ca = Int64Chunked::from_slice(name, v.as_ref());
         let polars_series = TimeChunked::from(ca).into_series();
@@ -154,7 +156,7 @@ impl<T: AsRef<[Option<NaiveTime>]>> NamedFrom<T, [Option<NaiveTime>]> for Series
         let v = v
             .as_ref()
             .iter()
-            .map(|oi| oi.map(|i| i.num_seconds_from_midnight() as i64))
+            .map(|oi| oi.map(|i| i.num_seconds_from_midnight() as i64 * NANO10E9))
             .collect::<Vec<_>>();
         let ca = Int64Chunked::from_slice_options(name, v.as_ref());
         let polars_series = TimeChunked::from(ca).into_series();
@@ -164,9 +166,13 @@ impl<T: AsRef<[Option<NaiveTime>]>> NamedFrom<T, [Option<NaiveTime>]> for Series
 
 impl<T: AsRef<[NaiveDateTime]>> NamedFrom<T, [NaiveDateTime]> for Series {
     fn new(name: &str, v: T) -> Self {
-        let v = v.as_ref().iter().map(|i| i.timestamp()).collect::<Vec<_>>();
+        let v = v
+            .as_ref()
+            .iter()
+            .map(|i| i.timestamp_nanos())
+            .collect::<Vec<_>>();
         let ca = Int64Chunked::from_slice(name, v.as_ref());
-        let polars_series = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+        let polars_series = ca.into_datetime(TimeUnit::Nanoseconds, None).into_series();
         Series(polars_series)
     }
 }
@@ -176,10 +182,10 @@ impl<T: AsRef<[Option<NaiveDateTime>]>> NamedFrom<T, [Option<NaiveDateTime>]> fo
         let v = v
             .as_ref()
             .iter()
-            .map(|oi| oi.map(|i| i.timestamp()))
+            .map(|oi| oi.map(|i| i.timestamp_nanos()))
             .collect::<Vec<_>>();
         let ca = Int64Chunked::from_slice_options(name, v.as_ref());
-        let polars_series = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+        let polars_series = ca.into_datetime(TimeUnit::Nanoseconds, None).into_series();
         Series(polars_series)
     }
 }
@@ -189,6 +195,10 @@ impl_named_from_ref!([Option<Decimal>], ObjectTypeDecimal, from_slice_options);
 
 impl_named_from_ref!([Uuid], ObjectTypeUuid, from_slice);
 impl_named_from_ref!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
+
+// ================================================================================================
+// Series
+// ================================================================================================
 
 /// Series is a data structure used in Fabrix crate, it wrapped `polars` Series and provides
 /// additional customized functionalities
@@ -567,12 +577,13 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
             ValueType::F32 => sfv!(nullable; name, values; f32, Float32Type),
             ValueType::F64 => sfv!(nullable; name, values; f64, Float64Type),
             ValueType::Date => {
+                dbg!(&values);
                 let ca = if nullable {
                     chunked_array_from_values!(name, values; i32, Int32Type)
                 } else {
                     chunked_array_from_values!(name, values; Option<i32>, Int32Type)
                 };
-                Ok(Series(DateChunked::from(ca).into_series()))
+                Ok(Series(ca.into_date().into_series()))
             }
             ValueType::Time => {
                 let ca = if nullable {
@@ -580,7 +591,7 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
                 } else {
                     chunked_array_from_values!(name, values; Option<i64>, Int64Type)
                 };
-                Ok(Series(TimeChunked::from(ca).into_series()))
+                Ok(Series(ca.into_time().into_series()))
             }
             ValueType::DateTime => {
                 let ca = if nullable {
@@ -588,7 +599,7 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
                 } else {
                     chunked_array_from_values!(name, values; Option<i64>, Int64Type)
                 };
-                let s = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+                let s = ca.into_datetime(TimeUnit::Nanoseconds, None).into_series();
                 Ok(Series(s))
             }
             ValueType::Decimal => sfv!(nullable; name, values; Decimal, ObjectTypeDecimal),
@@ -625,9 +636,9 @@ fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> 
             let s = TimeChunked::from(ca).into_series();
             Ok(Series(s))
         }
-        DataType::Datetime(TimeUnit::Milliseconds, None) => {
+        DataType::Datetime(TimeUnit::Nanoseconds, None) => {
             let ca = Int64Chunked::from_vec(field.name(), vec![]);
-            let s = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+            let s = ca.into_datetime(TimeUnit::Nanoseconds, None).into_series();
             Ok(Series(s))
         }
         DataType::Object(DECIMAL) => sfv!(nullable; field.name(); Decimal, ObjectTypeDecimal),
@@ -637,6 +648,10 @@ fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> 
         _ => unimplemented!(),
     }
 }
+
+// ================================================================================================
+// IntoIterator impls
+// ================================================================================================
 
 /// Series IntoIterator implementation
 impl IntoIterator for Series {

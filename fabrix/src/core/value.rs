@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 use crate::CoreError;
 
 use super::{
-    impl_custom_value, impl_custom_value2, impl_try_from_value, impl_value_from, BYTES, DECIMAL,
-    UUID,
+    impl_custom_value, impl_custom_value2, impl_try_from_value, impl_value_from, BYTES,
+    DAYS19700101, DECIMAL, NANO10E9, UUID,
 };
 
 /// pub type D1<T>
@@ -35,6 +35,10 @@ pub type ObjectTypeUuid = ObjectType<Uuid>;
 pub type ObjectTypeDecimal = ObjectType<Decimal>;
 /// pub type Bytes
 pub type ObjectTypeBytes = ObjectType<Bytes>;
+
+// ================================================================================================
+// Custom types and impls
+// ================================================================================================
 
 /// Custom Value: Decimal
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
@@ -72,6 +76,11 @@ impl From<String> for Bytes {
     }
 }
 
+// ================================================================================================
+// Value & ValueType
+// - conversions among other value types
+// ================================================================================================
+
 /// Value is the fundamental element in Fabrix.
 /// Providing type conversion between Rust/external type and polars `AnyValue`.
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
@@ -87,10 +96,10 @@ pub enum Value {
     I64(i64),
     F32(f32),
     F64(f64),
-    String(String),
     Date(i32),
     Time(i64),
     DateTime(i64),
+    String(String),
     Decimal(Decimal),
     Uuid(Uuid),
     Bytes(Bytes),
@@ -116,10 +125,10 @@ pub enum ValueType {
     I64,
     F32,
     F64,
-    String,
     Date,
     Time,
     DateTime,
+    String,
     Decimal,
     Uuid,
     Bytes,
@@ -155,10 +164,10 @@ impl From<&Value> for ValueType {
             Value::I64(_) => ValueType::I64,
             Value::F32(_) => ValueType::F32,
             Value::F64(_) => ValueType::F64,
-            Value::String(_) => ValueType::String,
             Value::Date(_) => ValueType::Date,
             Value::Time(_) => ValueType::Time,
             Value::DateTime(_) => ValueType::DateTime,
+            Value::String(_) => ValueType::String,
             Value::Decimal(_) => ValueType::Decimal,
             Value::Uuid(_) => ValueType::Uuid,
             Value::Bytes(_) => ValueType::Bytes,
@@ -181,10 +190,10 @@ impl AsRef<ValueType> for Value {
             Value::I64(_) => &ValueType::I64,
             Value::F32(_) => &ValueType::F32,
             Value::F64(_) => &ValueType::F64,
-            Value::String(_) => &ValueType::String,
             Value::Date(_) => &ValueType::Date,
             Value::Time(_) => &ValueType::Time,
             Value::DateTime(_) => &ValueType::DateTime,
+            Value::String(_) => &ValueType::String,
             Value::Decimal(_) => &ValueType::Decimal,
             Value::Uuid(_) => &ValueType::Uuid,
             Value::Bytes(_) => &ValueType::Bytes,
@@ -213,10 +222,10 @@ impl std::fmt::Display for Value {
             Value::I64(v) => write!(f, "{:?}", v),
             Value::F32(v) => write!(f, "{:?}", v),
             Value::F64(v) => write!(f, "{:?}", v),
-            Value::String(v) => f.write_str(v),
             Value::Date(v) => write!(f, "{:?}", v),
             Value::Time(v) => write!(f, "{:?}", v),
             Value::DateTime(v) => write!(f, "{:?}", v),
+            Value::String(v) => f.write_str(v),
             Value::Decimal(v) => write!(f, "{:?}", v.0),
             Value::Uuid(v) => write!(f, "{:?}", v.0),
             Value::Bytes(v) => write!(f, "{:?}", v.0),
@@ -239,10 +248,10 @@ impl From<&Value> for DataType {
             Value::I64(_) => DataType::Int64,
             Value::F32(_) => DataType::Float32,
             Value::F64(_) => DataType::Float64,
-            Value::String(_) => DataType::Utf8,
             Value::Date(_) => DataType::Date,
             Value::Time(_) => DataType::Time,
-            Value::DateTime(_) => DataType::Datetime(TimeUnit::Milliseconds, None),
+            Value::DateTime(_) => DataType::Datetime(TimeUnit::Nanoseconds, None),
+            Value::String(_) => DataType::Utf8,
             Value::Decimal(_) => DataType::Object(DECIMAL),
             Value::Uuid(_) => DataType::Object(UUID),
             Value::Bytes(_) => DataType::Object(BYTES),
@@ -271,10 +280,10 @@ impl From<&ValueType> for DataType {
             ValueType::I64 => DataType::Int64,
             ValueType::F32 => DataType::Float32,
             ValueType::F64 => DataType::Float64,
-            ValueType::String => DataType::Utf8,
             ValueType::Date => DataType::Date,
             ValueType::Time => DataType::Time,
-            ValueType::DateTime => DataType::Datetime(TimeUnit::Milliseconds, None),
+            ValueType::DateTime => DataType::Datetime(TimeUnit::Nanoseconds, None),
+            ValueType::String => DataType::Utf8,
             ValueType::Decimal => DataType::Object(DECIMAL),
             ValueType::Uuid => DataType::Object(UUID),
             ValueType::Bytes => DataType::Object(BYTES),
@@ -297,10 +306,10 @@ impl From<&DataType> for &ValueType {
             DataType::Int64 => &ValueType::I64,
             DataType::Float32 => &ValueType::F32,
             DataType::Float64 => &ValueType::F64,
-            DataType::Utf8 => &ValueType::String,
             DataType::Date => &ValueType::Date,
             DataType::Time => &ValueType::Time,
-            DataType::Datetime(TimeUnit::Milliseconds, None) => &ValueType::DateTime,
+            DataType::Datetime(TimeUnit::Nanoseconds, None) => &ValueType::DateTime,
+            DataType::Utf8 => &ValueType::String,
             DataType::Object(DECIMAL) => &ValueType::Decimal,
             DataType::Object(UUID) => &ValueType::Uuid,
             DataType::Object(BYTES) => &ValueType::Bytes,
@@ -330,10 +339,10 @@ impl AsRef<ValueType> for DataType {
             DataType::Int64 => &ValueType::I64,
             DataType::Float32 => &ValueType::F32,
             DataType::Float64 => &ValueType::F64,
-            DataType::Utf8 => &ValueType::String,
             DataType::Date => &ValueType::Date,
             DataType::Time => &ValueType::Time,
-            DataType::Datetime(TimeUnit::Milliseconds, None) => &ValueType::DateTime,
+            DataType::Datetime(TimeUnit::Nanoseconds, None) => &ValueType::DateTime,
+            DataType::Utf8 => &ValueType::String,
             DataType::Object(DECIMAL) => &ValueType::Decimal,
             DataType::Object(UUID) => &ValueType::Uuid,
             DataType::Object(BYTES) => &ValueType::Bytes,
@@ -357,10 +366,10 @@ impl AsRef<DataType> for ValueType {
             ValueType::I64 => &DataType::Int64,
             ValueType::F32 => &DataType::Float32,
             ValueType::F64 => &DataType::Float64,
-            ValueType::String => &DataType::Utf8,
             ValueType::Date => &DataType::Date,
             ValueType::Time => &DataType::Time,
-            ValueType::DateTime => &DataType::Datetime(TimeUnit::Milliseconds, None),
+            ValueType::DateTime => &DataType::Datetime(TimeUnit::Nanoseconds, None),
+            ValueType::String => &DataType::Utf8,
             ValueType::Decimal => &DataType::Object(DECIMAL),
             ValueType::Uuid => &DataType::Object(UUID),
             ValueType::Bytes => &DataType::Object(BYTES),
@@ -383,10 +392,10 @@ impl From<&DataType> for ValueType {
             DataType::Int64 => ValueType::I64,
             DataType::Float32 => ValueType::F32,
             DataType::Float64 => ValueType::F64,
-            DataType::Utf8 => ValueType::String,
             DataType::Date => ValueType::Date,
             DataType::Time => ValueType::Time,
-            DataType::Datetime(TimeUnit::Milliseconds, None) => ValueType::DateTime,
+            DataType::Datetime(TimeUnit::Nanoseconds, None) => ValueType::DateTime,
+            DataType::Utf8 => ValueType::String,
             DataType::Object(DECIMAL) => ValueType::Decimal,
             DataType::Object(UUID) => ValueType::Uuid,
             DataType::Object(BYTES) => ValueType::Bytes,
@@ -450,10 +459,10 @@ impl From<&Value> for Field {
             Value::I64(_) => Field::new("", DataType::Int64),
             Value::F32(_) => Field::new("", DataType::Float32),
             Value::F64(_) => Field::new("", DataType::Float64),
-            Value::String(_) => Field::new("", DataType::Utf8),
             Value::Date(_) => Field::new("", DataType::Date),
             Value::Time(_) => Field::new("", DataType::Time),
-            Value::DateTime(_) => Field::new("", DataType::Datetime(TimeUnit::Milliseconds, None)),
+            Value::DateTime(_) => Field::new("", DataType::Datetime(TimeUnit::Nanoseconds, None)),
+            Value::String(_) => Field::new("", DataType::Utf8),
             Value::Decimal(_) => Field::new("", DataType::Object(DECIMAL)),
             Value::Uuid(_) => Field::new("", DataType::Object(UUID)),
             Value::Bytes(_) => Field::new("", DataType::Object(BYTES)),
@@ -482,10 +491,10 @@ impl From<&ValueType> for Field {
             ValueType::I64 => Field::new("", DataType::Int64),
             ValueType::F32 => Field::new("", DataType::Float32),
             ValueType::F64 => Field::new("", DataType::Float64),
-            ValueType::String => Field::new("", DataType::Utf8),
             ValueType::Date => Field::new("", DataType::Date),
             ValueType::Time => Field::new("", DataType::Time),
-            ValueType::DateTime => Field::new("", DataType::Datetime(TimeUnit::Milliseconds, None)),
+            ValueType::DateTime => Field::new("", DataType::Datetime(TimeUnit::Nanoseconds, None)),
+            ValueType::String => Field::new("", DataType::Utf8),
             ValueType::Decimal => Field::new("", DataType::Object(DECIMAL)),
             ValueType::Uuid => Field::new("", DataType::Object(UUID)),
             ValueType::Bytes => Field::new("", DataType::Object(BYTES)),
@@ -558,6 +567,9 @@ impl<'a> From<AnyValue<'a>> for Value {
             AnyValue::Int64(v) => Value::I64(v),
             AnyValue::Float32(v) => Value::F32(v),
             AnyValue::Float64(v) => Value::F64(v),
+            AnyValue::Date(v) => Value::Date(v),
+            AnyValue::Time(v) => Value::Time(v),
+            AnyValue::Datetime(v, TimeUnit::Nanoseconds, None) => Value::DateTime(v),
             AnyValue::Object(v) => v.into(),
             _ => unimplemented!(),
         }
@@ -582,7 +594,7 @@ impl<'a> From<&'a Value> for AnyValue<'a> {
             Value::String(v) => AnyValue::Utf8(v),
             Value::Date(v) => AnyValue::Date(*v),
             Value::Time(v) => AnyValue::Time(*v),
-            Value::DateTime(v) => AnyValue::Datetime(*v, TimeUnit::Milliseconds, &None::<String>),
+            Value::DateTime(v) => AnyValue::Datetime(*v, TimeUnit::Nanoseconds, &None::<String>),
             Value::Decimal(v) => AnyValue::Object(v),
             Value::Uuid(v) => AnyValue::Object(v),
             Value::Bytes(v) => AnyValue::Object(v),
@@ -591,7 +603,9 @@ impl<'a> From<&'a Value> for AnyValue<'a> {
     }
 }
 
-// From value to `Value`
+// ================================================================================================
+// From X to `Value`
+// ================================================================================================
 
 impl_value_from!(bool, Bool);
 impl_value_from!(String, String);
@@ -608,19 +622,19 @@ impl_value_from!(f64, F64);
 
 impl From<NaiveDate> for Value {
     fn from(v: NaiveDate) -> Self {
-        Value::Date(v.num_days_from_ce())
+        Value::Date(v.num_days_from_ce() - DAYS19700101)
     }
 }
 
 impl From<NaiveTime> for Value {
     fn from(v: NaiveTime) -> Self {
-        Value::Time(v.num_seconds_from_midnight().into())
+        Value::Time(v.num_seconds_from_midnight() as i64 * NANO10E9)
     }
 }
 
 impl From<NaiveDateTime> for Value {
     fn from(v: NaiveDateTime) -> Self {
-        Value::DateTime(v.timestamp())
+        Value::DateTime(v.timestamp_nanos())
     }
 }
 
@@ -631,7 +645,9 @@ impl_value_from!(uuid::Uuid, Uuid, Uuid);
 impl_value_from!(Bytes, Bytes);
 impl_value_from!(Vec<u8>, Bytes, Bytes);
 
-// From Option<value> to `Value`
+// ================================================================================================
+// From Option<X> to `Value`
+// ================================================================================================
 
 impl_value_from!(Option<bool>, Bool);
 impl_value_from!(Option<String>, String);
@@ -649,7 +665,7 @@ impl_value_from!(Option<f64>, F64);
 impl From<Option<NaiveDate>> for Value {
     fn from(v: Option<NaiveDate>) -> Self {
         match v {
-            Some(v) => Value::Date(v.num_days_from_ce()),
+            Some(v) => Value::Date(v.num_days_from_ce() - DAYS19700101),
             None => Value::Null,
         }
     }
@@ -658,7 +674,7 @@ impl From<Option<NaiveDate>> for Value {
 impl From<Option<NaiveTime>> for Value {
     fn from(v: Option<NaiveTime>) -> Self {
         match v {
-            Some(v) => Value::Time(v.num_seconds_from_midnight().into()),
+            Some(v) => Value::Time(v.num_seconds_from_midnight() as i64 * NANO10E9),
             None => Value::Null,
         }
     }
@@ -667,7 +683,7 @@ impl From<Option<NaiveTime>> for Value {
 impl From<Option<NaiveDateTime>> for Value {
     fn from(v: Option<NaiveDateTime>) -> Self {
         match v {
-            Some(v) => Value::DateTime(v.timestamp()),
+            Some(v) => Value::DateTime(v.timestamp_nanos()),
             None => Value::Null,
         }
     }
@@ -695,7 +711,9 @@ impl From<Option<&str>> for Value {
     }
 }
 
-// TryFrom `Value` to value
+// ================================================================================================
+// TryFrom `Value` to X
+// ================================================================================================
 
 impl_try_from_value!(Bool, bool, "bool");
 impl_try_from_value!(String, String, "String");
@@ -705,8 +723,6 @@ impl_try_from_value!(U32, u32, "u32");
 impl_try_from_value!(U64, u64, "u64");
 impl_try_from_value!(I8, i8, "i8");
 impl_try_from_value!(I16, i16, "i16");
-// impl_try_from_value!(I32, i32, "i32");
-// impl_try_from_value!(I64, i64, "i64");
 
 impl TryFrom<Value> for i32 {
     type Error = CoreError;
@@ -739,7 +755,9 @@ impl_try_from_value!(Decimal, Decimal, "Decimal");
 impl_try_from_value!(Uuid, Uuid, "Uuid");
 impl_try_from_value!(Bytes, Bytes, "Bytes");
 
-// TryFrom `Value` to Option<value>
+// ================================================================================================
+// TryFrom `Value` to Option<X>
+// ================================================================================================
 
 impl_try_from_value!(Bool, Option<bool>, "Option<bool>");
 impl_try_from_value!(String, Option<String>, "Option<String>");
@@ -749,8 +767,6 @@ impl_try_from_value!(U32, Option<u32>, "Option<u32>");
 impl_try_from_value!(U64, Option<u64>, "Option<u64>");
 impl_try_from_value!(I8, Option<i8>, "Option<i8>");
 impl_try_from_value!(I16, Option<i16>, "Option<i16>");
-// impl_try_from_value!(I32, Option<i32>, "Option<i32>");
-// impl_try_from_value!(I64, Option<i64>, "Option<i64>");
 
 impl TryFrom<Value> for Option<i32> {
     type Error = CoreError;
@@ -878,7 +894,7 @@ mod test_value {
 
         let polars_date = AnyValue::Date(d1);
         let polars_time = AnyValue::Time(t1 as i64);
-        let polars_datetime = AnyValue::Datetime(dt1, TimeUnit::Milliseconds, &None::<String>);
+        let polars_datetime = AnyValue::Datetime(dt1, TimeUnit::Nanoseconds, &None::<String>);
 
         println!("{:?}", polars_date);
         println!("{:?}", polars_time);

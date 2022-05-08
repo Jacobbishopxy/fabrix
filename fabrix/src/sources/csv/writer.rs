@@ -90,7 +90,7 @@ impl<'a> TryFrom<CsvSource<'a>> for Writer<Cursor<Vec<u8>>> {
 #[cfg(test)]
 mod test_csv_writer {
 
-    use crate::fx;
+    use crate::{date, datetime, fx, time};
 
     use super::*;
 
@@ -104,6 +104,9 @@ mod test_csv_writer {
             "id";
             "id" => [1, 2, 3],
             "name" => ["a", "b", "c"],
+            "date" => [date!(2020,1,1), date!(2020,1,2), date!(2020,1,3)],
+            "time" => [time!(12,0,0), time!(12,0,1), time!(12,0,2)],
+            "datetime" => [datetime!(2020,1,1,12,0,0), datetime!(2020,1,1,12,0,1), datetime!(2020,1,1,12,0,2)],
         ]
         .unwrap();
 

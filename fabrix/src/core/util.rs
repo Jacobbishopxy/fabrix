@@ -4,6 +4,14 @@
 
 use crate::{CoreError, Value};
 
+/// a general naming for a default FDataFrame index
+pub const IDX: &str = "index";
+pub(crate) const DECIMAL: &str = "Decimal";
+pub(crate) const UUID: &str = "Uuid";
+pub(crate) const BYTES: &str = "Bytes";
+pub(crate) const DAYS19700101: i32 = 719_163;
+pub(crate) const NANO10E9: i64 = 1_000_000_000;
+
 /// Used for counting iteration and determining when to stop yielding
 pub struct Stepper {
     pub(crate) len: usize,
@@ -23,12 +31,6 @@ impl Stepper {
         self.step += 1;
     }
 }
-
-/// a general naming for a default FDataFrame index
-pub const IDX: &str = "index";
-pub const DECIMAL: &str = "Decimal";
-pub const UUID: &str = "Uuid";
-pub const BYTES: &str = "Bytes";
 
 /// out of boundary error
 pub(crate) fn oob_err(length: usize, len: usize) -> CoreError {
