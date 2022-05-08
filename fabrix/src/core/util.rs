@@ -26,9 +26,6 @@ impl Stepper {
 
 /// a general naming for a default FDataFrame index
 pub const IDX: &str = "index";
-pub const DATE: &str = "Date";
-pub const TIME: &str = "Time";
-pub const DATETIME: &str = "DateTime";
 pub const DECIMAL: &str = "Decimal";
 pub const UUID: &str = "Uuid";
 pub const BYTES: &str = "Bytes";

@@ -394,7 +394,7 @@ impl Fabrix {
                 let iter = Series(s.clone())
                     .find_indices(index)
                     .into_iter()
-                    .map(|i| i as u32)
+                    .map(|i| i as u64)
                     .collect();
                 let data = self.data.take(&IdxCa::new_vec("idx", iter))?;
 
@@ -474,7 +474,7 @@ impl Fabrix {
                 let idx = Series(s.clone())
                     .find_indices(&idx)
                     .into_iter()
-                    .map(|i| i as u32)
+                    .map(|i| i as u64)
                     .collect();
                 self.data = self.data.take(&IdxCa::new_vec("idx", idx))?;
 

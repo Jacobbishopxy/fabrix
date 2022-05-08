@@ -12,7 +12,7 @@ macro_rules! value {
 #[macro_export]
 macro_rules! date {
     ($year:expr, $month:expr, $day:expr) => {
-        $crate::Date(chrono::NaiveDate::from_ymd($year, $month, $day))
+        chrono::NaiveDate::from_ymd($year, $month, $day)
     };
 }
 
@@ -20,7 +20,7 @@ macro_rules! date {
 #[macro_export]
 macro_rules! time {
     ($hour:expr, $minute:expr, $second:expr) => {
-        $crate::Time(chrono::NaiveTime::from_hms($hour, $minute, $second))
+        chrono::NaiveTime::from_hms($hour, $minute, $second)
     };
 }
 
@@ -28,9 +28,7 @@ macro_rules! time {
 #[macro_export]
 macro_rules! datetime {
     ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
-        $crate::DateTime(
-            chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second),
-        )
+        chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second)
     };
 }
 
@@ -59,7 +57,7 @@ macro_rules! uuid {
 #[macro_export]
 macro_rules! bytes {
     ($string:expr) => {
-        $crate::Bytes::from_str($string)
+        $crate::Bytes::from($string)
     };
 }
 

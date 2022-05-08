@@ -14,7 +14,7 @@ use std::assert_matches::assert_matches;
 use std::str::FromStr;
 
 use fabrix::sql::{sql_adt, SqlEngine, SqlExecutor};
-use fabrix::{fx, xpr_and, xpr_nest, xpr_or, xpr_simple, DateTime};
+use fabrix::{datetime, fx, xpr_and, xpr_nest, xpr_or, xpr_simple};
 
 const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -75,11 +75,11 @@ async fn test_save_fail_if_exists() {
         "ord" => [10,11,12,20,22],
         "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8)],
         "dt" => [
-            DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
+            datetime!(2016, 1, 8, 9, 10, 11),
+            datetime!(2017, 1, 7, 9, 10, 11),
+            datetime!(2018, 1, 6, 9, 10, 11),
+            datetime!(2019, 1, 5, 9, 10, 11),
+            datetime!(2020, 1, 4, 9, 10, 11),
         ]
     ]
     .unwrap();
@@ -121,12 +121,12 @@ async fn test_save_replace() {
         "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8), Some(11.2)],
         "note" => [Some("FS"), Some("OP"), Some("TEC"), None, Some("SS"), None],
         "dt" => [
-            DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
+            datetime!(2016, 1, 8, 9, 10, 11),
+            datetime!(2017, 1, 7, 9, 10, 11),
+            datetime!(2018, 1, 6, 9, 10, 11),
+            datetime!(2019, 1, 5, 9, 10, 11),
+            datetime!(2020, 1, 4, 9, 10, 11),
+            datetime!(2020, 1, 3, 9, 10, 11),
         ]
     ]
     .unwrap();
@@ -168,9 +168,9 @@ async fn test_save_append() {
         "val" => [None, Some(7.1), Some(2.4)],
         "note" => [Some(""), Some("M"), None],
         "dt" => [
-            DateTime(chrono::NaiveDate::from_ymd(2010, 2, 5).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2011, 2, 4).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2012, 2, 3).and_hms(9, 10, 11)),
+            datetime!(2010, 2, 5, 9, 10, 11),
+            datetime!(2011, 2, 4, 9, 10, 11),
+            datetime!(2012, 2, 3, 9, 10, 11),
         ]
     ]
     .unwrap();

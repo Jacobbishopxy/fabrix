@@ -2,9 +2,11 @@
 
 use std::str::FromStr;
 
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use sea_query::Value as SValue;
 
-use crate::{Date, DateTime, Decimal, SqlError, SqlResult, Time, Uuid, Value, ValueType};
+use super::sv_2_v;
+use crate::{Decimal, SqlError, SqlResult, Uuid, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub enum SqlBuilder {
@@ -55,9 +57,19 @@ impl From<Value> for SValue {
             Value::F32(v) => SValue::Float(Some(v)),
             Value::F64(v) => SValue::Double(Some(v)),
             Value::String(v) => SValue::String(Some(Box::new(v))),
-            Value::Date(v) => SValue::ChronoDate(Some(Box::new(v.0))),
-            Value::Time(v) => SValue::ChronoTime(Some(Box::new(v.0))),
-            Value::DateTime(v) => SValue::ChronoDateTime(Some(Box::new(v.0))),
+            Value::Date(v) => {
+                let d = NaiveDate::from_num_days_from_ce(v);
+                SValue::ChronoDate(Some(Box::new(d)))
+            }
+            Value::Time(v) => {
+                let secs = v.try_into().expect("invalid time");
+                let t = NaiveTime::from_num_seconds_from_midnight(secs, 0);
+                SValue::ChronoTime(Some(Box::new(t)))
+            }
+            Value::DateTime(v) => {
+                let dt = NaiveDateTime::from_timestamp(v, 0);
+                SValue::ChronoDateTime(Some(Box::new(dt)))
+            }
             Value::Decimal(v) => SValue::Decimal(Some(Box::new(v.0))),
             Value::Uuid(v) => SValue::Uuid(Some(Box::new(v.0))),
             Value::Bytes(v) => SValue::Bytes(Some(Box::new(v.0))),
@@ -117,9 +129,19 @@ pub(crate) fn try_from_value_to_svalue(
         Value::F32(v) => Ok(SValue::Float(Some(v))),
         Value::F64(v) => Ok(SValue::Double(Some(v))),
         Value::String(v) => Ok(SValue::String(Some(Box::new(v)))),
-        Value::Date(v) => Ok(SValue::ChronoDate(Some(Box::new(v.0)))),
-        Value::Time(v) => Ok(SValue::ChronoTime(Some(Box::new(v.0)))),
-        Value::DateTime(v) => Ok(SValue::ChronoDateTime(Some(Box::new(v.0)))),
+        Value::Date(v) => {
+            let d = NaiveDate::from_num_days_from_ce(v);
+            Ok(SValue::ChronoDate(Some(Box::new(d))))
+        }
+        Value::Time(v) => {
+            let secs = v.try_into().expect("invalid time");
+            let t = NaiveTime::from_num_seconds_from_midnight(secs, 0);
+            Ok(SValue::ChronoTime(Some(Box::new(t))))
+        }
+        Value::DateTime(v) => {
+            let dt = NaiveDateTime::from_timestamp(v, 0);
+            Ok(SValue::ChronoDateTime(Some(Box::new(dt))))
+        }
         Value::Decimal(v) => Ok(SValue::Decimal(Some(Box::new(v.0)))),
         Value::Uuid(v) => Ok(SValue::Uuid(Some(Box::new(v.0)))),
         Value::Bytes(v) => Ok(SValue::Bytes(Some(Box::new(v.0)))),
@@ -134,33 +156,6 @@ pub(crate) fn try_from_value_to_svalue(
             }
         }
     }
-}
-
-/// from `SeaQuery` Value to Value
-macro_rules! sv_2_v {
-    ($option_value:expr, $nullable:ident) => {
-        if $nullable {
-            Ok($crate::value!($option_value))
-        } else {
-            match $option_value {
-                Some(v) => Ok($crate::value!(v)),
-                None => Err($crate::SqlError::new_common_error("unsupported type")),
-            }
-        }
-    };
-    ($option_value:expr, $null_type:ty, $nullable:ident) => {
-        if $nullable {
-            match $option_value {
-                Some(v) => Ok($crate::value!(*v)),
-                None => Ok($crate::value!(None::<$null_type>)),
-            }
-        } else {
-            match $option_value {
-                Some(v) => Ok($crate::value!(*v)),
-                None => Err($crate::SqlError::new_common_error("unsupported type")),
-            }
-        }
-    };
 }
 
 #[allow(dead_code)]
@@ -179,9 +174,9 @@ pub(crate) fn from_svalue_to_value(svalue: SValue, nullable: bool) -> SqlResult<
         SValue::Float(ov) => sv_2_v!(ov, nullable),
         SValue::Double(ov) => sv_2_v!(ov, nullable),
         SValue::String(ov) => sv_2_v!(ov, String, nullable),
-        SValue::ChronoDate(ov) => sv_2_v!(ov, Date, nullable),
-        SValue::ChronoTime(ov) => sv_2_v!(ov, Time, nullable),
-        SValue::ChronoDateTime(ov) => sv_2_v!(ov, DateTime, nullable),
+        SValue::ChronoDate(ov) => sv_2_v!(ov, NaiveDate, nullable),
+        SValue::ChronoTime(ov) => sv_2_v!(ov, NaiveTime, nullable),
+        SValue::ChronoDateTime(ov) => sv_2_v!(ov, NaiveDateTime, nullable),
         SValue::Decimal(ov) => sv_2_v!(ov, Decimal, nullable),
         SValue::Uuid(ov) => sv_2_v!(ov, Uuid, nullable),
         _ => Err(SqlError::new_common_error("unsupported type")),

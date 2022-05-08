@@ -28,6 +28,35 @@ macro_rules! alias {
 
 pub(crate) use alias;
 
+/// from `SeaQuery` Value to Value
+macro_rules! sv_2_v {
+    ($option_value:expr, $nullable:ident) => {
+        if $nullable {
+            Ok($crate::value!($option_value))
+        } else {
+            match $option_value {
+                Some(v) => Ok($crate::value!(v)),
+                None => Err($crate::SqlError::new_common_error("unsupported type")),
+            }
+        }
+    };
+    ($option_value:expr, $null_type:ty, $nullable:ident) => {
+        if $nullable {
+            match $option_value {
+                Some(v) => Ok($crate::value!(*v)),
+                None => Ok($crate::value!(None::<$null_type>)),
+            }
+        } else {
+            match $option_value {
+                Some(v) => Ok($crate::value!(*v)),
+                None => Err($crate::SqlError::new_common_error("unsupported type")),
+            }
+        }
+    };
+}
+
+pub(crate) use sv_2_v;
+
 /// expression macro
 /// `sql_adt::Expression::Conjunction(sql_adt::Conjunction::AND)`
 #[macro_export]
