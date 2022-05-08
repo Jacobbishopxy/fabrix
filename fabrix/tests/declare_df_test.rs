@@ -3,7 +3,7 @@
 #![feature(assert_matches)]
 use std::assert_matches::assert_matches;
 
-use fabrix::{fx, series, DateTime};
+use fabrix::{datetime, fx, series, uuid, Uuid};
 
 /*
 Create a dataframe with specified index column
@@ -19,12 +19,12 @@ fn test_new_df() {
         "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8), Some(11.2)],
         "note" => [Some("FS"), Some("OP"), Some("TEC"), None, Some("SS"), None],
         "dt" => [
-            DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
+            datetime!(2016, 1, 8, 9, 10, 11),
+            datetime!(2017, 1, 7, 9, 10, 11),
+            datetime!(2018, 1, 6, 9, 10, 11),
+            datetime!(2019, 1, 5, 9, 10, 11),
+            datetime!(2020, 1, 4, 9, 10, 11),
+            datetime!(2020, 1, 3, 9, 10, 11),
         ]
     ];
 
@@ -32,7 +32,7 @@ fn test_new_df() {
 
     let df = result_df.unwrap();
 
-    assert_eq!(df.shape(), (6, 4));
+    assert_eq!(df.shape(), (6, 5));
 }
 
 /*
@@ -49,12 +49,12 @@ fn test_df_query() {
         "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8), Some(11.2)],
         "note" => [Some("FS"), Some("OP"), Some("TEC"), None, Some("SS"), None],
         "dt" => [
-            DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
-            DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
+            datetime!(2016, 1, 8, 9, 10, 11),
+            datetime!(2017, 1, 7, 9, 10, 11),
+            datetime!(2018, 1, 6, 9, 10, 11),
+            datetime!(2019, 1, 5, 9, 10, 11),
+            datetime!(2020, 1, 4, 9, 10, 11),
+            datetime!(2020, 1, 3, 9, 10, 11),
         ]
     ]
     .unwrap();
@@ -67,6 +67,8 @@ fn test_df_query() {
 
     let flt = series!([12, 31]);
     println!("{:?}", df.take_rows(&flt));
+
+    println!("{:?}", flt);
 }
 
 /*
@@ -77,15 +79,8 @@ Instead of using `series.take` method, which occurs `not implement` panic, use `
 fn test_obj_chunk() {
     use polars::prelude::{IntoSeries, ObjectChunked};
 
-    let dt = vec![
-        DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
-    ];
-    let arr = ObjectChunked::<DateTime>::new_from_vec("dt", dt);
+    let uuids = vec![uuid!(), uuid!(), uuid!(), uuid!(), uuid!(), uuid!()];
+    let arr = ObjectChunked::<Uuid>::new_from_vec("uuids", uuids);
     let s = arr.into_series();
 
     let mut it = vec![0, 2].into_iter();
@@ -103,15 +98,8 @@ fn test_obj_chunked_arr_take() {
 
     use polars::prelude::{ChunkTake, ChunkedArray, NewChunkedArray, ObjectType, TakeIdx};
 
-    let dt = [
-        DateTime(chrono::NaiveDate::from_ymd(2016, 1, 8).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2017, 1, 7).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2018, 1, 6).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2019, 1, 5).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2020, 1, 4).and_hms(9, 10, 11)),
-        DateTime(chrono::NaiveDate::from_ymd(2020, 1, 3).and_hms(9, 10, 11)),
-    ];
-    let arr = ChunkedArray::<ObjectType<DateTime>>::from_slice("dt", &dt);
+    let uuids = [uuid!(), uuid!(), uuid!(), uuid!(), uuid!(), uuid!()];
+    let arr = ChunkedArray::<ObjectType<Uuid>>::from_slice("uuids", &uuids);
     println!("{:?}", arr);
 
     // TODO: update?

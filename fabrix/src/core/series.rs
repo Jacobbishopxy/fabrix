@@ -36,56 +36,66 @@
 //! 1. remove
 //! 1. remove_slice
 
+use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use itertools::Itertools;
 use polars::prelude::{
-    BooleanChunked, BooleanType, Float32Chunked, Float32Type, Float64Chunked, Float64Type,
-    Int16Chunked, Int16Type, Int32Chunked, Int32Type, Int64Chunked, Int64Type, Int8Chunked,
-    Int8Type, ObjectChunked, TakeRandom, TakeRandomUtf8, UInt16Chunked, UInt16Type, UInt32Chunked,
-    UInt32Type, UInt64Chunked, UInt64Type, UInt8Chunked, UInt8Type, Utf8Chunked, Utf8Type,
+    BooleanChunked, BooleanType, DateChunked, DatetimeChunked, Float32Chunked, Float32Type,
+    Float64Chunked, Float64Type, Int16Chunked, Int16Type, Int32Chunked, Int32Type, Int64Chunked,
+    Int64Type, Int8Chunked, Int8Type, ObjectChunked, TakeRandom, TakeRandomUtf8, TimeChunked,
+    UInt16Chunked, UInt16Type, UInt32Chunked, UInt32Type, UInt64Chunked, UInt64Type, UInt8Chunked,
+    UInt8Type, Utf8Chunked, Utf8Type,
 };
 use polars::prelude::{
-    DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PolarsSeries,
+    DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PolarsSeries, TimeUnit,
 };
 
 use super::{
-    cis_err, impl_named_from, oob_err, s_fn_next, sc_fn_next, series_from_values, sfv, si, sii,
-    tms_err, FieldInfo, ObjectTypeBytes, ObjectTypeDate, ObjectTypeDateTime, ObjectTypeDecimal,
-    ObjectTypeTime, ObjectTypeUuid, Stepper, BYTES, DATE, DATETIME, DECIMAL, IDX, TIME, UUID,
+    chunked_array_from_values, cis_err, impl_named_from_owned, impl_named_from_ref, oob_err,
+    s_fn_next, sc_fn_next, sfv, si, sii, tms_err, FieldInfo, ObjectTypeBytes, ObjectTypeDecimal,
+    ObjectTypeUuid, Stepper, BYTES, DECIMAL, IDX, UUID,
 };
-use crate::{
-    series, value, Bytes, CoreResult, Date, DateTime, Decimal, Time, Uuid, Value, ValueType,
-};
+use crate::{series, value, Bytes, CoreResult, Decimal, Uuid, Value, ValueType};
 
 // Series constructors
 
-impl_named_from!([bool], BooleanType, from_slice);
-impl_named_from!([Option<bool>], BooleanType, from_slice_options);
+impl_named_from_ref!([bool], BooleanType, from_slice);
+impl_named_from_ref!([Option<bool>], BooleanType, from_slice_options);
 
-impl_named_from!([i8], Int8Type, from_slice);
-impl_named_from!([i16], Int16Type, from_slice);
-impl_named_from!([i32], Int32Type, from_slice);
-impl_named_from!([i64], Int64Type, from_slice);
-impl_named_from!([Option<i8>], Int8Type, from_slice_options);
-impl_named_from!([Option<i16>], Int16Type, from_slice_options);
-impl_named_from!([Option<i32>], Int32Type, from_slice_options);
-impl_named_from!([Option<i64>], Int64Type, from_slice_options);
+impl_named_from_ref!([i8], Int8Type, from_slice);
+impl_named_from_owned!(Vec<i8>, Int8Type);
+impl_named_from_ref!([i16], Int16Type, from_slice);
+impl_named_from_owned!(Vec<i16>, Int16Type);
+impl_named_from_ref!([i32], Int32Type, from_slice);
+impl_named_from_owned!(Vec<i32>, Int32Type);
+impl_named_from_ref!([i64], Int64Type, from_slice);
+impl_named_from_owned!(Vec<i64>, Int64Type);
+impl_named_from_ref!([Option<i8>], Int8Type, from_slice_options);
+impl_named_from_ref!([Option<i16>], Int16Type, from_slice_options);
+impl_named_from_ref!([Option<i32>], Int32Type, from_slice_options);
+impl_named_from_ref!([Option<i64>], Int64Type, from_slice_options);
 
-impl_named_from!([u8], UInt8Type, from_slice);
-impl_named_from!([u16], UInt16Type, from_slice);
-impl_named_from!([u32], UInt32Type, from_slice);
-impl_named_from!([u64], UInt64Type, from_slice);
-impl_named_from!([Option<u8>], UInt8Type, from_slice_options);
-impl_named_from!([Option<u16>], UInt16Type, from_slice_options);
-impl_named_from!([Option<u32>], UInt32Type, from_slice_options);
-impl_named_from!([Option<u64>], UInt64Type, from_slice_options);
+impl_named_from_ref!([u8], UInt8Type, from_slice);
+impl_named_from_owned!(Vec<u8>, UInt8Type);
+impl_named_from_ref!([u16], UInt16Type, from_slice);
+impl_named_from_owned!(Vec<u16>, UInt16Type);
+impl_named_from_ref!([u32], UInt32Type, from_slice);
+impl_named_from_owned!(Vec<u32>, UInt32Type);
+impl_named_from_ref!([u64], UInt64Type, from_slice);
+impl_named_from_owned!(Vec<u64>, UInt64Type);
+impl_named_from_ref!([Option<u8>], UInt8Type, from_slice_options);
+impl_named_from_ref!([Option<u16>], UInt16Type, from_slice_options);
+impl_named_from_ref!([Option<u32>], UInt32Type, from_slice_options);
+impl_named_from_ref!([Option<u64>], UInt64Type, from_slice_options);
 
-impl_named_from!([f32], Float32Type, from_slice);
-impl_named_from!([f64], Float64Type, from_slice);
-impl_named_from!([Option<f32>], Float32Type, from_slice_options);
-impl_named_from!([Option<f64>], Float64Type, from_slice_options);
+impl_named_from_ref!([f32], Float32Type, from_slice);
+impl_named_from_owned!(Vec<f32>, Float32Type);
+impl_named_from_ref!([f64], Float64Type, from_slice);
+impl_named_from_owned!(Vec<f64>, Float64Type);
+impl_named_from_ref!([Option<f32>], Float32Type, from_slice_options);
+impl_named_from_ref!([Option<f64>], Float64Type, from_slice_options);
 
-impl_named_from!([String], Utf8Type, from_slice);
-impl_named_from!([Option<String>], Utf8Type, from_slice_options);
+impl_named_from_ref!([String], Utf8Type, from_slice);
+impl_named_from_ref!([Option<String>], Utf8Type, from_slice_options);
 
 impl<'a, T: AsRef<[&'a str]>> NamedFrom<T, [&'a str]> for Series {
     fn new(name: &str, v: T) -> Self {
@@ -100,20 +110,85 @@ impl<'a, T: AsRef<[Option<&'a str>]>> NamedFrom<T, [Option<&'a str>]> for Series
     }
 }
 
-impl_named_from!([Date], ObjectTypeDate, from_slice);
-impl_named_from!([Option<Date>], ObjectTypeDate, from_slice_options);
+impl<T: AsRef<[NaiveDate]>> NamedFrom<T, [NaiveDate]> for Series {
+    fn new(name: &str, v: T) -> Self {
+        let v = v
+            .as_ref()
+            .iter()
+            .map(|i| i.num_days_from_ce())
+            .collect::<Vec<_>>();
+        let ca = Int32Chunked::from_slice(name, v.as_ref());
+        let polars_series = DateChunked::from(ca).into_series();
+        Series(polars_series)
+    }
+}
 
-impl_named_from!([Time], ObjectTypeTime, from_slice);
-impl_named_from!([Option<Time>], ObjectTypeTime, from_slice_options);
+impl<T: AsRef<[Option<NaiveDate>]>> NamedFrom<T, [Option<NaiveDate>]> for Series {
+    fn new(name: &str, v: T) -> Self {
+        let v = v
+            .as_ref()
+            .iter()
+            .map(|oi| oi.map(|i| i.num_days_from_ce()))
+            .collect::<Vec<_>>();
+        let ca = Int32Chunked::from_slice_options(name, v.as_ref());
+        let polars_series = DateChunked::from(ca).into_series();
+        Series(polars_series)
+    }
+}
 
-impl_named_from!([DateTime], ObjectTypeDateTime, from_slice);
-impl_named_from!([Option<DateTime>], ObjectTypeDateTime, from_slice_options);
+impl<T: AsRef<[NaiveTime]>> NamedFrom<T, [NaiveTime]> for Series {
+    fn new(name: &str, v: T) -> Self {
+        let v = v
+            .as_ref()
+            .iter()
+            .map(|i| i.num_seconds_from_midnight() as i64)
+            .collect::<Vec<_>>();
+        let ca = Int64Chunked::from_slice(name, v.as_ref());
+        let polars_series = TimeChunked::from(ca).into_series();
+        Series(polars_series)
+    }
+}
 
-impl_named_from!([Decimal], ObjectTypeDecimal, from_slice);
-impl_named_from!([Option<Decimal>], ObjectTypeDecimal, from_slice_options);
+impl<T: AsRef<[Option<NaiveTime>]>> NamedFrom<T, [Option<NaiveTime>]> for Series {
+    fn new(name: &str, v: T) -> Self {
+        let v = v
+            .as_ref()
+            .iter()
+            .map(|oi| oi.map(|i| i.num_seconds_from_midnight() as i64))
+            .collect::<Vec<_>>();
+        let ca = Int64Chunked::from_slice_options(name, v.as_ref());
+        let polars_series = TimeChunked::from(ca).into_series();
+        Series(polars_series)
+    }
+}
 
-impl_named_from!([Uuid], ObjectTypeUuid, from_slice);
-impl_named_from!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
+impl<T: AsRef<[NaiveDateTime]>> NamedFrom<T, [NaiveDateTime]> for Series {
+    fn new(name: &str, v: T) -> Self {
+        let v = v.as_ref().iter().map(|i| i.timestamp()).collect::<Vec<_>>();
+        let ca = Int64Chunked::from_slice(name, v.as_ref());
+        let polars_series = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+        Series(polars_series)
+    }
+}
+
+impl<T: AsRef<[Option<NaiveDateTime>]>> NamedFrom<T, [Option<NaiveDateTime>]> for Series {
+    fn new(name: &str, v: T) -> Self {
+        let v = v
+            .as_ref()
+            .iter()
+            .map(|oi| oi.map(|i| i.timestamp()))
+            .collect::<Vec<_>>();
+        let ca = Int64Chunked::from_slice_options(name, v.as_ref());
+        let polars_series = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+        Series(polars_series)
+    }
+}
+
+impl_named_from_ref!([Decimal], ObjectTypeDecimal, from_slice);
+impl_named_from_ref!([Option<Decimal>], ObjectTypeDecimal, from_slice_options);
+
+impl_named_from_ref!([Uuid], ObjectTypeUuid, from_slice);
+impl_named_from_ref!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
 
 /// Series is a data structure used in Fabrix crate, it wrapped `polars` Series and provides
 /// additional customized functionalities
@@ -491,9 +566,31 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
             ValueType::I64 => sfv!(nullable; name, values; i64, Int64Type),
             ValueType::F32 => sfv!(nullable; name, values; f32, Float32Type),
             ValueType::F64 => sfv!(nullable; name, values; f64, Float64Type),
-            ValueType::Date => sfv!(nullable; name, values; Date, ObjectTypeDate),
-            ValueType::Time => sfv!(nullable; name, values; Time, ObjectTypeTime),
-            ValueType::DateTime => sfv!(nullable; name, values; DateTime, ObjectTypeDateTime),
+            ValueType::Date => {
+                let ca = if nullable {
+                    chunked_array_from_values!(name, values; i32, Int32Type)
+                } else {
+                    chunked_array_from_values!(name, values; Option<i32>, Int32Type)
+                };
+                Ok(Series(DateChunked::from(ca).into_series()))
+            }
+            ValueType::Time => {
+                let ca = if nullable {
+                    chunked_array_from_values!(name, values; i64, Int64Type)
+                } else {
+                    chunked_array_from_values!(name, values; Option<i64>, Int64Type)
+                };
+                Ok(Series(TimeChunked::from(ca).into_series()))
+            }
+            ValueType::DateTime => {
+                let ca = if nullable {
+                    chunked_array_from_values!(name, values; i64, Int64Type)
+                } else {
+                    chunked_array_from_values!(name, values; Option<i64>, Int64Type)
+                };
+                let s = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+                Ok(Series(s))
+            }
             ValueType::Decimal => sfv!(nullable; name, values; Decimal, ObjectTypeDecimal),
             ValueType::Uuid => sfv!(nullable; name, values; Uuid, ObjectTypeUuid),
             ValueType::Bytes => sfv!(nullable; name, values; Bytes, ObjectTypeBytes),
@@ -518,9 +615,21 @@ fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> 
         DataType::Int64 => sfv!(nullable; field.name(); i64, Int64Type),
         DataType::Float32 => sfv!(nullable; field.name(); f32, Float32Type),
         DataType::Float64 => sfv!(nullable; field.name(); f64, Float64Type),
-        DataType::Object(DATE) => sfv!(nullable; field.name(); Date, ObjectTypeDate),
-        DataType::Object(TIME) => sfv!(nullable; field.name(); Time, ObjectTypeTime),
-        DataType::Object(DATETIME) => sfv!(nullable; field.name(); DateTime, ObjectTypeDateTime),
+        DataType::Date => {
+            let ca = Int32Chunked::from_vec(field.name(), vec![]);
+            let s = DateChunked::from(ca).into_series();
+            Ok(Series(s))
+        }
+        DataType::Time => {
+            let ca = Int64Chunked::from_vec(field.name(), vec![]);
+            let s = TimeChunked::from(ca).into_series();
+            Ok(Series(s))
+        }
+        DataType::Datetime(TimeUnit::Milliseconds, None) => {
+            let ca = Int64Chunked::from_vec(field.name(), vec![]);
+            let s = ca.into_datetime(TimeUnit::Milliseconds, None).into_series();
+            Ok(Series(s))
+        }
         DataType::Object(DECIMAL) => sfv!(nullable; field.name(); Decimal, ObjectTypeDecimal),
         DataType::Object(UUID) => sfv!(nullable; field.name(); Uuid, ObjectTypeUuid),
         DataType::Object(BYTES) => sfv!(nullable; field.name(); Bytes, ObjectTypeBytes),
@@ -548,9 +657,9 @@ impl IntoIterator for Series {
             ValueType::F32 => sii!(self.0.f32(), F32),
             ValueType::F64 => sii!(self.0.f64(), F64),
             ValueType::String => sii!(self.0.utf8(), String),
-            ValueType::Date => sii!(self.0.as_any(), Date, Date),
-            ValueType::Time => sii!(self.0.as_any(), Time, Time),
-            ValueType::DateTime => sii!(self.0.as_any(), DateTime, DateTime),
+            ValueType::Date => sii!(self.0.date(), Date),
+            ValueType::Time => sii!(self.0.time(), Time),
+            ValueType::DateTime => sii!(self.0.datetime(), DateTime),
             ValueType::Decimal => sii!(self.0.as_any(), Decimal, Decimal),
             ValueType::Uuid => sii!(self.0.as_any(), Uuid, Uuid),
             ValueType::Bytes => sii!(self.0.as_any(), Bytes, Bytes),
@@ -574,9 +683,9 @@ pub enum SeriesIntoIterator {
     F32(Float32Chunked, Stepper),
     F64(Float64Chunked, Stepper),
     String(Utf8Chunked, Stepper),
-    Date(ObjectChunked<Date>, Stepper),
-    Time(ObjectChunked<Time>, Stepper),
-    DateTime(ObjectChunked<DateTime>, Stepper),
+    Date(DateChunked, Stepper),
+    Time(TimeChunked, Stepper),
+    DateTime(DatetimeChunked, Stepper),
     Decimal(ObjectChunked<Decimal>, Stepper),
     Uuid(ObjectChunked<Uuid>, Stepper),
     Bytes(ObjectChunked<Bytes>, Stepper),
@@ -600,9 +709,9 @@ impl Iterator for SeriesIntoIterator {
             SeriesIntoIterator::F32(arr, s) => s_fn_next!(arr, s),
             SeriesIntoIterator::F64(arr, s) => s_fn_next!(arr, s),
             SeriesIntoIterator::String(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::Date(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIntoIterator::Time(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIntoIterator::DateTime(ref arr, s) => sc_fn_next!(arr, s),
+            SeriesIntoIterator::Date(arr, s) => s_fn_next!(arr, s),
+            SeriesIntoIterator::Time(arr, s) => s_fn_next!(arr, s),
+            SeriesIntoIterator::DateTime(arr, s) => s_fn_next!(arr, s),
             SeriesIntoIterator::Decimal(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIntoIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIntoIterator::Bytes(ref arr, s) => sc_fn_next!(arr, s),
@@ -628,9 +737,9 @@ impl<'a> IntoIterator for &'a Series {
             ValueType::F32 => si!(self.0.f32(), F32),
             ValueType::F64 => si!(self.0.f64(), F64),
             ValueType::String => si!(self.0.utf8(), String),
-            ValueType::Date => si!(self.0.as_any(), Date, Date),
-            ValueType::Time => si!(self.0.as_any(), Time, Time),
-            ValueType::DateTime => si!(self.0.as_any(), DateTime, DateTime),
+            ValueType::Date => si!(self.0.date(), Date),
+            ValueType::Time => si!(self.0.time(), Time),
+            ValueType::DateTime => si!(self.0.datetime(), DateTime),
             ValueType::Decimal => si!(self.0.as_any(), Decimal, Decimal),
             ValueType::Uuid => si!(self.0.as_any(), Uuid, Uuid),
             ValueType::Bytes => si!(self.0.as_any(), Bytes, Bytes),
@@ -654,9 +763,9 @@ pub enum SeriesIterator<'a> {
     F32(&'a Float32Chunked, Stepper),
     F64(&'a Float64Chunked, Stepper),
     String(&'a Utf8Chunked, Stepper),
-    Date(&'a ObjectChunked<Date>, Stepper),
-    Time(&'a ObjectChunked<Time>, Stepper),
-    DateTime(&'a ObjectChunked<DateTime>, Stepper),
+    Date(&'a DateChunked, Stepper),
+    Time(&'a TimeChunked, Stepper),
+    DateTime(&'a DatetimeChunked, Stepper),
     Decimal(&'a ObjectChunked<Decimal>, Stepper),
     Uuid(&'a ObjectChunked<Uuid>, Stepper),
     Bytes(&'a ObjectChunked<Bytes>, Stepper),
@@ -680,9 +789,9 @@ impl<'a> Iterator for SeriesIterator<'a> {
             SeriesIterator::F32(arr, s) => s_fn_next!(arr, s),
             SeriesIterator::F64(arr, s) => s_fn_next!(arr, s),
             SeriesIterator::String(arr, s) => s_fn_next!(arr, s),
-            SeriesIterator::Date(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIterator::Time(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIterator::DateTime(ref arr, s) => sc_fn_next!(arr, s),
+            SeriesIterator::Date(arr, s) => s_fn_next!(arr, s),
+            SeriesIterator::Time(arr, s) => s_fn_next!(arr, s),
+            SeriesIterator::DateTime(arr, s) => s_fn_next!(arr, s),
             SeriesIterator::Decimal(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIterator::Bytes(ref arr, s) => sc_fn_next!(arr, s),
@@ -692,8 +801,6 @@ impl<'a> Iterator for SeriesIterator<'a> {
 
 #[cfg(test)]
 mod test_fabrix_series {
-
-    use polars::prelude::NamedFrom;
 
     use super::*;
     use crate::{date, series, value};
@@ -779,16 +886,16 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_props() {
-        let s = series!("yes" => &[Some(1), None, Some(2)]);
+        let s = series!("yes" => [Some(1), None, Some(2)]);
         assert!(s.has_null());
 
-        let s = series!("no" => &[Some(1), Some(3), Some(2)]);
+        let s = series!("no" => [Some(1), Some(3), Some(2)]);
         assert!(!s.has_null());
 
-        let s = series!("no" => &[1, 3, 2]);
+        let s = series!("no" => [1, 3, 2]);
         assert!(!s.has_null());
 
-        let s = series!("no" => &[
+        let s = series!("no" => [
             date!(2019, 1, 1),
             date!(2019, 1, 2),
             date!(2019, 1, 3),
@@ -799,7 +906,7 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_get() {
-        let s = series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
+        let s = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
 
         assert_eq!(s.head(None).unwrap().get(0).unwrap(), value!("Jacob"));
         assert_eq!(s.head(Some(2)).unwrap().len(), 2);
@@ -816,9 +923,9 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_op() {
-        let s = series!("dollars" => &["Jacob", "Sam", "James", "April"]);
+        let s = series!("dollars" => ["Jacob", "Sam", "James", "April"]);
 
-        let flt = series!("cmp" => &["Jacob", "Bob"]);
+        let flt = series!("cmp" => ["Jacob", "Bob"]);
         assert_eq!(s.find_indices(&flt), vec![0]);
 
         let flt = value!("April");
@@ -827,8 +934,8 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_concat() {
-        let mut s1 = series!("dollars" => &["Jacob", "Sam", "James", "April"]);
-        let s2 = series!("other" => &["Julia", "Jack", "John"]);
+        let mut s1 = series!("dollars" => ["Jacob", "Sam", "James", "April"]);
+        let s2 = series!("other" => ["Julia", "Jack", "John"]);
 
         s1.concat(s2).unwrap();
         assert_eq!(s1.len(), 7);
@@ -836,7 +943,7 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_op1() {
-        let mut s1 = series!("dollars" => &["Jacob", "Sam", "James", "April"]);
+        let mut s1 = series!("dollars" => ["Jacob", "Sam", "James", "April"]);
 
         let v1 = value!("Julia");
         s1.push(v1).unwrap();
@@ -863,7 +970,7 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_op2() {
-        let mut s1 = series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Merry", "Justin"]);
+        let mut s1 = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Merry", "Justin"]);
 
         assert_eq!(s1.slice(3, 4).len(), 4);
 
@@ -878,7 +985,7 @@ mod test_fabrix_series {
 
     #[test]
     fn test_series_iteration() {
-        let s = series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
+        let s = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
         let mut iter = s.into_iter();
 
         assert_eq!(iter.next().unwrap(), value!("Jacob"));
@@ -896,8 +1003,7 @@ mod test_fabrix_series {
         use polars::prelude::ChunkApply;
         use std::borrow::Cow;
 
-        let s1 =
-            series!("dollars" => &["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
+        let s1 = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
 
         println!("{:?}", s1);
 

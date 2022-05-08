@@ -213,11 +213,11 @@ pub(crate) use impl_try_from_value;
 ///     }
 /// }
 /// ```
-macro_rules! impl_named_from {
-    ($dtype:ty, $series_var:ident, $method:ident) => {
+macro_rules! impl_named_from_ref {
+    ($dtype:ty, $polars_type:ident, $method:ident) => {
         impl<T: AsRef<$dtype>> polars::prelude::NamedFrom<T, $dtype> for $crate::Series {
             fn new(name: &str, v: T) -> Self {
-                let ps = polars::prelude::ChunkedArray::<$series_var>::$method(name, v.as_ref())
+                let ps = polars::prelude::ChunkedArray::<$polars_type>::$method(name, v.as_ref())
                     .into_series();
                 $crate::Series::from(ps)
             }
@@ -225,68 +225,75 @@ macro_rules! impl_named_from {
     };
 }
 
-pub(crate) use impl_named_from;
+pub(crate) use impl_named_from_ref;
 
-/// new Series from Vec<Value>
+macro_rules! impl_named_from_owned {
+    ($dtype:ty, $polars_type:ident) => {
+        impl polars::prelude::NamedFromOwned<$dtype> for $crate::Series {
+            fn from_vec(name: &str, v: $dtype) -> Self {
+                let ps =
+                    polars::prelude::ChunkedArray::<$polars_type>::from_vec(name, v).into_series();
+                $crate::Series(ps)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_named_from_owned;
+
+/// new polars' ChunkedArray from Vec<Value>
 ///
 /// ```rust
 /// let r = values
 ///     .into_iter()
 ///     .map(|v| bool::try_from(v))
-///     .collect::<DbResult<Vec<_>>>()?;
-/// let s = ChunkedArray::<BooleanType>::new_from_slice(IDX, &r[..]);
-/// Ok(Series(s.into_series()))
+///     .collect::<CoreResult<Vec<_>>>()?;
+/// ChunkedArray::<BooleanType>::new_from_slice(IDX, &r[..])
 /// ```
-macro_rules! series_from_values {
+macro_rules! chunked_array_from_values {
     ($name:expr, $values:expr; Option<$ftype:ty>, $polars_type:ident) => {{
         let r = $values
             .into_iter()
             .map(|v| Option::<$ftype>::try_from(v).unwrap_or(None))
             .collect::<Vec<_>>();
-        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice_options($name, &r[..]);
-
-        Ok(Series(s.into_series()))
+        polars::prelude::ChunkedArray::<$polars_type>::from_slice_options($name, &r[..])
     }};
     ($name:expr, $values:expr; $ftype:ty, $polars_type:ident) => {{
         let r = $values
             .into_iter()
             .map(|v| <$ftype>::try_from(v))
             .collect::<$crate::CoreResult<Vec<_>>>()?;
-        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice($name, &r[..]);
-
-        Ok(Series(s.into_series()))
+        polars::prelude::ChunkedArray::<$polars_type>::from_slice($name, &r[..])
     }};
     ($name:expr; Option<$ftype:ty>, $polars_type:ident) => {{
         let vec: Vec<Option<$ftype>> = vec![];
-        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice_options($name, &vec);
-
-        Ok(Series(s.into_series()))
+        polars::prelude::ChunkedArray::<$polars_type>::from_slice_options($name, &vec)
     }};
     ($name:expr; $ftype:ty, $polars_type:ident) => {{
         let vec: Vec<$ftype> = vec![];
-        let s = polars::prelude::ChunkedArray::<$polars_type>::from_slice($name, &vec);
-
-        Ok(Series(s.into_series()))
+        polars::prelude::ChunkedArray::<$polars_type>::from_slice($name, &vec)
     }};
 }
 
 /// new Series from Vec<Value>, with nullable option
 macro_rules! sfv {
     ($nullable:expr; $name:expr, $values:expr; $ftype:ty, $polars_type:ident) => {{
-        match $nullable {
-            true => series_from_values!($name, $values; Option<$ftype>, $polars_type),
-            false => series_from_values!($name, $values; $ftype, $polars_type),
-        }
+        let s = match $nullable {
+            true => chunked_array_from_values!($name, $values; Option<$ftype>, $polars_type),
+            false => chunked_array_from_values!($name, $values; $ftype, $polars_type),
+        };
+        Ok($crate::Series(s.into_series()))
     }};
     ($nullable:expr; $name:expr; $ftype:ty, $polars_type:ident) => {{
-        match $nullable {
-            true => series_from_values!($name; Option<$ftype>, $polars_type),
-            false => series_from_values!($name; $ftype, $polars_type),
-        }
+        let s = match $nullable {
+            true => chunked_array_from_values!($name; Option<$ftype>, $polars_type),
+            false => chunked_array_from_values!($name; $ftype, $polars_type),
+        };
+        Ok($crate::Series(s.into_series()))
     }};
 }
 
-pub(crate) use series_from_values;
+pub(crate) use chunked_array_from_values;
 pub(crate) use sfv;
 
 /// Series IntoIterator process

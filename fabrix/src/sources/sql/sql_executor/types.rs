@@ -2,11 +2,12 @@
 
 use std::{collections::HashMap, marker::PhantomData};
 
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use itertools::Itertools;
 use sqlx::{mysql::MySqlRow, postgres::PgRow, sqlite::SqliteRow, Row as SRow};
 
 use super::{impl_sql_type_tag_marker, static_sttm_get, tmap_pair};
-use crate::{Date, DateTime, Decimal, SqlBuilder, SqlResult, Time, Uuid, Value, ValueType};
+use crate::{Decimal, SqlBuilder, SqlResult, Uuid, Value, ValueType};
 
 /// type alias
 pub(crate) type OptMarker = Option<&'static dyn SqlTypeTagMarker>;
@@ -107,9 +108,9 @@ impl_sql_type_tag_marker!(i64, I64; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(f32, F32; [Mysql, Pg], MISMATCHED_SQL_ROW);
 impl_sql_type_tag_marker!(f64, F64; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(String, String; [Mysql, Pg, Sqlite]);
-impl_sql_type_tag_marker!(Date <= chrono::NaiveDate, Date; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(Time <= chrono::NaiveTime, Time; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(DateTime <= chrono::NaiveDateTime, DateTime; [Mysql, Pg, Sqlite]);
+impl_sql_type_tag_marker!(NaiveDate, Date; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(NaiveTime, Time; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(NaiveDateTime, DateTime; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(Decimal <= rust_decimal::Decimal, Decimal; [Mysql, Pg], MISMATCHED_SQL_ROW);
 impl_sql_type_tag_marker!(Uuid <= uuid::Uuid, Uuid; [Pg], MISMATCHED_SQL_ROW);
 
@@ -132,10 +133,10 @@ lazy_static::lazy_static! {
             tmap_pair!("VARCHAR", String),
             tmap_pair!("CHAR", String),
             tmap_pair!("TEXT", String),
-            tmap_pair!("TIMESTAMP", DateTime),
-            tmap_pair!("DATETIME", DateTime),
-            tmap_pair!("DATE", Date),
-            tmap_pair!("TIME", Time),
+            tmap_pair!("TIMESTAMP", NaiveDateTime),
+            tmap_pair!("DATETIME", NaiveDateTime),
+            tmap_pair!("DATE", NaiveDate),
+            tmap_pair!("TIME", NaiveTime),
             tmap_pair!("DECIMAL", Decimal),
         ])
     };
@@ -163,10 +164,10 @@ lazy_static::lazy_static! {
             tmap_pair!("CHAR(N)", String),
             tmap_pair!("TEXT", String),
             tmap_pair!("NAME", String),
-            tmap_pair!("TIMESTAMPTZ", DateTime),
-            tmap_pair!("TIMESTAMP", DateTime),
-            tmap_pair!("DATE", Date),
-            tmap_pair!("TIME", Time),
+            tmap_pair!("TIMESTAMPTZ", NaiveDateTime),
+            tmap_pair!("TIMESTAMP", NaiveDateTime),
+            tmap_pair!("DATE", NaiveDate),
+            tmap_pair!("TIME", NaiveTime),
             tmap_pair!("NUMERIC", Decimal),
         ])
     };
@@ -182,7 +183,7 @@ lazy_static::lazy_static! {
             tmap_pair!("VARCHAR", String),
             tmap_pair!("CHAR(N)", String),
             tmap_pair!("TEXT", String),
-            tmap_pair!("DATETIME", DateTime),
+            tmap_pair!("DATETIME", NaiveDateTime),
         ])
     };
 }
@@ -293,9 +294,9 @@ mod test_types {
     use super::*;
 
     #[test]
-    fn test_cmp() {
+    fn test_types_mysql() {
         let mysql_bool = MYSQL_TMAP.get("TINYINT(1)").unwrap();
 
-        println!("{:?}", "TINYINT(1)" == mysql_bool);
+        assert_eq!("TINYINT(1)", mysql_bool.to_str());
     }
 }
