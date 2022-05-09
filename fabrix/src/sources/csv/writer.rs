@@ -94,7 +94,7 @@ mod test_csv_writer {
 
     use super::*;
 
-    const CSV_FILE_PATH: &str = "../mock/write.csv";
+    const CSV_FILE_PATH: &str = "../cache/write.csv";
 
     #[test]
     fn file_writer() {

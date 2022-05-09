@@ -4,8 +4,8 @@
 
 pub use super::errors::*;
 pub use crate::core::{
-    Bytes, CoreError, CoreResult, D1Value, D2Value, Decimal, Fabrix, FieldInfo, Row, Schema,
-    Series, Uuid, Value, ValueType, ValueTypes, D1, D2,
+    Bytes, CoreError, CoreResult, D1Value, D2Value, Decimal, Fabrix, FieldInfo, Row, RowFrame,
+    Schema, Series, Uuid, Value, ValueType, ValueTypes, D1, D2,
 };
 
 // sources: db

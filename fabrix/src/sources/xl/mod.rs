@@ -3,11 +3,13 @@
 //! Xl is a module for reading (writing is temporary unsupported) Excel files.
 
 pub mod executor;
+pub mod reader;
 mod util;
 pub mod workbook;
 pub(crate) mod worksheet;
 
 pub use executor::{AsyncConsumeFP, ConvertFP, SyncConsumeFP, XlConsumer, XlExecutor, XlSource};
+pub use reader::*;
 pub use workbook::Workbook;
 pub(crate) use worksheet::SheetReader;
 pub use worksheet::{Cell, ChunkCell, Row, RowIter, VecCell, Worksheet};

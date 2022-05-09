@@ -9,7 +9,7 @@ use crate::FieldInfo;
 /// Schema
 ///
 /// Schema is a subset of DataFrame FieldInfos collection.
-#[derive(PartialEq, Eq, Clone, Default)]
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
 pub struct Schema(PolarsSchema);
 
 impl Schema {

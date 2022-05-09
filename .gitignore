@@ -14,3 +14,6 @@ target/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+/cache/*
+!/cache/.gitkeep

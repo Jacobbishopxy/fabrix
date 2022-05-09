@@ -6,40 +6,40 @@ use async_trait::async_trait;
 
 use crate::{Fabrix, FabrixResult};
 
-pub trait ReadOptions<ReaderTag>: Send {}
+pub trait ReadOptions<Tag>: Send {}
 
-pub trait WriteOptions<WriterTag>: Send {}
+pub trait WriteOptions<Tag>: Send {}
 
 #[async_trait]
-pub trait FromSource<ReaderTag> {
+pub trait FromSource<Tag> {
     async fn async_read<O>(&mut self, options: O) -> FabrixResult<()>
     where
-        O: ReadOptions<ReaderTag>;
+        O: ReadOptions<Tag>;
 
     fn sync_read<O>(&mut self, options: O) -> FabrixResult<()>
     where
-        O: ReadOptions<ReaderTag>;
+        O: ReadOptions<Tag>;
 }
 
 #[async_trait]
-pub trait IntoSource<WriterTag> {
+pub trait IntoSource<Tag> {
     async fn async_write<O>(&mut self, options: O) -> FabrixResult<()>
     where
-        O: WriteOptions<WriterTag>;
+        O: WriteOptions<Tag>;
 
     fn sync_write<O>(&mut self, options: O) -> FabrixResult<()>
     where
-        O: WriteOptions<WriterTag>;
+        O: WriteOptions<Tag>;
 }
 
-pub struct Dispatcher<R, W, O>
+pub struct Dispatcher<Reader, Writer, Tag>
 where
-    R: FromSource<O>,
-    W: IntoSource<O>,
+    Reader: FromSource<Tag>,
+    Writer: IntoSource<Tag>,
 {
-    reader: R,
-    writer: W,
-    options_type: PhantomData<O>,
+    reader: Reader,
+    writer: Writer,
+    options_type: PhantomData<Tag>,
     pub fabrix: Option<Fabrix>,
 }
 
@@ -61,7 +61,7 @@ where
         self.fabrix.as_ref()
     }
 
-    pub fn read_and_write(
+    pub fn sync_rw(
         &mut self,
         read_options: impl ReadOptions<O>,
         write_options: impl WriteOptions<O>,
@@ -73,6 +73,10 @@ where
         Ok(())
     }
 }
+
+// ================================================================================================
+// Empty Read & Write
+// ================================================================================================
 
 pub struct EmptySource;
 pub struct EmptyOption;
@@ -127,7 +131,7 @@ mod dispatcher_tests {
     fn test_empty_dispatcher() {
         let mut dispatcher = Dispatcher::new(EmptySource, EmptySource);
 
-        let foo = dispatcher.read_and_write(EmptyRead, EmptyWrite);
+        let foo = dispatcher.sync_rw(EmptyRead, EmptyWrite);
 
         assert!(foo.is_ok());
 

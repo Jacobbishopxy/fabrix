@@ -44,11 +44,18 @@ There are three main parts in this crate:
 │   │   ├── util.rs                     // Excel utility
 │   │   ├── worksheet.rs                // Excel worksheet
 │   │   ├── workbook.rs                 // Excel workbook
-│   │   └── executor.rs                 // Excel executor, business logic implementation
+│   │   ├── executor.rs                 // Excel executor, business logic implementation
+│   │   └── reader.rs                   // Excel reader
 │   │
 │   ├── csv                             // CSV data source
+│   │   ├── executor.rs                 // CSV executor
+│   │   ├── reader.rs                   // CSV reader
+│   │   └── writer.rs                   // CSV writer
 │   │
 │   ├── parquet                         // Parquet data source
+│   │   ├── executor.rs                 // Parquet executor
+│   │   ├── reader.rs                   // Parquet reader
+│   │   └── writer.rs                   // Parquet writer
 │   │
 │   ├── json                            // JSON data source
 │   │
@@ -57,8 +64,9 @@ There are three main parts in this crate:
 │   └── mongo                           // MongoDB data source
 │
 ├── dispatcher                          // dispatcher for different data source
+│   ├── ds.rs                           // dispatcher and source traits
 │   ├── xl_db.rs                        // Excel -> Database
-│   └── xl_json.rs                      // Excel -> JSON
+│   ├── xl_json.rs                      // Excel -> JSON
 │   └── xl_bson.rs                      // Excel -> BSON
 │
 ├── errors.rs                           // error handling
@@ -82,5 +90,4 @@ There are three main parts in this crate:
 
 ## Todo
 
-- optimize `Series` and its iterator
 - complete `dispatcher/ds`
