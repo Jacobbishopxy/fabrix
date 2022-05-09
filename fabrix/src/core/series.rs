@@ -745,7 +745,7 @@ impl<'a> Iterator for SeriesIterator<'a> {
 
 /// SeriesRef
 ///
-/// A wrapper of a reference to a polars series. (used in `row.rs`)
+/// A wrapper of a polars series reference. (used in `row.rs`)
 pub(crate) struct SeriesRef<'a>(pub(crate) &'a PolarsSeries);
 
 impl<'a> SeriesRef<'a> {
