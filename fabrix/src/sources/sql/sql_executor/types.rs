@@ -1,4 +1,9 @@
 //! Sql types
+//!
+//! Based on Sqlx types mapping:
+//! - MySQL: https://docs.rs/sqlx/latest/sqlx/mysql/types/index.html
+//! - Postgres: https://docs.rs/sqlx/latest/sqlx/postgres/types/index.html
+//! - SQLite: https://docs.rs/sqlx/latest/sqlx/sqlite/types/index.html
 
 use std::{collections::HashMap, marker::PhantomData};
 
@@ -7,7 +12,9 @@ use itertools::Itertools;
 use sqlx::{mysql::MySqlRow, postgres::PgRow, sqlite::SqliteRow, Row as SRow};
 
 use super::{impl_sql_type_tag_marker, static_sttm_get, tmap_pair};
-use crate::{Decimal, SqlBuilder, SqlResult, Uuid, Value, ValueType};
+use crate::{Bytes, Decimal, SqlBuilder, SqlResult, Uuid, Value, ValueType};
+
+const MISMATCHED_SQL_ROW: &str = "mismatched sql row";
 
 /// type alias
 pub(crate) type OptMarker = Option<&'static dyn SqlTypeTagMarker>;
@@ -92,9 +99,9 @@ impl PartialEq<Sttm> for str {
     }
 }
 
-const MISMATCHED_SQL_ROW: &str = "mismatched sql row";
-
+// ================================================================================================
 // impl SqlTypeTagMarker for SqlTypeTag<T>
+// ================================================================================================
 
 impl_sql_type_tag_marker!(bool, Bool; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(u8, U8; [Mysql], MISMATCHED_SQL_ROW);
@@ -113,6 +120,11 @@ impl_sql_type_tag_marker!(NaiveTime, Time; [Mysql, Pg], MISMATCHED_SQL_ROW);
 impl_sql_type_tag_marker!(NaiveDateTime, DateTime; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(Decimal <= rust_decimal::Decimal, Decimal; [Mysql, Pg], MISMATCHED_SQL_ROW);
 impl_sql_type_tag_marker!(Uuid <= uuid::Uuid, Uuid; [Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(Bytes <= Vec<u8>, Bytes; [Mysql, Pg, Sqlite]);
+
+// ================================================================================================
+// static types mapping
+// ================================================================================================
 
 lazy_static::lazy_static! {
     /// Mysql Type Mapping: &'static str -> SqlTypeTag instance
@@ -138,6 +150,9 @@ lazy_static::lazy_static! {
             tmap_pair!("DATE", NaiveDate),
             tmap_pair!("TIME", NaiveTime),
             tmap_pair!("DECIMAL", Decimal),
+            tmap_pair!("VARBINARY", Bytes),
+            tmap_pair!("BINARY", Bytes),
+            tmap_pair!("BLOB", Bytes),
         ])
     };
 
@@ -169,6 +184,7 @@ lazy_static::lazy_static! {
             tmap_pair!("DATE", NaiveDate),
             tmap_pair!("TIME", NaiveTime),
             tmap_pair!("NUMERIC", Decimal),
+            tmap_pair!("BYTEA", Bytes),
         ])
     };
 
@@ -184,9 +200,14 @@ lazy_static::lazy_static! {
             tmap_pair!("CHAR(N)", String),
             tmap_pair!("TEXT", String),
             tmap_pair!("DATETIME", NaiveDateTime),
+            tmap_pair!("BLOB", Bytes),
         ])
     };
 }
+
+// ================================================================================================
+// types mapping functions
+// ================================================================================================
 
 /// string -> `ValueType`
 pub(crate) fn string_try_into_value_type<S>(driver: &SqlBuilder, str: S) -> Option<ValueType>
@@ -220,6 +241,7 @@ fn value_type_try_into_mysql_marker(vt: &ValueType) -> Option<&'static dyn SqlTy
         ValueType::Time => Some(static_sttm_get!(MYSQL_TMAP, "TIME")),
         ValueType::DateTime => Some(static_sttm_get!(MYSQL_TMAP, "DATETIME")),
         ValueType::Decimal => Some(static_sttm_get!(MYSQL_TMAP, "DECIMAL")),
+        ValueType::Bytes => Some(static_sttm_get!(MYSQL_TMAP, "VARBINARY")),
         _ => None,
     }
 }
@@ -244,6 +266,7 @@ fn value_type_try_into_pg_marker(vt: &ValueType) -> Option<&'static dyn SqlTypeT
         ValueType::DateTime => Some(static_sttm_get!(PG_TMAP, "TIMESTAMP")),
         ValueType::Decimal => Some(static_sttm_get!(PG_TMAP, "NUMERIC")),
         ValueType::Uuid => Some(static_sttm_get!(PG_TMAP, "UUID")),
+        ValueType::Bytes => Some(static_sttm_get!(PG_TMAP, "BYTEA")),
         _ => None,
     }
 }
@@ -264,6 +287,7 @@ fn value_type_try_into_sqlite_marker(vt: &ValueType) -> Option<&'static dyn SqlT
         ValueType::F64 => Some(static_sttm_get!(SQLITE_TMAP, "REAL")),
         ValueType::String => Some(static_sttm_get!(SQLITE_TMAP, "VARCHAR")),
         ValueType::DateTime => Some(static_sttm_get!(SQLITE_TMAP, "DATETIME")),
+        ValueType::Bytes => Some(static_sttm_get!(SQLITE_TMAP, "BLOB")),
         _ => None,
     }
 }
@@ -295,8 +319,187 @@ mod test_types {
 
     #[test]
     fn test_types_mysql() {
-        let mysql_bool = MYSQL_TMAP.get("TINYINT(1)").unwrap();
+        let t = MYSQL_TMAP.get("TINYINT(1)").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bool);
 
-        assert_eq!("TINYINT(1)", mysql_bool.to_str());
+        let t = MYSQL_TMAP.get("BOOLEAN").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bool);
+
+        let t = MYSQL_TMAP.get("TINYINT UNSIGNED").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::U8);
+
+        let t = MYSQL_TMAP.get("SMALLINT UNSIGNED").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::U16);
+
+        let t = MYSQL_TMAP.get("INT UNSIGNED").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::U32);
+
+        let t = MYSQL_TMAP.get("BIGINT UNSIGNED").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::U64);
+
+        let t = MYSQL_TMAP.get("TINYINT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I8);
+
+        let t = MYSQL_TMAP.get("SMALLINT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I16);
+
+        let t = MYSQL_TMAP.get("INT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I32);
+
+        let t = MYSQL_TMAP.get("BIGINT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I64);
+
+        let t = MYSQL_TMAP.get("FLOAT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::F32);
+
+        let t = MYSQL_TMAP.get("DOUBLE").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::F64);
+
+        let t = MYSQL_TMAP.get("VARCHAR").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = MYSQL_TMAP.get("CHAR").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = MYSQL_TMAP.get("TEXT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = MYSQL_TMAP.get("TIMESTAMP").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::DateTime);
+
+        let t = MYSQL_TMAP.get("DATETIME").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::DateTime);
+
+        let t = MYSQL_TMAP.get("DATE").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Date);
+
+        let t = MYSQL_TMAP.get("TIME").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Time);
+
+        let t = MYSQL_TMAP.get("DECIMAL").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Decimal);
+
+        let t = MYSQL_TMAP.get("VARBINARY").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bytes);
+
+        let t = MYSQL_TMAP.get("BINARY").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bytes);
+
+        let t = MYSQL_TMAP.get("BLOB").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bytes);
+    }
+
+    #[test]
+    fn test_types_postgres() {
+        let t = PG_TMAP.get("BOOL").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bool);
+
+        let t = PG_TMAP.get("CHAR").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I8);
+
+        let t = PG_TMAP.get("TINYINT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I8);
+
+        let t = PG_TMAP.get("SMALLINT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I16);
+
+        let t = PG_TMAP.get("SMALLSERIAL").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I16);
+
+        let t = PG_TMAP.get("INT2").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I16);
+
+        let t = PG_TMAP.get("INT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I32);
+
+        let t = PG_TMAP.get("SERIAL").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I32);
+
+        let t = PG_TMAP.get("INT4").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I32);
+
+        let t = PG_TMAP.get("BIGINT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I64);
+
+        let t = PG_TMAP.get("BIGSERIAL").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I64);
+
+        let t = PG_TMAP.get("INT8").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I64);
+
+        let t = PG_TMAP.get("REAL").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::F32);
+
+        let t = PG_TMAP.get("FLOAT4").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::F32);
+
+        let t = PG_TMAP.get("DOUBLE PRECISION").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::F64);
+
+        let t = PG_TMAP.get("FLOAT8").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::F64);
+
+        let t = PG_TMAP.get("VARCHAR").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = PG_TMAP.get("CHAR(N)").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = PG_TMAP.get("TEXT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = PG_TMAP.get("NAME").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = PG_TMAP.get("TIMESTAMPTZ").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::DateTime);
+
+        let t = PG_TMAP.get("TIMESTAMP").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::DateTime);
+
+        let t = PG_TMAP.get("DATE").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Date);
+
+        let t = PG_TMAP.get("TIME").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Time);
+
+        let t = PG_TMAP.get("NUMERIC").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Decimal);
+
+        let t = PG_TMAP.get("BYTEA").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bytes);
+    }
+
+    #[test]
+    fn test_types_sqlite() {
+        let t = SQLITE_TMAP.get("BOOLEAN").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bool);
+
+        let t = SQLITE_TMAP.get("INTEGER").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I32);
+
+        let t = SQLITE_TMAP.get("BIGINT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I64);
+
+        let t = SQLITE_TMAP.get("INT8").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::I64);
+
+        let t = SQLITE_TMAP.get("REAL").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::F64);
+
+        let t = SQLITE_TMAP.get("VARCHAR").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = SQLITE_TMAP.get("CHAR(N)").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = SQLITE_TMAP.get("TEXT").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::String);
+
+        let t = SQLITE_TMAP.get("DATETIME").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::DateTime);
+
+        let t = SQLITE_TMAP.get("BLOB").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Bytes);
     }
 }

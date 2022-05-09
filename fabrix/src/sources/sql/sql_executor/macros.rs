@@ -71,7 +71,7 @@
 ///         self.0
 ///     }
 ///
-///     fn to_polars_dtype(&self) -> DataType {
+///     fn to_dtype(&self) -> DataType {
 ///         DataType::Object("Decimal")
 ///     }
 ///

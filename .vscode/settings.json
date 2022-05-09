@@ -6,6 +6,7 @@
 	"cSpell.words": [
 		"accum",
 		"BSON",
+		"BYTEA",
 		"chrono",
 		"concat",
 		"Cond",
@@ -36,6 +37,7 @@
 		"TMAP",
 		"Upcasting",
 		"Upsert",
+		"VARBINARY",
 		"vconcat",
 		"vstack"
 	],
