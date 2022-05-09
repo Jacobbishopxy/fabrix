@@ -21,11 +21,12 @@
 //! 1. insert_row
 //! 1. insert_rows_by_idx
 //! 1. insert_rows
+//! 1. iter_rows
 
 use itertools::Itertools;
 use polars::prelude::Field;
 
-use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIntoIterator};
+use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIterator, SeriesRef};
 use crate::{CoreResult, D2Value, Fabrix, Series, Value, ValueType};
 
 #[derive(Debug, Clone)]
@@ -247,36 +248,39 @@ impl Fabrix {
             None => Err(inf_err()),
         }
     }
+
+    /// iterate through the rows of the dataframe, same as `into_iter()`
+    pub fn iter_rows(&self) -> DataFrameIntoIterator {
+        self.into_iter()
+    }
 }
 
-impl IntoIterator for Fabrix {
+impl<'a> IntoIterator for &'a Fabrix {
     type Item = Row;
-    type IntoIter = DataFrameIntoIterator;
+    type IntoIter = DataFrameIntoIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let len = self.height();
-
-        let mut data_iters = Vec::with_capacity(self.width() + 1);
+        let mut data_iters = Vec::with_capacity(self.width());
         for s in self.data.iter() {
-            let iter = Series(s.clone()).into_iter();
+            let iter = SeriesRef(s).into_iter();
             data_iters.push(iter);
         }
 
         DataFrameIntoIterator {
-            index: self.index_tag.map(|it| it.loc),
+            index: self.index_tag().map(|it| it.loc),
             data_iters,
-            stepper: Stepper::new(len),
+            stepper: Stepper::new(self.height()),
         }
     }
 }
 
-pub struct DataFrameIntoIterator {
+pub struct DataFrameIntoIterator<'a> {
     index: Option<usize>,
-    data_iters: Vec<SeriesIntoIterator>,
+    data_iters: Vec<SeriesIterator<'a>>,
     stepper: Stepper,
 }
 
-impl Iterator for DataFrameIntoIterator {
+impl<'a> Iterator for DataFrameIntoIterator<'a> {
     type Item = Row;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -412,14 +416,14 @@ mod test_row {
 
     #[test]
     fn test_df_iter() {
-        let df = fx![
+        let fx = fx![
             "name" => ["Jacob", "Sam", "James", "Julia"],
             "star" => [100, 99, 100, 69],
             "loc" => [2u8, 3, 1, 4]
         ]
         .unwrap();
 
-        let mut iter = df.into_iter();
+        let mut iter = fx.iter_rows();
 
         let r1 = iter.next();
         assert!(r1.is_some());

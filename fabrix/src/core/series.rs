@@ -51,7 +51,7 @@ use polars::prelude::{
 
 use super::{
     chunked_array_from_values, cis_err, impl_named_from_owned, impl_named_from_ref, oob_err,
-    s_fn_next, sc_fn_next, sfv, si, sii, tms_err, FieldInfo, ObjectTypeBytes, ObjectTypeDecimal,
+    s_fn_next, sc_fn_next, sfv, si, tms_err, FieldInfo, ObjectTypeBytes, ObjectTypeDecimal,
     ObjectTypeUuid, Stepper, BYTES, DAYS19700101, DECIMAL, IDX, NANO10E9, UUID,
 };
 use crate::{series, value, Bytes, CoreResult, Decimal, Uuid, Value, ValueType};
@@ -496,6 +496,10 @@ impl Series {
     pub fn apply_at_idx() {
         unimplemented!()
     }
+
+    pub fn iter(&self) -> SeriesIterator {
+        self.into_iter()
+    }
 }
 
 /// new Series from an AnyValue (integer specific)
@@ -546,6 +550,12 @@ impl From<Series> for PolarsSeries {
 impl AsRef<PolarsSeries> for Series {
     fn as_ref(&self) -> &PolarsSeries {
         &self.0
+    }
+}
+
+impl AsRef<Series> for PolarsSeries {
+    fn as_ref(&self) -> &Series {
+        unsafe { &*(self as *const _ as *const Series) }
     }
 }
 
@@ -653,87 +663,6 @@ fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> 
 // IntoIterator impls
 // ================================================================================================
 
-/// Series IntoIterator implementation
-impl IntoIterator for Series {
-    type Item = Value;
-    type IntoIter = SeriesIntoIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self.dtype() {
-            ValueType::Bool => sii!(self.0.bool(), Bool),
-            ValueType::U8 => sii!(self.0.u8(), U8),
-            ValueType::U16 => sii!(self.0.u16(), U16),
-            ValueType::U32 => sii!(self.0.u32(), U32),
-            ValueType::U64 => sii!(self.0.u64(), U64),
-            ValueType::I8 => sii!(self.0.i8(), I8),
-            ValueType::I16 => sii!(self.0.i16(), I16),
-            ValueType::I32 => sii!(self.0.i32(), I32),
-            ValueType::I64 => sii!(self.0.i64(), I64),
-            ValueType::F32 => sii!(self.0.f32(), F32),
-            ValueType::F64 => sii!(self.0.f64(), F64),
-            ValueType::String => sii!(self.0.utf8(), String),
-            ValueType::Date => sii!(self.0.date(), Date),
-            ValueType::Time => sii!(self.0.time(), Time),
-            ValueType::DateTime => sii!(self.0.datetime(), DateTime),
-            ValueType::Decimal => sii!(self.0.as_any(), Decimal, Decimal),
-            ValueType::Uuid => sii!(self.0.as_any(), Uuid, Uuid),
-            ValueType::Bytes => sii!(self.0.as_any(), Bytes, Bytes),
-            ValueType::Null => panic!("Null value series"),
-        }
-    }
-}
-
-/// IntoIterator
-pub enum SeriesIntoIterator {
-    Id(UInt64Chunked, Stepper),
-    Bool(BooleanChunked, Stepper),
-    U8(UInt8Chunked, Stepper),
-    U16(UInt16Chunked, Stepper),
-    U32(UInt32Chunked, Stepper),
-    U64(UInt64Chunked, Stepper),
-    I8(Int8Chunked, Stepper),
-    I16(Int16Chunked, Stepper),
-    I32(Int32Chunked, Stepper),
-    I64(Int64Chunked, Stepper),
-    F32(Float32Chunked, Stepper),
-    F64(Float64Chunked, Stepper),
-    String(Utf8Chunked, Stepper),
-    Date(DateChunked, Stepper),
-    Time(TimeChunked, Stepper),
-    DateTime(DatetimeChunked, Stepper),
-    Decimal(ObjectChunked<Decimal>, Stepper),
-    Uuid(ObjectChunked<Uuid>, Stepper),
-    Bytes(ObjectChunked<Bytes>, Stepper),
-}
-
-impl Iterator for SeriesIntoIterator {
-    type Item = Value;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            SeriesIntoIterator::Id(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::Bool(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::U8(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::U16(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::U32(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::U64(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::I8(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::I16(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::I32(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::I64(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::F32(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::F64(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::String(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::Date(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::Time(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::DateTime(arr, s) => s_fn_next!(arr, s),
-            SeriesIntoIterator::Decimal(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIntoIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIntoIterator::Bytes(ref arr, s) => sc_fn_next!(arr, s),
-        }
-    }
-}
-
 impl<'a> IntoIterator for &'a Series {
     type Item = Value;
     type IntoIter = SeriesIterator<'a>;
@@ -814,11 +743,52 @@ impl<'a> Iterator for SeriesIterator<'a> {
     }
 }
 
+/// SeriesRef
+///
+/// A wrapper of a reference to a polars series. (used in `row.rs`)
+pub(crate) struct SeriesRef<'a>(pub(crate) &'a PolarsSeries);
+
+impl<'a> SeriesRef<'a> {
+    pub fn dtype(&self) -> &ValueType {
+        self.0.dtype().into()
+    }
+}
+
+impl<'a> IntoIterator for SeriesRef<'a> {
+    type Item = Value;
+    type IntoIter = SeriesIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self.dtype() {
+            ValueType::Bool => si!(self.0.bool(), Bool),
+            ValueType::U8 => si!(self.0.u8(), U8),
+            ValueType::U16 => si!(self.0.u16(), U16),
+            ValueType::U32 => si!(self.0.u32(), U32),
+            ValueType::U64 => si!(self.0.u64(), U64),
+            ValueType::I8 => si!(self.0.i8(), I8),
+            ValueType::I16 => si!(self.0.i16(), I16),
+            ValueType::I32 => si!(self.0.i32(), I32),
+            ValueType::I64 => si!(self.0.i64(), I64),
+            ValueType::F32 => si!(self.0.f32(), F32),
+            ValueType::F64 => si!(self.0.f64(), F64),
+            ValueType::String => si!(self.0.utf8(), String),
+            ValueType::Date => si!(self.0.date(), Date),
+            ValueType::Time => si!(self.0.time(), Time),
+            ValueType::DateTime => si!(self.0.datetime(), DateTime),
+            ValueType::Decimal => si!(self.0.as_any(), Decimal, Decimal),
+            ValueType::Uuid => si!(self.0.as_any(), Uuid, Uuid),
+            ValueType::Bytes => si!(self.0.as_any(), Bytes, Bytes),
+            // temporary ignore the rest of DataType variants
+            _ => unimplemented!(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test_fabrix_series {
 
     use super::*;
-    use crate::{date, series, value};
+    use crate::{date, series, uuid, value};
 
     #[test]
     fn test_series_creation() {
@@ -850,10 +820,7 @@ mod test_fabrix_series {
 
         let s = s.unwrap();
         assert_eq!(s.dtype(), &ValueType::String);
-    }
 
-    #[test]
-    fn test_series_creation2() {
         // `Series::from_values` & `Series::from_values_default_name`
         // if nullable is false, it will be in a strict mode, any type who mismatched will
         // return an error.
@@ -910,13 +877,13 @@ mod test_fabrix_series {
         let s = series!("no" => [1, 3, 2]);
         assert!(!s.has_null());
 
-        let s = series!("no" => [
-            date!(2019, 1, 1),
-            date!(2019, 1, 2),
-            date!(2019, 1, 3),
-            date!(2019, 1, 4),
+        let s = series!("yes" => [
+            Some(date!(2019, 1, 1)),
+            None,
+            Some(date!(2019, 1, 3)),
+            Some(date!(2019, 1, 4)),
         ]);
-        assert!(!s.has_null());
+        assert!(s.has_null());
     }
 
     #[test]
@@ -945,6 +912,9 @@ mod test_fabrix_series {
 
         let flt = value!("April");
         assert_eq!(s.find_index(&flt), Some(3));
+
+        let s = series!([uuid!(), uuid!(), uuid!(), uuid!()]);
+        assert_eq!(s.take(&[0, 2]).unwrap().len(), 2);
     }
 
     #[test]

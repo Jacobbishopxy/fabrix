@@ -296,51 +296,6 @@ macro_rules! sfv {
 pub(crate) use chunked_array_from_values;
 pub(crate) use sfv;
 
-/// Series IntoIterator process
-///
-/// for instance:
-/// ```rust
-/// let arr = self.0.bool().unwrap();
-/// SeriesIntoIterator::Bool(
-///     arr.clone(),
-///     Stepper::new(arr.len()),
-/// )
-/// ```
-///
-/// and custom type:
-///
-/// ```rust
-/// let arr = self.0.as_any()
-///     .downcast_ref::<ObjectChunked<ObjectTypeDate>>()
-///     .unwrap();
-/// SeriesIntoIterator::Date(
-///     arr.clone(),
-///     Stepper::new(arr.len()),
-/// )
-/// ```
-macro_rules! sii {
-    ($fn_call:expr, $series_iter_var:ident) => {{
-        use polars::prelude::ChunkLen;
-        let arr = $fn_call.unwrap();
-        $crate::core::SeriesIntoIterator::$series_iter_var(
-            arr.clone(),
-            $crate::core::util::Stepper::new(arr.len()),
-        )
-    }};
-    ($fn_call:expr, $downcast_type:ident, $series_iter_var:ident) => {{
-        use polars::prelude::ChunkLen;
-        let arr = $fn_call
-            .downcast_ref::<polars::prelude::ObjectChunked<$downcast_type>>()
-            .unwrap();
-        $crate::core::SeriesIntoIterator::$series_iter_var(
-            arr.clone(),
-            $crate::core::util::Stepper::new(arr.len()),
-        )
-    }};
-}
-
-pub(crate) use sii;
-
 /// Series Iterator process
 ///
 /// for instance:
