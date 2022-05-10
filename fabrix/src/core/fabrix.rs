@@ -8,6 +8,7 @@
 //! 1. new_empty
 //! 1. from_series
 //! 1. from_series_no_index
+//! 1. empty
 //! 1. rechunk
 //! 1. get_column
 //! 1. get_columns
@@ -172,6 +173,14 @@ impl Fabrix {
             .map(|f| Series::empty_series_from_field(f, false))
             .collect::<Result<Vec<_>, _>>()?;
         Self::from_series_no_index(empty_series)
+    }
+
+    /// Pure empty dataframe
+    pub fn empty() -> Self {
+        Self {
+            data: DataFrame::default(),
+            index_tag: None,
+        }
     }
 
     /// Create a DataFrame from Vec<Series>

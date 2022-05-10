@@ -14,6 +14,10 @@ use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, WriteOptions};
 // TODO:
 // custom value types cannot be written to csv files
 
+// ================================================================================================
+// CSV Writer
+// ================================================================================================
+
 pub struct Writer<W: Write> {
     csv_writer: CsvWriter<W>,
 }
@@ -35,18 +39,18 @@ impl<W: Write> Writer<W> {
         self
     }
 
-    pub fn with_date_format(mut self, format: Option<String>) -> Self {
-        self.csv_writer = self.csv_writer.with_date_format(format);
+    pub fn with_date_format(mut self, format: String) -> Self {
+        self.csv_writer = self.csv_writer.with_date_format(Some(format));
         self
     }
 
-    pub fn with_time_format(mut self, format: Option<String>) -> Self {
-        self.csv_writer = self.csv_writer.with_time_format(format);
+    pub fn with_time_format(mut self, format: String) -> Self {
+        self.csv_writer = self.csv_writer.with_time_format(Some(format));
         self
     }
 
-    pub fn with_timestamp_format(mut self, format: Option<String>) -> Self {
-        self.csv_writer = self.csv_writer.with_timestamp_format(format);
+    pub fn with_timestamp_format(mut self, format: String) -> Self {
+        self.csv_writer = self.csv_writer.with_timestamp_format(Some(format));
         self
     }
 
@@ -61,6 +65,10 @@ impl<W: Write> Writer<W> {
         Ok(())
     }
 }
+
+// ================================================================================================
+// CsvWriter TryFrom CsvSource
+// ================================================================================================
 
 impl TryFrom<CsvSource> for Writer<File> {
     type Error = FabrixError;
@@ -88,22 +96,35 @@ impl TryFrom<CsvSource> for Writer<Cursor<Vec<u8>>> {
     }
 }
 
+// ================================================================================================
+// Csv write options & FromSource impl
+// ================================================================================================
+
+pub struct CsvWriteOptions {
+    pub has_header: bool,
+    pub delimiter: u8,
+    pub date_format: String,
+    pub time_format: String,
+    pub timestamp_format: String,
+    pub quoting_char: u8,
+}
+
+impl WriteOptions for CsvWriteOptions {
+    fn source_type(&self) -> &str {
+        "csv"
+    }
+}
+
 #[async_trait]
-impl<W> IntoSource<CsvSource> for Writer<W>
+impl<W> IntoSource<CsvWriteOptions> for Writer<W>
 where
     W: Write + Send,
 {
-    async fn async_write<O>(&mut self, _options: O) -> FabrixResult<()>
-    where
-        O: WriteOptions<CsvSource>,
-    {
+    async fn async_write(&mut self, _options: CsvWriteOptions) -> FabrixResult<()> {
         todo!()
     }
 
-    fn sync_write<O>(&mut self, _options: O) -> FabrixResult<()>
-    where
-        O: WriteOptions<CsvSource>,
-    {
+    fn sync_write(&mut self, _options: CsvWriteOptions) -> FabrixResult<()> {
         todo!()
     }
 }

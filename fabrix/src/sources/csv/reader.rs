@@ -12,6 +12,10 @@ use polars::prelude::{CsvReader, SerReader};
 use super::{CsvSource, UNSUPPORTED_TYPE};
 use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, Schema, ValueTypes};
 
+// ================================================================================================
+// CSV Reader
+// ================================================================================================
+
 pub struct Reader<'a, R: MmapBytesReader + 'a> {
     csv_reader: CsvReader<'a, R>,
 }
@@ -81,6 +85,10 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
     }
 }
 
+// ================================================================================================
+// CsvReader TryFrom CsvSource
+// ================================================================================================
+
 impl<'a> TryFrom<CsvSource> for Reader<'a, File> {
     type Error = FabrixError;
 
@@ -107,22 +115,38 @@ impl<'a> TryFrom<CsvSource> for Reader<'a, Cursor<Vec<u8>>> {
     }
 }
 
+// ================================================================================================
+// Csv read options & FromSource impl
+// ================================================================================================
+
+pub struct CsvReadOptions {
+    pub has_header: bool,
+    pub ignore_parser_errors: bool,
+    pub skip_rows: usize,
+    pub rechunk: bool,
+    pub delimiter: u8,
+    pub comment_char: u8,
+    pub dtypes: Schema,
+    pub dtypes_slice: ValueTypes,
+    pub projection: Vec<usize>,
+}
+
+impl ReadOptions for CsvReadOptions {
+    fn source_type(&self) -> &str {
+        "csv"
+    }
+}
+
 #[async_trait]
-impl<'a, R> FromSource<CsvSource> for Reader<'a, R>
+impl<'a, R> FromSource<CsvReadOptions> for Reader<'a, R>
 where
     R: MmapBytesReader + 'a,
 {
-    async fn async_read<O>(&mut self, _options: O) -> FabrixResult<()>
-    where
-        O: ReadOptions<CsvSource>,
-    {
+    async fn async_read(&mut self, _options: CsvReadOptions) -> FabrixResult<Fabrix> {
         todo!()
     }
 
-    fn sync_read<O>(&mut self, _options: O) -> FabrixResult<()>
-    where
-        O: ReadOptions<CsvSource>,
-    {
+    fn sync_read(&mut self, _options: CsvReadOptions) -> FabrixResult<Fabrix> {
         todo!()
     }
 }
