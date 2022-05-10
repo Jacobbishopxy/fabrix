@@ -53,9 +53,11 @@ mod xl_bson_tests {
     use super::*;
     use crate::{sources::xl::XlSource, xl::Workbook};
 
+    const XL_PATH: &str = "../mock/test.xlsx";
+
     #[test]
     fn convert_test() {
-        let source: Workbook<File> = XlSource::Path("../mock/test.xlsx").try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
 
         let mut xle = XlBsonExecutor::new_with_source(source).unwrap();
 

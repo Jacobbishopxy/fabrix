@@ -12,9 +12,8 @@ use std::io::Cursor;
 pub const UNSUPPORTED_TYPE: &str = "Unsupported CSVSource type";
 
 #[derive(Debug)]
-pub enum CsvSource<'a> {
+pub enum CsvSource {
     File(File),
-    Path(&'a str),
-    // Bytes(Cursor<bytes::Bytes>),
+    Path(String),
     Bytes(Cursor<Vec<u8>>),
 }

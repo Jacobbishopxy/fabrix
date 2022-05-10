@@ -3,7 +3,7 @@
 //! row-wised dataframe.
 //! This is an experimental struct, and is not yet ready for use.
 
-use crate::{Row, Schema, Value};
+use crate::{Row, Schema};
 
 #[allow(dead_code)]
 #[derive(Debug)]

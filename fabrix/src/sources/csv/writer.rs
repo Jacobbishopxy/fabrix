@@ -5,10 +5,11 @@
 use std::fs::File;
 use std::io::{Cursor, Write};
 
+use async_trait::async_trait;
 use polars::prelude::{CsvWriter, SerWriter};
 
 use super::{CsvSource, UNSUPPORTED_TYPE};
-use crate::{Fabrix, FabrixError, FabrixResult};
+use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, WriteOptions};
 
 // TODO:
 // custom value types cannot be written to csv files
@@ -61,10 +62,10 @@ impl<W: Write> Writer<W> {
     }
 }
 
-impl<'a> TryFrom<CsvSource<'a>> for Writer<File> {
+impl TryFrom<CsvSource> for Writer<File> {
     type Error = FabrixError;
 
-    fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
+    fn try_from(source: CsvSource) -> FabrixResult<Self> {
         match source {
             CsvSource::File(file) => Ok(Self::new(file)),
             CsvSource::Path(path) => {
@@ -76,14 +77,34 @@ impl<'a> TryFrom<CsvSource<'a>> for Writer<File> {
     }
 }
 
-impl<'a> TryFrom<CsvSource<'a>> for Writer<Cursor<Vec<u8>>> {
+impl TryFrom<CsvSource> for Writer<Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
+    fn try_from(source: CsvSource) -> FabrixResult<Self> {
         match source {
             CsvSource::Bytes(bytes) => Ok(Self::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
+    }
+}
+
+#[async_trait]
+impl<W> IntoSource<CsvSource> for Writer<W>
+where
+    W: Write + Send,
+{
+    async fn async_write<O>(&mut self, _options: O) -> FabrixResult<()>
+    where
+        O: WriteOptions<CsvSource>,
+    {
+        todo!()
+    }
+
+    fn sync_write<O>(&mut self, _options: O) -> FabrixResult<()>
+    where
+        O: WriteOptions<CsvSource>,
+    {
+        todo!()
     }
 }
 
@@ -98,7 +119,9 @@ mod test_csv_writer {
 
     #[test]
     fn file_writer() {
-        let writer: Writer<File> = CsvSource::Path(CSV_FILE_PATH).try_into().unwrap();
+        let writer: Writer<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
+            .try_into()
+            .unwrap();
 
         let fx = fx![
             "id";

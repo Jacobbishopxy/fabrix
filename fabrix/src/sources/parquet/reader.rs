@@ -26,16 +26,16 @@ impl<READER: MmapBytesReader> Reader<READER> {
 }
 
 #[derive(Debug)]
-pub enum ParquetSource<'a> {
+pub enum ParquetSource {
     File(File),
-    Path(&'a str),
+    Path(String),
     Bytes(Cursor<Vec<u8>>),
 }
 
-impl<'a> TryFrom<ParquetSource<'a>> for Reader<File> {
+impl TryFrom<ParquetSource> for Reader<File> {
     type Error = FabrixError;
 
-    fn try_from(value: ParquetSource<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: ParquetSource) -> Result<Self, Self::Error> {
         match value {
             ParquetSource::File(file) => Ok(Self::new(file)),
             ParquetSource::Path(path) => {
@@ -47,10 +47,10 @@ impl<'a> TryFrom<ParquetSource<'a>> for Reader<File> {
     }
 }
 
-impl<'a> TryFrom<ParquetSource<'a>> for Reader<Cursor<Vec<u8>>> {
+impl TryFrom<ParquetSource> for Reader<Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(value: ParquetSource<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: ParquetSource) -> Result<Self, Self::Error> {
         match value {
             ParquetSource::Bytes(bytes) => Ok(Self::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),

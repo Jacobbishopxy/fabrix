@@ -553,12 +553,6 @@ impl AsRef<PolarsSeries> for Series {
     }
 }
 
-impl AsRef<Series> for PolarsSeries {
-    fn as_ref(&self) -> &Series {
-        unsafe { &*(self as *const _ as *const Series) }
-    }
-}
-
 /// Series from values, series type is determined by the first not-null value,
 /// if the who vectors are null then use u64 as the default type.
 ///

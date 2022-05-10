@@ -69,7 +69,7 @@ mod xl_json_tests {
 
     #[test]
     fn convert_test() {
-        let source: Workbook<File> = XlSource::Path(SOURCE_PATH).try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(SOURCE_PATH.to_owned()).try_into().unwrap();
 
         let mut xle = XlJsonExecutor::new_with_source(source).unwrap();
 
@@ -87,7 +87,7 @@ mod xl_json_tests {
 
     #[test]
     fn convert_consume_test() {
-        let source: Workbook<File> = XlSource::Path(SOURCE_PATH).try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(SOURCE_PATH.to_owned()).try_into().unwrap();
 
         let mut helper = XlJson::new();
 

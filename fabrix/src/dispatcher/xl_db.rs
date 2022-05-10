@@ -359,7 +359,7 @@ mod test_xl_reader {
 
     #[test]
     fn test_xl_db_convertor_row_wised() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let mut convertor = XlDbConvertor::new();
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
@@ -375,7 +375,7 @@ mod test_xl_reader {
 
     #[test]
     fn test_xl_db_convertor_col_wised() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
         let mut xle = XlDbExecutor::new_with_source(source).unwrap();
@@ -392,7 +392,7 @@ mod test_xl_reader {
     #[tokio::test]
     async fn test_xl2db_sync() {
         // Xl read from a path
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         // converter & consumer instance
         let mut convertor = XlDbConvertor::new();
@@ -442,7 +442,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
         let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
@@ -474,7 +474,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async_helper() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE).try_into().unwrap();
+        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         // same as the above test case: `test_xl2db_async`
         // simplify the process from naming convertor and consumer separately;

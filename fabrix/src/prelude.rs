@@ -41,4 +41,4 @@ pub use crate::dispatcher::{
     XlDbConvertor, XlDbExecutor, XlDbHelper, XlIndexSelection, XlToDbConsumer,
 };
 
-pub use crate::dispatcher::{Dispatcher, FromSource, IntoSource};
+pub use crate::dispatcher::{Dispatcher, FromSource, IntoSource, ReadOptions, WriteOptions};
