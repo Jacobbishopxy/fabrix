@@ -48,12 +48,10 @@ There are three main parts in this crate:
 │   │   └── reader.rs                   // Excel reader
 │   │
 │   ├── csv                             // CSV data source
-│   │   ├── executor.rs                 // CSV executor
 │   │   ├── reader.rs                   // CSV reader
 │   │   └── writer.rs                   // CSV writer
 │   │
 │   ├── parquet                         // Parquet data source
-│   │   ├── executor.rs                 // Parquet executor
 │   │   ├── reader.rs                   // Parquet reader
 │   │   └── writer.rs                   // Parquet writer
 │   │

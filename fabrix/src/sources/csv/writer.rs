@@ -48,27 +48,27 @@ impl<W: Write> Writer<W> {
         self
     }
 
-    pub fn with_date_format(&mut self, format: String) -> &mut Self {
+    pub fn with_date_format(&mut self, format: &str) -> &mut Self {
         self.csv_writer = self
             .csv_writer
             .take()
-            .map(|r| r.with_date_format(Some(format)));
+            .map(|r| r.with_date_format(Some(format.to_owned())));
         self
     }
 
-    pub fn with_time_format(&mut self, format: String) -> &mut Self {
+    pub fn with_time_format(&mut self, format: &str) -> &mut Self {
         self.csv_writer = self
             .csv_writer
             .take()
-            .map(|r| r.with_time_format(Some(format)));
+            .map(|r| r.with_time_format(Some(format.to_owned())));
         self
     }
 
-    pub fn with_timestamp_format(&mut self, format: String) -> &mut Self {
+    pub fn with_timestamp_format(&mut self, format: &str) -> &mut Self {
         self.csv_writer = self
             .csv_writer
             .take()
-            .map(|r| r.with_timestamp_format(Some(format)));
+            .map(|r| r.with_timestamp_format(Some(format.to_owned())));
         self
     }
 
@@ -122,31 +122,42 @@ impl TryFrom<CsvSource> for Writer<Cursor<Vec<u8>>> {
 // Csv write options & FromSource impl
 // ================================================================================================
 
-pub struct CsvWriteOptions {
+#[derive(Default)]
+pub struct CsvWriteOptions<'a> {
     has_header: Option<bool>,
     delimiter: Option<u8>,
-    date_format: Option<String>,
-    time_format: Option<String>,
-    timestamp_format: Option<String>,
+    date_format: Option<&'a str>,
+    time_format: Option<&'a str>,
+    timestamp_format: Option<&'a str>,
     quoting_char: Option<u8>,
 }
 
-impl WriteOptions for CsvWriteOptions {
+impl<'a> WriteOptions for CsvWriteOptions<'a> {
     fn source_type(&self) -> &str {
         "csv"
     }
 }
 
 #[async_trait]
-impl<W> IntoSource<CsvWriteOptions> for Writer<W>
+impl<'a, W> IntoSource<CsvWriteOptions<'_>, 'a> for Writer<W>
 where
     W: Write + Send,
 {
-    async fn async_write(&mut self, fabrix: Fabrix, options: CsvWriteOptions) -> FabrixResult<()> {
+    async fn async_write<'o>(
+        &mut self,
+        fabrix: Fabrix,
+        options: &'o CsvWriteOptions,
+    ) -> FabrixResult<()>
+    where
+        'o: 'a,
+    {
         self.sync_write(fabrix, options)
     }
 
-    fn sync_write(&mut self, fabrix: Fabrix, options: CsvWriteOptions) -> FabrixResult<()> {
+    fn sync_write<'o>(&mut self, fabrix: Fabrix, options: &'o CsvWriteOptions) -> FabrixResult<()>
+    where
+        'o: 'a,
+    {
         if let Some(has_header) = options.has_header {
             self.has_header(has_header);
         }

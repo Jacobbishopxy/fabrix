@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 
-use crate::{Fabrix, FabrixResult};
+use crate::{Fabrix, FabrixError, FabrixResult};
 
 // ================================================================================================
 // Read & Write Options
@@ -30,33 +30,41 @@ pub trait WriteOptions: Send {
 // ================================================================================================
 
 #[async_trait]
-pub trait FromSource<R>
+pub trait FromSource<'a, R>
 where
     R: ReadOptions,
 {
-    async fn async_read(&mut self, options: R) -> FabrixResult<Fabrix>;
+    async fn async_read<'o>(&mut self, options: &'o R) -> FabrixResult<Fabrix>
+    where
+        'o: 'a;
 
-    fn sync_read(&mut self, options: R) -> FabrixResult<Fabrix>;
+    fn sync_read<'o>(&mut self, options: &'o R) -> FabrixResult<Fabrix>
+    where
+        'o: 'a;
 }
 
 #[async_trait]
-pub trait IntoSource<W>
+pub trait IntoSource<'a, W>
 where
     W: WriteOptions,
 {
-    async fn async_write(&mut self, fabrix: Fabrix, options: W) -> FabrixResult<()>;
+    async fn async_write<'o>(&mut self, fabrix: Fabrix, options: &'o W) -> FabrixResult<()>
+    where
+        'o: 'a;
 
-    fn sync_write(&mut self, fabrix: Fabrix, options: W) -> FabrixResult<()>;
+    fn sync_write<'o>(&mut self, fabrix: Fabrix, options: &'o W) -> FabrixResult<()>
+    where
+        'o: 'a;
 }
 
 // ================================================================================================
 // Dispatcher
 // ================================================================================================
 
-pub struct Dispatcher<Reader, Writer, RO, WO>
+pub struct Dispatcher<'a, Reader, Writer, RO, WO>
 where
-    Reader: FromSource<RO>,
-    Writer: IntoSource<WO>,
+    Reader: FromSource<'a, RO>,
+    Writer: IntoSource<'a, WO>,
     RO: ReadOptions,
     WO: WriteOptions,
 {
@@ -64,13 +72,14 @@ where
     writer: Writer,
     read_options: PhantomData<RO>,
     write_options: PhantomData<WO>,
+    lifetime: PhantomData<&'a ()>,
     fabrix: Option<Fabrix>,
 }
 
-impl<R, W, RO, WO> Dispatcher<R, W, RO, WO>
+impl<'a, R, W, RO, WO> Dispatcher<'a, R, W, RO, WO>
 where
-    R: FromSource<RO>,
-    W: IntoSource<WO>,
+    R: FromSource<'a, RO>,
+    W: IntoSource<'a, WO>,
     RO: ReadOptions,
     WO: WriteOptions,
 {
@@ -80,6 +89,7 @@ where
             writer,
             read_options: PhantomData,
             write_options: PhantomData,
+            lifetime: PhantomData,
             fabrix: None,
         }
     }
@@ -96,22 +106,28 @@ where
         &mut self.writer
     }
 
-    pub fn sync_read(&mut self, options: RO) -> FabrixResult<()> {
+    pub fn sync_read(&mut self, options: &'a RO) -> FabrixResult<()> {
         self.fabrix = Some(self.reader.sync_read(options)?);
         Ok(())
     }
 
-    pub async fn async_read(&mut self, options: RO) -> FabrixResult<()> {
+    pub async fn async_read(&mut self, options: &'a RO) -> FabrixResult<()> {
         self.fabrix = Some(self.reader.async_read(options).await?);
         Ok(())
     }
 
-    pub fn sync_write(&mut self, fabrix: Fabrix, options: WO) -> FabrixResult<()> {
-        self.writer.sync_write(fabrix, options)
+    pub fn sync_write(&mut self, options: &'a WO) -> FabrixResult<()> {
+        match self.fabrix.take() {
+            Some(fx) => self.writer.sync_write(fx, options),
+            None => Err(FabrixError::new_common_error("No fabrix to write")),
+        }
     }
 
-    pub async fn async_write(&mut self, fabrix: Fabrix, options: WO) -> FabrixResult<()> {
-        self.writer.async_write(fabrix, options).await
+    pub async fn async_write(&mut self, options: &'a WO) -> FabrixResult<()> {
+        match self.fabrix.take() {
+            Some(fx) => self.writer.async_write(fx, options).await,
+            None => Err(FabrixError::new_common_error("No fabrix to write")),
+        }
     }
 }
 
@@ -139,37 +155,86 @@ pub struct EmptyRead;
 pub struct EmptyWrite;
 
 #[async_trait]
-impl FromSource<EmptyOption> for EmptyRead {
-    async fn async_read(&mut self, _options: EmptyOption) -> FabrixResult<Fabrix> {
+impl<'a> FromSource<EmptyOption, 'a> for EmptyRead {
+    async fn async_read<'o>(&mut self, _options: &'o EmptyOption) -> FabrixResult<Fabrix>
+    where
+        'o: 'a,
+    {
         Ok(Fabrix::empty())
     }
 
-    fn sync_read(&mut self, _options: EmptyOption) -> FabrixResult<Fabrix> {
+    fn sync_read<'o>(&mut self, _options: &'o EmptyOption) -> FabrixResult<Fabrix>
+    where
+        'o: 'a,
+    {
         Ok(Fabrix::empty())
     }
 }
 
 #[async_trait]
-impl IntoSource<EmptyOption> for EmptyWrite {
-    async fn async_write(&mut self, _fabrix: Fabrix, _options: EmptyOption) -> FabrixResult<()> {
+impl<'a> IntoSource<EmptyOption, 'a> for EmptyWrite {
+    async fn async_write<'o>(
+        &mut self,
+        _fabrix: Fabrix,
+        _options: &'o EmptyOption,
+    ) -> FabrixResult<()>
+    where
+        'o: 'a,
+    {
         Ok(())
     }
 
-    fn sync_write(&mut self, _fabrix: Fabrix, _options: EmptyOption) -> FabrixResult<()> {
+    fn sync_write<'o>(&mut self, _fabrix: Fabrix, _options: &'o EmptyOption) -> FabrixResult<()>
+    where
+        'o: 'a,
+    {
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod dispatcher_tests {
+    use std::fs::File;
+
     use super::*;
+    use crate::csv;
+
+    const CSV_READ: &str = "../mock/test.csv";
+    const CSV_WRITE: &str = "../cache/test.csv";
 
     #[test]
     fn test_empty_dispatcher() {
         let mut dispatcher = Dispatcher::new(EmptyRead, EmptyWrite);
 
-        let res = dispatcher.sync_read(EmptyOption);
+        let res = dispatcher.sync_read(&EmptyOption);
         assert!(res.is_ok());
-        assert!(dispatcher.fabrix().is_none());
+        assert!(dispatcher.fabrix().is_some());
+        assert_eq!(dispatcher.fabrix().unwrap().shape(), (0, 0));
+    }
+
+    #[tokio::test]
+    async fn test_empty_dispatcher_async() {
+        let mut dispatcher = Dispatcher::new(EmptyRead, EmptyWrite);
+
+        let res = dispatcher.async_read(&EmptyOption).await;
+        assert!(res.is_ok());
+        assert!(dispatcher.fabrix().is_some());
+        assert_eq!(dispatcher.fabrix().unwrap().shape(), (0, 0));
+    }
+
+    #[test]
+    fn test_csv_read_write() {
+        let reader = csv::CsvReader::new(File::open(CSV_READ).unwrap());
+        let writer = csv::CsvWriter::new(File::create(CSV_WRITE).unwrap());
+
+        let mut dispatcher = Dispatcher::new(reader, writer);
+
+        let ro = csv::CsvReadOptions::default();
+        let res = dispatcher.sync_read(&ro);
+        assert!(res.is_ok());
+
+        let wo = csv::CsvWriteOptions::default();
+        let res = dispatcher.sync_write(&wo);
+        assert!(res.is_ok());
     }
 }

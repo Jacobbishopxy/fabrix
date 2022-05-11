@@ -1,3 +1,0 @@
-//! CSV executor
-//!
-//! executor

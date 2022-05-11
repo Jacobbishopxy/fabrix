@@ -7,6 +7,7 @@ use std::io::Cursor;
 
 use async_trait::async_trait;
 use polars::io::mmap::MmapBytesReader;
+use polars::io::RowCount;
 use polars::prelude::{CsvReader, SerReader};
 
 use super::{CsvSource, UNSUPPORTED_TYPE};
@@ -48,7 +49,7 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
         }
     }
 
-    pub fn has_source(&self) -> bool {
+    pub fn has_reader(&self) -> bool {
         self.csv_reader.is_some()
     }
 
@@ -57,8 +58,34 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
         self
     }
 
-    pub fn has_header(&mut self, has_header: bool) -> &mut Self {
+    pub fn with_header(&mut self, has_header: bool) -> &mut Self {
         self.csv_reader = self.csv_reader.take().map(|r| r.has_header(has_header));
+        self
+    }
+
+    pub fn with_skip_rows_after_header(&mut self, offset: usize) -> &mut Self {
+        self.csv_reader = self
+            .csv_reader
+            .take()
+            .map(|r| r.with_skip_rows_after_header(offset));
+        self
+    }
+
+    pub fn with_n_rows(&mut self, num_rows: usize) -> &mut Self {
+        self.csv_reader = self
+            .csv_reader
+            .take()
+            .map(|r| r.with_n_rows(Some(num_rows)));
+        self
+    }
+
+    pub fn with_row_count(&mut self, name: &str, offset: usize) -> &mut Self {
+        let name = name.to_string();
+        let offset = offset as u64;
+        self.csv_reader = self
+            .csv_reader
+            .take()
+            .map(|r| r.with_row_count(Some(RowCount { name, offset })));
         self
     }
 
@@ -92,6 +119,9 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
         self
     }
 
+    // TODO:
+    // pub fn with_null_values(&mut self, null_values:)
+
     // schema must be a subset of the total schema
     pub fn with_dtypes(&mut self, schema: &'a Schema) -> &mut Self {
         self.csv_reader = self
@@ -109,11 +139,11 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
         self
     }
 
-    pub fn with_projection(&mut self, projection: &'a [usize]) -> &mut Self {
+    pub fn with_projection(&mut self, projection: Vec<usize>) -> &mut Self {
         self.csv_reader = self
             .csv_reader
             .take()
-            .map(|r| r.with_projection(Some(projection.to_owned())));
+            .map(|r| r.with_projection(Some(projection)));
         self
     }
 
@@ -167,8 +197,12 @@ impl<'a> TryFrom<CsvSource> for Reader<'a, Cursor<Vec<u8>>> {
 // Csv read options & FromSource impl
 // ================================================================================================
 
+#[derive(Default)]
 pub struct CsvReadOptions {
     has_header: Option<bool>,
+    skip_rows_after_header: Option<usize>,
+    num_rows: Option<usize>,
+    row_count: Option<(String, usize)>,
     ignore_parser_errors: Option<bool>,
     skip_rows: Option<usize>,
     rechunk: Option<bool>,
@@ -187,46 +221,75 @@ impl ReadOptions for CsvReadOptions {
 }
 
 #[async_trait]
-impl<'a, R> FromSource<CsvReadOptions> for Reader<'a, R>
+impl<'a, R> FromSource<CsvReadOptions, 'a> for Reader<'a, R>
 where
     R: MmapBytesReader + 'a,
 {
-    async fn async_read(&mut self, options: CsvReadOptions) -> FabrixResult<Fabrix> {
-        if let Some(has_header) = options.has_header {
-            self.has_header(has_header);
-        }
-        if let Some(ignore_parser_errors) = options.ignore_parser_errors {
-            self.with_ignore_parser_errors(ignore_parser_errors);
-        }
-        if let Some(skip_rows) = options.skip_rows {
-            self.with_skip_rows(skip_rows);
-        }
-        if let Some(rechunk) = options.rechunk {
-            self.with_rechunk(rechunk);
-        }
-        if let Some(delimiter) = options.delimiter {
-            self.with_delimiter(delimiter);
-        }
-        if let Some(comment_char) = options.comment_char {
-            self.with_comment_char(comment_char);
-        }
-        // TODO:
-        // lifetime issue:
-        // if let Some(dtypes) = options.dtypes {
-        //     self.with_dtypes(&dtypes);
-        // }
-        // if let Some(dtypes_slice) = options.dtypes_slice {
-        //     self.with_dtypes_slice(&dtypes_slice);
-        // }
-        // if let Some(projection) = options.projection {
-        //     self.with_projection(&projection);
-        // }
-
-        self.finish(options.index)
+    async fn async_read<'o>(&mut self, options: &'o CsvReadOptions) -> FabrixResult<Fabrix>
+    where
+        'o: 'a,
+    {
+        self.sync_read(options)
     }
 
-    fn sync_read(&mut self, _options: CsvReadOptions) -> FabrixResult<Fabrix> {
-        todo!()
+    fn sync_read<'o>(&mut self, options: &'o CsvReadOptions) -> FabrixResult<Fabrix>
+    where
+        'o: 'a,
+    {
+        let CsvReadOptions {
+            has_header,
+            skip_rows_after_header,
+            num_rows,
+            row_count,
+            ignore_parser_errors,
+            skip_rows,
+            rechunk,
+            delimiter,
+            comment_char,
+            dtypes,
+            dtypes_slice,
+            projection,
+            index,
+        } = options;
+
+        if let Some(has_header) = has_header {
+            self.with_header(*has_header);
+        }
+        if let Some(skip_rows_after_header) = skip_rows_after_header {
+            self.with_skip_rows_after_header(*skip_rows_after_header);
+        }
+        if let Some(num_rows) = num_rows {
+            self.with_n_rows(*num_rows);
+        }
+        if let Some((name, offset)) = row_count {
+            self.with_row_count(name, *offset);
+        }
+        if let Some(ignore_parser_errors) = ignore_parser_errors {
+            self.with_ignore_parser_errors(*ignore_parser_errors);
+        }
+        if let Some(skip_rows) = skip_rows {
+            self.with_skip_rows(*skip_rows);
+        }
+        if let Some(rechunk) = rechunk {
+            self.with_rechunk(*rechunk);
+        }
+        if let Some(delimiter) = delimiter {
+            self.with_delimiter(*delimiter);
+        }
+        if let Some(comment_char) = comment_char {
+            self.with_comment_char(*comment_char);
+        }
+        if let Some(dtypes) = dtypes {
+            self.with_dtypes(dtypes);
+        }
+        if let Some(dtypes_slice) = dtypes_slice {
+            self.with_dtypes_slice(dtypes_slice);
+        }
+        if let Some(projection) = projection {
+            self.with_projection(projection.clone());
+        }
+
+        self.finish(*index)
     }
 }
 
@@ -268,7 +331,7 @@ mod test_csv_reader {
             .try_into()
             .unwrap();
 
-        assert!(reader.has_source());
+        assert!(reader.has_reader());
 
         let foo = reader.with_dtypes(&foo).finish(None);
 
@@ -276,6 +339,6 @@ mod test_csv_reader {
 
         println!("foo:\n{:?}", foo.unwrap());
 
-        assert!(!reader.has_source());
+        assert!(!reader.has_reader());
     }
 }
