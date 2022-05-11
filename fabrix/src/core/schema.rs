@@ -71,3 +71,9 @@ impl AsRef<PolarsSchema> for Schema {
         &self.0
     }
 }
+
+impl From<Schema> for PolarsSchema {
+    fn from(schema: Schema) -> Self {
+        schema.0
+    }
+}

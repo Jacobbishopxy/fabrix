@@ -19,49 +19,71 @@ use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, WriteOptions};
 // ================================================================================================
 
 pub struct Writer<W: Write> {
-    csv_writer: CsvWriter<W>,
+    csv_writer: Option<CsvWriter<W>>,
 }
 
 impl<W: Write> Writer<W> {
     pub fn new(writer: W) -> Self {
         Self {
-            csv_writer: CsvWriter::new(writer),
+            csv_writer: Some(CsvWriter::new(writer)),
         }
     }
 
-    pub fn has_header(mut self, has_header: bool) -> Self {
-        self.csv_writer = self.csv_writer.has_header(has_header);
+    pub fn has_source(&self) -> bool {
+        self.csv_writer.is_some()
+    }
+
+    pub fn new_writer(&mut self, writer: W) -> &mut Self {
+        self.csv_writer = Some(CsvWriter::new(writer));
         self
     }
 
-    pub fn with_delimiter(mut self, delimiter: u8) -> Self {
-        self.csv_writer = self.csv_writer.with_delimiter(delimiter);
+    pub fn has_header(&mut self, has_header: bool) -> &mut Self {
+        self.csv_writer = self.csv_writer.take().map(|r| r.has_header(has_header));
         self
     }
 
-    pub fn with_date_format(mut self, format: String) -> Self {
-        self.csv_writer = self.csv_writer.with_date_format(Some(format));
+    pub fn with_delimiter(&mut self, delimiter: u8) -> &mut Self {
+        self.csv_writer = self.csv_writer.take().map(|r| r.with_delimiter(delimiter));
         self
     }
 
-    pub fn with_time_format(mut self, format: String) -> Self {
-        self.csv_writer = self.csv_writer.with_time_format(Some(format));
+    pub fn with_date_format(&mut self, format: String) -> &mut Self {
+        self.csv_writer = self
+            .csv_writer
+            .take()
+            .map(|r| r.with_date_format(Some(format)));
         self
     }
 
-    pub fn with_timestamp_format(mut self, format: String) -> Self {
-        self.csv_writer = self.csv_writer.with_timestamp_format(Some(format));
+    pub fn with_time_format(&mut self, format: String) -> &mut Self {
+        self.csv_writer = self
+            .csv_writer
+            .take()
+            .map(|r| r.with_time_format(Some(format)));
         self
     }
 
-    pub fn with_quoting_char(mut self, char: u8) -> Self {
-        self.csv_writer = self.csv_writer.with_quoting_char(char);
+    pub fn with_timestamp_format(&mut self, format: String) -> &mut Self {
+        self.csv_writer = self
+            .csv_writer
+            .take()
+            .map(|r| r.with_timestamp_format(Some(format)));
         self
     }
 
-    pub fn finish(self, fabrix: &Fabrix) -> FabrixResult<()> {
-        let mut data = fabrix.data().clone();
-        self.csv_writer.finish(&mut data)?;
+    pub fn with_quoting_char(&mut self, char: u8) -> &mut Self {
+        self.csv_writer = self.csv_writer.take().map(|r| r.with_quoting_char(char));
+        self
+    }
+
+    pub fn finish(&mut self, mut fabrix: Fabrix) -> FabrixResult<()> {
+        let writer = self
+            .csv_writer
+            .take()
+            .ok_or_else(|| FabrixError::new_common_error("CsvWriter is not initialized"))?;
+
+        writer.finish(&mut fabrix.data)?;
         Ok(())
     }
 }
@@ -140,9 +162,11 @@ mod test_csv_writer {
 
     #[test]
     fn file_writer() {
-        let writer: Writer<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
+        let mut writer: Writer<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
             .try_into()
             .unwrap();
+
+        assert!(writer.has_source());
 
         let fx = fx![
             "id";
@@ -154,8 +178,10 @@ mod test_csv_writer {
         ]
         .unwrap();
 
-        let foo = writer.finish(&fx);
+        let foo = writer.finish(fx);
 
-        println!("{:?}", foo);
+        assert!(foo.is_ok());
+
+        assert!(!writer.has_source());
     }
 }

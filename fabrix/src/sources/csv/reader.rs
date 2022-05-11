@@ -16,67 +16,115 @@ use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, Schema, 
 // CSV Reader
 // ================================================================================================
 
+/// CSV Reader
+///
+/// Read csv files from `std::fs::File` or `std::io::Cursor<T>`.
+///
+/// Since all the methods provided by `CsvReader` are `mut self`, there is also an
+/// alternative way to build a `Reader` by using unsafe code:
+/// ```rust,ignore
+/// pub struct Reader<'a, R: MmapBytesReader + 'a> {
+///     csv_reader: CsvReader<'a, R>,
+/// }
+///
+/// impl<'a, R: MmapBytesReader> Reader<'a, R> {
+///     pub fn has_header(&mut self) -> &mut Self {
+///         let mut inner = unsafe { std::ptr::read(&self.csv_reader) };
+///         inner = inner.has_header(true);
+///         unsafe { std::ptr::write(&mut self.csv_reader, inner) };
+///
+///         self
+///     }
+/// }
+/// ```
 pub struct Reader<'a, R: MmapBytesReader + 'a> {
-    csv_reader: CsvReader<'a, R>,
+    csv_reader: Option<CsvReader<'a, R>>,
 }
 
 impl<'a, R: MmapBytesReader> Reader<'a, R> {
     pub fn new(reader: R) -> Self {
         Self {
-            csv_reader: CsvReader::new(reader),
+            csv_reader: Some(CsvReader::new(reader)),
         }
     }
 
-    pub fn has_header(mut self, has_header: bool) -> Self {
-        self.csv_reader = self.csv_reader.has_header(has_header);
+    pub fn has_source(&self) -> bool {
+        self.csv_reader.is_some()
+    }
+
+    pub fn new_reader(&mut self, reader: R) -> &mut Self {
+        self.csv_reader = Some(CsvReader::new(reader));
         self
     }
 
-    pub fn with_ignore_parser_errors(mut self, ignore: bool) -> Self {
-        self.csv_reader = self.csv_reader.with_ignore_parser_errors(ignore);
+    pub fn has_header(&mut self, has_header: bool) -> &mut Self {
+        self.csv_reader = self.csv_reader.take().map(|r| r.has_header(has_header));
         self
     }
 
-    pub fn with_skip_rows(mut self, skip_rows: usize) -> Self {
-        self.csv_reader = self.csv_reader.with_skip_rows(skip_rows);
+    pub fn with_ignore_parser_errors(&mut self, ignore: bool) -> &mut Self {
+        self.csv_reader = self
+            .csv_reader
+            .take()
+            .map(|r| r.with_ignore_parser_errors(ignore));
         self
     }
 
-    pub fn with_rechunk(mut self, rechunk: bool) -> Self {
-        self.csv_reader = self.csv_reader.with_rechunk(rechunk);
+    pub fn with_skip_rows(&mut self, skip_rows: usize) -> &mut Self {
+        self.csv_reader = self.csv_reader.take().map(|r| r.with_skip_rows(skip_rows));
         self
     }
 
-    pub fn with_delimiter(mut self, delimiter: u8) -> Self {
-        self.csv_reader = self.csv_reader.with_delimiter(delimiter);
+    pub fn with_rechunk(&mut self, rechunk: bool) -> &mut Self {
+        self.csv_reader = self.csv_reader.take().map(|r| r.with_rechunk(rechunk));
         self
     }
 
-    pub fn with_comment_char(mut self, comment_char: u8) -> Self {
-        self.csv_reader = self.csv_reader.with_comment_char(Some(comment_char));
+    pub fn with_delimiter(&mut self, delimiter: u8) -> &mut Self {
+        self.csv_reader = self.csv_reader.take().map(|r| r.with_delimiter(delimiter));
+        self
+    }
+
+    pub fn with_comment_char(&mut self, comment_char: u8) -> &mut Self {
+        self.csv_reader
+            .take()
+            .map(|r| r.with_comment_char(Some(comment_char)));
         self
     }
 
     // schema must be a subset of the total schema
-    pub fn with_dtypes(mut self, schema: &'a Schema) -> Self {
-        self.csv_reader = self.csv_reader.with_dtypes(Some(schema.as_ref()));
-        self
-    }
-
-    pub fn with_dtypes_slice(mut self, dtypes: &'a ValueTypes) -> Self {
+    pub fn with_dtypes(&mut self, schema: &'a Schema) -> &mut Self {
         self.csv_reader = self
             .csv_reader
-            .with_dtypes_slice(Some(dtypes.polars_dtypes()));
+            .take()
+            .map(|r| r.with_dtypes(Some(schema.as_ref())));
         self
     }
 
-    pub fn with_projection(mut self, projection: &'a [usize]) -> Self {
-        self.csv_reader = self.csv_reader.with_projection(Some(projection.to_vec()));
+    pub fn with_dtypes_slice(&mut self, dtypes: &'a ValueTypes) -> &mut Self {
+        self.csv_reader = self
+            .csv_reader
+            .take()
+            .map(|r| r.with_dtypes_slice(Some(dtypes.as_ref())));
         self
     }
 
-    pub fn finish(self, index: Option<&str>) -> FabrixResult<Fabrix> {
-        let df = self.csv_reader.finish()?;
+    pub fn with_projection(&mut self, projection: &'a [usize]) -> &mut Self {
+        self.csv_reader = self
+            .csv_reader
+            .take()
+            .map(|r| r.with_projection(Some(projection.to_owned())));
+        self
+    }
+
+    pub fn finish(&mut self, index: Option<&str>) -> FabrixResult<Fabrix> {
+        let reader = self
+            .csv_reader
+            .take()
+            .ok_or_else(|| FabrixError::new_common_error("CsvReader is not initialized"))?;
+
+        let df = reader.finish()?;
+
         if let Some(index) = index {
             Ok(Fabrix::new(df, index)?)
         } else {
@@ -171,7 +219,7 @@ mod test_csv_reader {
             name: "new_index".to_owned(),
             offset: 0,
         };
-        let foo = reader.csv_reader.with_row_count(Some(rc)).finish();
+        let foo = reader.csv_reader.unwrap().with_row_count(Some(rc)).finish();
 
         println!("{:?}", foo.unwrap());
     }
@@ -185,12 +233,18 @@ mod test_csv_reader {
         ];
         let foo = Schema::from_field_infos(fi);
 
-        let reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
+        let mut reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
             .try_into()
             .unwrap();
+
+        assert!(reader.has_source());
 
         let foo = reader.with_dtypes(&foo).finish(None);
 
         assert!(foo.is_ok());
+
+        println!("foo:\n{:?}", foo.unwrap());
+
+        assert!(!reader.has_source());
     }
 }

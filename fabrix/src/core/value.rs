@@ -433,9 +433,21 @@ impl ValueTypes {
     }
 }
 
+impl AsRef<Vec<DataType>> for ValueTypes {
+    fn as_ref(&self) -> &Vec<DataType> {
+        &self.inner
+    }
+}
+
 impl From<Vec<ValueType>> for ValueTypes {
     fn from(val: Vec<ValueType>) -> Self {
         ValueTypes::new(val)
+    }
+}
+
+impl From<ValueTypes> for Vec<DataType> {
+    fn from(val: ValueTypes) -> Self {
+        val.inner
     }
 }
 
