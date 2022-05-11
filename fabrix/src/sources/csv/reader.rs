@@ -117,7 +117,7 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
         self
     }
 
-    pub fn finish(&mut self, index: Option<&str>) -> FabrixResult<Fabrix> {
+    pub fn finish(&mut self, index: Option<usize>) -> FabrixResult<Fabrix> {
         let reader = self
             .csv_reader
             .take()
@@ -168,15 +168,16 @@ impl<'a> TryFrom<CsvSource> for Reader<'a, Cursor<Vec<u8>>> {
 // ================================================================================================
 
 pub struct CsvReadOptions {
-    pub has_header: bool,
-    pub ignore_parser_errors: bool,
-    pub skip_rows: usize,
-    pub rechunk: bool,
-    pub delimiter: u8,
-    pub comment_char: u8,
-    pub dtypes: Schema,
-    pub dtypes_slice: ValueTypes,
-    pub projection: Vec<usize>,
+    has_header: Option<bool>,
+    ignore_parser_errors: Option<bool>,
+    skip_rows: Option<usize>,
+    rechunk: Option<bool>,
+    delimiter: Option<u8>,
+    comment_char: Option<u8>,
+    dtypes: Option<Schema>,
+    dtypes_slice: Option<ValueTypes>,
+    projection: Option<Vec<usize>>,
+    index: Option<usize>,
 }
 
 impl ReadOptions for CsvReadOptions {
@@ -190,8 +191,38 @@ impl<'a, R> FromSource<CsvReadOptions> for Reader<'a, R>
 where
     R: MmapBytesReader + 'a,
 {
-    async fn async_read(&mut self, _options: CsvReadOptions) -> FabrixResult<Fabrix> {
-        todo!()
+    async fn async_read(&mut self, options: CsvReadOptions) -> FabrixResult<Fabrix> {
+        if let Some(has_header) = options.has_header {
+            self.has_header(has_header);
+        }
+        if let Some(ignore_parser_errors) = options.ignore_parser_errors {
+            self.with_ignore_parser_errors(ignore_parser_errors);
+        }
+        if let Some(skip_rows) = options.skip_rows {
+            self.with_skip_rows(skip_rows);
+        }
+        if let Some(rechunk) = options.rechunk {
+            self.with_rechunk(rechunk);
+        }
+        if let Some(delimiter) = options.delimiter {
+            self.with_delimiter(delimiter);
+        }
+        if let Some(comment_char) = options.comment_char {
+            self.with_comment_char(comment_char);
+        }
+        // TODO:
+        // lifetime issue:
+        // if let Some(dtypes) = options.dtypes {
+        //     self.with_dtypes(&dtypes);
+        // }
+        // if let Some(dtypes_slice) = options.dtypes_slice {
+        //     self.with_dtypes_slice(&dtypes_slice);
+        // }
+        // if let Some(projection) = options.projection {
+        //     self.with_projection(&projection);
+        // }
+
+        self.finish(options.index)
     }
 
     fn sync_read(&mut self, _options: CsvReadOptions) -> FabrixResult<Fabrix> {

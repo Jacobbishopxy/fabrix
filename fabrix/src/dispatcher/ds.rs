@@ -44,9 +44,9 @@ pub trait IntoSource<W>
 where
     W: WriteOptions,
 {
-    async fn async_write(&mut self, options: W) -> FabrixResult<()>;
+    async fn async_write(&mut self, fabrix: Fabrix, options: W) -> FabrixResult<()>;
 
-    fn sync_write(&mut self, options: W) -> FabrixResult<()>;
+    fn sync_write(&mut self, fabrix: Fabrix, options: W) -> FabrixResult<()>;
 }
 
 // ================================================================================================
@@ -106,12 +106,12 @@ where
         Ok(())
     }
 
-    pub fn sync_write(&mut self, options: WO) -> FabrixResult<()> {
-        self.writer.sync_write(options)
+    pub fn sync_write(&mut self, fabrix: Fabrix, options: WO) -> FabrixResult<()> {
+        self.writer.sync_write(fabrix, options)
     }
 
-    pub async fn async_write(&mut self, options: WO) -> FabrixResult<()> {
-        self.writer.async_write(options).await
+    pub async fn async_write(&mut self, fabrix: Fabrix, options: WO) -> FabrixResult<()> {
+        self.writer.async_write(fabrix, options).await
     }
 }
 
@@ -151,11 +151,11 @@ impl FromSource<EmptyOption> for EmptyRead {
 
 #[async_trait]
 impl IntoSource<EmptyOption> for EmptyWrite {
-    async fn async_write(&mut self, _options: EmptyOption) -> FabrixResult<()> {
+    async fn async_write(&mut self, _fabrix: Fabrix, _options: EmptyOption) -> FabrixResult<()> {
         Ok(())
     }
 
-    fn sync_write(&mut self, _options: EmptyOption) -> FabrixResult<()> {
+    fn sync_write(&mut self, _fabrix: Fabrix, _options: EmptyOption) -> FabrixResult<()> {
         Ok(())
     }
 }

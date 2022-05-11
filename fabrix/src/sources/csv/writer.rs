@@ -123,12 +123,12 @@ impl TryFrom<CsvSource> for Writer<Cursor<Vec<u8>>> {
 // ================================================================================================
 
 pub struct CsvWriteOptions {
-    pub has_header: bool,
-    pub delimiter: u8,
-    pub date_format: String,
-    pub time_format: String,
-    pub timestamp_format: String,
-    pub quoting_char: u8,
+    has_header: Option<bool>,
+    delimiter: Option<u8>,
+    date_format: Option<String>,
+    time_format: Option<String>,
+    timestamp_format: Option<String>,
+    quoting_char: Option<u8>,
 }
 
 impl WriteOptions for CsvWriteOptions {
@@ -142,12 +142,31 @@ impl<W> IntoSource<CsvWriteOptions> for Writer<W>
 where
     W: Write + Send,
 {
-    async fn async_write(&mut self, _options: CsvWriteOptions) -> FabrixResult<()> {
-        todo!()
+    async fn async_write(&mut self, fabrix: Fabrix, options: CsvWriteOptions) -> FabrixResult<()> {
+        self.sync_write(fabrix, options)
     }
 
-    fn sync_write(&mut self, _options: CsvWriteOptions) -> FabrixResult<()> {
-        todo!()
+    fn sync_write(&mut self, fabrix: Fabrix, options: CsvWriteOptions) -> FabrixResult<()> {
+        if let Some(has_header) = options.has_header {
+            self.has_header(has_header);
+        }
+        if let Some(delimiter) = options.delimiter {
+            self.with_delimiter(delimiter);
+        }
+        if let Some(date_format) = options.date_format {
+            self.with_date_format(date_format);
+        }
+        if let Some(time_format) = options.time_format {
+            self.with_time_format(time_format);
+        }
+        if let Some(timestamp_format) = options.timestamp_format {
+            self.with_timestamp_format(timestamp_format);
+        }
+        if let Some(quoting_char) = options.quoting_char {
+            self.with_quoting_char(quoting_char);
+        }
+
+        self.finish(fabrix)
     }
 }
 
