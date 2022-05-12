@@ -33,7 +33,6 @@ use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, Schema, 
 ///         let mut inner = unsafe { std::ptr::read(&self.csv_reader) };
 ///         inner = inner.has_header(true);
 ///         unsafe { std::ptr::write(&mut self.csv_reader, inner) };
-///
 ///         self
 ///     }
 /// }
