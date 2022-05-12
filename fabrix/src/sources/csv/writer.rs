@@ -116,7 +116,7 @@ impl TryFrom<CsvSource> for Writer<Cursor<Vec<u8>>> {
 }
 
 // ================================================================================================
-// Csv write options & FromSource impl
+// Csv write options & IntoSource impl
 // ================================================================================================
 
 #[derive(Default)]
@@ -136,7 +136,7 @@ impl<'a> WriteOptions for CsvWriteOptions<'a> {
 }
 
 #[async_trait]
-impl<'a, W> IntoSource<CsvWriteOptions<'_>, 'a> for Writer<W>
+impl<'a, W> IntoSource<'a, CsvWriteOptions<'_>> for Writer<W>
 where
     W: Write + Send,
 {

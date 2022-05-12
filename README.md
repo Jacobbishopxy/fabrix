@@ -18,8 +18,8 @@ There are three main parts in this crate:
 │   ├── row.rs                          // row-wise data structure
 │   ├── schema.rs                       // dataframe schema
 │   ├── util.rs                         // utility functions
-│   ├── error.rs
-│   └── macros.rs
+│   ├── error.rs                        // error handling for core
+│   └── macros.rs                       // macros for core
 │
 ├── sources
 │   │
@@ -32,13 +32,18 @@ There are three main parts in this crate:
 │   │   │   ├── mutation_dml.rs         // dml mutation: insert/update/delete data
 │   │   │   ├── interface.rs            // SQL builder & ddl/dml logic interface
 │   │   │   ├── builder.rs              // SQL builder & ddl/dml logic implement
-│   │   │   └── macros.rs
-│   │   └── sql_executor                // SQL executor
-│   │       ├── types.rs                // Conversion between Sql data type and Fabrix `Value`
-│   │       ├── processor.rs            // Sql row process, turn raw sql row into `Vec<Value>` or `Row`
-│   │       ├── loader.rs               // Database loader, CRUD logic implementation
-│   │       ├── executor.rs             // Sql executor, business logic implementation
-│   │       └── macros.rs
+│   │   │   └── macros.rs               // Macros for SQL builder
+│   │   │
+│   │   ├── sql_executor                // SQL executor
+│   │   │   ├── types.rs                // Conversion between Sql data type and Fabrix `Value`
+│   │   │   ├── processor.rs            // Sql row process, turn raw sql row into `Vec<Value>` or `Row`
+│   │   │   ├── loader.rs               // Database loader, CRUD logic implementation
+│   │   │   ├── executor.rs             // Sql executor, business logic implementation
+│   │   │   └── macros.rs               // Macros for sql executor
+│   │   │
+│   │   ├── error.rs                    // Sql error
+│   │   ├── reader.rs                   // Sql reader
+│   │   └── writer.rs                   // Sql writer
 │   │
 │   ├── xl                              // Excel data source
 │   │   ├── util.rs                     // Excel utility
@@ -68,11 +73,8 @@ There are three main parts in this crate:
 │   └── xl_bson.rs                      // Excel -> BSON
 │
 ├── errors.rs                           // error handling
-│
 ├── macros.rs                           // helpful macros
-│
 ├── prelude.rs                          // prelude of this crate
-│
 └── lib.rs
 ```
 

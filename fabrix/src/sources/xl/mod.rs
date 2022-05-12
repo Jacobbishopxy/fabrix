@@ -15,7 +15,7 @@ pub mod workbook;
 pub(crate) mod worksheet;
 
 pub use executor::{AsyncConsumeFP, ConvertFP, SyncConsumeFP, XlConsumer, XlExecutor};
-pub use reader::*;
+pub use reader::{Reader as XlReader, XlReadOptions};
 pub use workbook::Workbook;
 pub(crate) use worksheet::SheetReader;
 pub use worksheet::{Cell, ChunkCell, Row, RowIter, VecCell, Worksheet};
