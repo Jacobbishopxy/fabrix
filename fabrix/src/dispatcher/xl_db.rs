@@ -98,7 +98,7 @@ impl XlDbConvertor {
         match index_col.into() {
             XlIndexSelection::Num(num) => {
                 self.set_row_wised_fields(&mut data, Some(num))?;
-                let mut df = Fabrix::from_row_values(data, Some(num))?;
+                let mut df = Fabrix::from_row_values(data, Some(num), false)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
@@ -113,13 +113,13 @@ impl XlDbConvertor {
                         FabrixError::new_common_error(format!("index name: {name} not found"))
                     })?;
                 self.set_row_wised_fields(&mut data, Some(idx))?;
-                let mut df = Fabrix::from_row_values(data, Some(idx))?;
+                let mut df = Fabrix::from_row_values(data, Some(idx), false)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
             XlIndexSelection::None => {
                 self.set_row_wised_fields(&mut data, None)?;
-                let mut df = Fabrix::from_row_values(data, None)?;
+                let mut df = Fabrix::from_row_values(data, None, false)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
@@ -362,7 +362,7 @@ mod test_xl_reader {
         let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let mut convertor = XlDbConvertor::new();
-        let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+        let mut xle = XlDbExecutor::new_with_source(source);
         let iter = xle.iter_sheet(None, XL_SHEET_NAME).unwrap();
 
         for (i, row) in iter.enumerate() {
@@ -378,7 +378,7 @@ mod test_xl_reader {
         let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
-        let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+        let mut xle = XlDbExecutor::new_with_source(source);
         let iter = xle.iter_sheet(None, XL_SHEET_NAME2).unwrap();
 
         for (i, row) in iter.enumerate() {
@@ -399,7 +399,7 @@ mod test_xl_reader {
         let mut consumer = XlToDbConsumer::new(CONN3).await.unwrap();
 
         // XlExecutor instance
-        let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+        let mut xle = XlDbExecutor::new_with_source(source);
 
         // xl sheet iterator
         let iter = xle.iter_sheet(Some(40), XL_SHEET_NAME).unwrap();
@@ -448,7 +448,7 @@ mod test_xl_reader {
         let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
         let am_consumer = Arc::new(Mutex::new(consumer));
 
-        let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+        let mut xle = XlDbExecutor::new_with_source(source);
 
         let foo = xle
             .async_consume_fn_mut(
@@ -481,7 +481,7 @@ mod test_xl_reader {
         // however, by this way, we lose the flexibility of customizing the convertor and consumer
         let xl2db = XlDbHelper::new(CONN3).await.unwrap();
 
-        let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+        let mut xle = XlDbExecutor::new_with_source(source);
 
         let foo = xle
             .async_consume_fn_mut(

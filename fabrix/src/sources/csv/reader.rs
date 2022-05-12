@@ -170,10 +170,7 @@ impl<'a> TryFrom<CsvSource> for Reader<'a, File> {
     fn try_from(source: CsvSource) -> FabrixResult<Self> {
         match source {
             CsvSource::File(file) => Ok(Self::new(file)),
-            CsvSource::Path(path) => {
-                let file = File::open(path)?;
-                Ok(Self::new(file))
-            }
+            CsvSource::Path(path) => Ok(Self::new(File::open(path)?)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -218,7 +215,7 @@ impl ReadOptions for CsvReadOptions {
 }
 
 #[async_trait]
-impl<'a, R> FromSource<CsvReadOptions, 'a> for Reader<'a, R>
+impl<'a, R> FromSource<'a, CsvReadOptions> for Reader<'a, R>
 where
     R: MmapBytesReader + 'a,
 {

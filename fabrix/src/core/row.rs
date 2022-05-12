@@ -150,8 +150,15 @@ impl Fabrix {
         }
     }
 
+    // TODO:
+    // param has_header
+
     /// create a DataFrame by D2Value, slower than column-wise constructors
-    pub fn from_row_values(values: D2Value, index_col: Option<usize>) -> CoreResult<Self> {
+    pub fn from_row_values(
+        values: D2Value,
+        index_col: Option<usize>,
+        has_header: bool,
+    ) -> CoreResult<Self> {
         let iter = values.into_iter();
         Fabrix::from_row_values_iter(iter, index_col)
     }
@@ -337,7 +344,7 @@ mod test_row {
             vec![value!(31), value!("James"), value!("A"), value!(9)],
         ];
 
-        let df = Fabrix::from_row_values(vvv, None);
+        let df = Fabrix::from_row_values(vvv, None, false);
         assert!(df.is_ok());
 
         let df = df.unwrap();

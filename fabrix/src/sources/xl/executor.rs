@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
 
-use super::{Cell, RowIter, Workbook};
+use super::{Cell, RowIter, Workbook, XlSource};
 use crate::{FabrixError, FabrixResult, D2};
 
 /// A convert function pointer used for converting `D2<UnitOut>` into type parameter `FinalOut`.
@@ -90,15 +90,6 @@ pub trait XlConsumer<CORE> {
     {
         Box::pin(consume_fn(chunked_data)).await
     }
-}
-
-/// Xl file source type
-#[derive(Debug)]
-pub enum XlSource {
-    File(File),
-    Path(String),
-    Url(String),
-    Bytes(Cursor<Vec<u8>>),
 }
 
 impl TryFrom<XlSource> for Workbook<File> {
@@ -292,13 +283,13 @@ where
     }
 
     /// constructor
-    pub fn new_with_source(source: Workbook<READER>) -> FabrixResult<Self> {
-        Ok(Self {
+    pub fn new_with_source(source: Workbook<READER>) -> Self {
+        Self {
             workbook: Some(source),
             consumer: PhantomData,
             core: PhantomData,
             xl_form: PhantomData,
-        })
+        }
     }
 
     /// replace or set a new workbook
@@ -531,7 +522,7 @@ mod test_xl_executor {
     #[test]
     fn test_exec_iter_sheet() {
         let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
-        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle.iter_sheet(None, SHEET_NAME).unwrap();
 
@@ -573,7 +564,7 @@ mod test_xl_executor {
     #[test]
     fn test_value_console() {
         let source: Workbook<File> = XlSource::Path(XL_PATH2.to_owned()).try_into().unwrap();
-        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
 
@@ -584,7 +575,7 @@ mod test_xl_executor {
     #[test]
     fn test_exec_consume() {
         let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
-        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
 
@@ -595,7 +586,7 @@ mod test_xl_executor {
     #[tokio::test]
     async fn test_exec_async_consume() {
         let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
-        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle
             .async_consume(Some(20), SHEET_NAME, convert_fn, |fo| {
@@ -610,7 +601,7 @@ mod test_xl_executor {
     #[tokio::test]
     async fn test_exec_async_consume_mut() {
         let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
-        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source).unwrap();
+        let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let sc = Arc::new(Mutex::new(StatefulConsumer::new()));
 

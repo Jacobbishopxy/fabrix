@@ -107,8 +107,7 @@ async fn xl_to_json(
 
         let mut helper = xl_json::XlJson::new();
 
-        let mut xle =
-            xl_json::XlJsonExecutor::new_with_source(source).map_err(|e| WebError { err: e })?;
+        let mut xle = xl_json::XlJsonExecutor::new_with_source(source);
 
         xle.consume_fn_mut(
             Some(30),

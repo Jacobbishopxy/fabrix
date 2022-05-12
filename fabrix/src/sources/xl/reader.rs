@@ -1,3 +1,267 @@
 //! Xl reader
 //!
 //! Reading Xl files
+
+use std::{
+    fs::File,
+    io::{Cursor, Read, Seek},
+};
+
+use async_trait::async_trait;
+
+use super::{Cell, Workbook, XlConsumer, XlExecutor, XlSource, UNSUPPORTED_TYPE};
+use crate::{value, Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, Value, D2};
+
+// ================================================================================================
+// Xl into Fabrix convertor implementation
+// ================================================================================================
+
+type XlFabrixExecutor<R> = XlExecutor<XlFabrix, (), R>;
+
+#[derive(Default)]
+struct XlFabrix {
+    data: Option<Fabrix>,
+}
+
+impl XlFabrix {
+    fn new() -> Self {
+        Self { data: None }
+    }
+
+    fn transform_data(
+        data: D2<Value>,
+        is_column_wised: bool,
+        has_header: bool,
+    ) -> FabrixResult<Fabrix> {
+        if is_column_wised {
+            Ok(Fabrix::from_column_values(data, None, has_header)?)
+        } else if has_header {
+            // TODO: make `from_row_values` work with `has_header`
+
+            let mut data = data;
+            if data.len() < 2 {
+                return Err(FabrixError::new_common_error(format!(
+                    "invalid data length: {:?}",
+                    data.len()
+                )));
+            }
+            let head = data
+                .remove(0)
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>();
+            let mut fb = Fabrix::from_row_values(data, None, true)?;
+            fb.set_column_names(&head)?;
+
+            Ok(fb)
+        } else {
+            Ok(Fabrix::from_row_values(data, None, false)?)
+        }
+    }
+
+    fn store(&mut self, data: Fabrix) {
+        self.data = Some(data);
+    }
+}
+
+impl XlConsumer<()> for XlFabrix {
+    type UnitOut = Value;
+    type FinalOut = Fabrix;
+
+    fn transform(cell: Cell) -> Self::UnitOut {
+        match cell.value {
+            super::ExcelValue::Bool(v) => value!(v),
+            super::ExcelValue::Number(v) => value!(v),
+            super::ExcelValue::String(v) => value!(v.to_string()),
+            super::ExcelValue::Date(v) => value!(v),
+            super::ExcelValue::Time(v) => value!(v),
+            super::ExcelValue::DateTime(v) => value!(v),
+            super::ExcelValue::None => Value::Null,
+            super::ExcelValue::Error(v) => Value::String(format!("error: {v}")),
+        }
+    }
+}
+
+// ================================================================================================
+// Xl Reader
+// ================================================================================================
+
+/// Xl Reader
+pub struct Reader<R: Read + Seek> {
+    xl_reader: Option<XlFabrixExecutor<R>>,
+    sheet_name: Option<String>,
+    has_header: Option<bool>,
+    is_column_wised: Option<bool>,
+}
+
+impl<R: Read + Seek> Reader<R> {
+    pub fn new(reader: R) -> FabrixResult<Self> {
+        Ok(Self {
+            xl_reader: Some(XlExecutor::new_with_source(Workbook::new(reader)?)),
+            sheet_name: None,
+            has_header: None,
+            is_column_wised: None,
+        })
+    }
+
+    pub fn has_reader(&self) -> bool {
+        self.xl_reader.is_some()
+    }
+
+    pub fn with_sheet_name(&mut self, sheet_name: &str) -> &mut Self {
+        self.sheet_name = Some(sheet_name.to_string());
+        self
+    }
+
+    pub fn with_header(&mut self, has_header: bool) -> &mut Self {
+        self.has_header = Some(has_header);
+        self
+    }
+
+    pub fn with_column_wised(&mut self, is_column_wised: bool) -> &mut Self {
+        self.is_column_wised = Some(is_column_wised);
+        self
+    }
+
+    pub fn finish(&mut self, index: Option<usize>) -> FabrixResult<Fabrix> {
+        let mut xl_reader = self
+            .xl_reader
+            .take()
+            .ok_or_else(|| FabrixError::new_common_error("XlReader is not initialized"))?;
+
+        let mut helper = XlFabrix::new();
+
+        let sheet_name = self
+            .sheet_name
+            .take()
+            .ok_or_else(|| FabrixError::new_common_error("Sheet name is not set"))?;
+
+        let has_header = self.has_header.take().unwrap_or(true);
+
+        let is_column_wised = self.is_column_wised.take().unwrap_or(false);
+
+        xl_reader.consume_fn_mut(
+            None,
+            &sheet_name,
+            |d| XlFabrix::transform_data(d, is_column_wised, has_header),
+            |d| {
+                helper.store(d);
+                Ok(())
+            },
+        )?;
+
+        let mut res = helper.data.take().unwrap();
+        if let Some(index) = index {
+            res.set_index_tag(index)?;
+        }
+
+        Ok(res)
+    }
+}
+
+// ================================================================================================
+// XlReader TryFrom XlSource
+// ================================================================================================
+
+impl TryFrom<XlSource> for Reader<File> {
+    type Error = FabrixError;
+
+    fn try_from(source: XlSource) -> Result<Self, Self::Error> {
+        match source {
+            XlSource::File(file) => Self::new(file),
+            XlSource::Path(path) => Self::new(File::open(path)?),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+        }
+    }
+}
+
+impl TryFrom<XlSource> for Reader<Cursor<Vec<u8>>> {
+    type Error = FabrixError;
+
+    fn try_from(source: XlSource) -> Result<Self, Self::Error> {
+        match source {
+            XlSource::Bytes(bytes) => Self::new(bytes),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+        }
+    }
+}
+
+// ================================================================================================
+// Xl read options & FromSource impl
+// ================================================================================================
+
+#[derive(Default)]
+pub struct XlReadOptions {
+    sheet_name: Option<String>,
+    has_header: Option<bool>,
+    is_column_wised: Option<bool>,
+    index: Option<usize>,
+}
+
+impl ReadOptions for XlReadOptions {
+    fn source_type(&self) -> &str {
+        "xl"
+    }
+}
+
+#[async_trait]
+impl<'a, R> FromSource<'a, XlReadOptions> for Reader<R>
+where
+    R: Seek + Read + Send,
+{
+    async fn async_read<'o>(&mut self, options: &'o XlReadOptions) -> FabrixResult<Fabrix>
+    where
+        'o: 'a,
+    {
+        self.sync_read(options)
+    }
+
+    fn sync_read<'o>(&mut self, options: &'o XlReadOptions) -> FabrixResult<Fabrix>
+    where
+        'o: 'a,
+    {
+        let XlReadOptions {
+            sheet_name,
+            has_header,
+            is_column_wised,
+            index,
+        } = options;
+
+        if let Some(sheet_name) = sheet_name {
+            self.with_sheet_name(sheet_name);
+        }
+        if let Some(has_header) = has_header {
+            self.with_header(*has_header);
+        }
+        if let Some(is_column_wised) = is_column_wised {
+            self.with_column_wised(*is_column_wised);
+        }
+
+        self.finish(*index)
+    }
+}
+
+#[cfg(test)]
+mod test_xl_reader {
+    use super::*;
+
+    const XL_FILE_PATH: &str = "../mock/test.xlsx";
+
+    #[test]
+    fn file_read() {
+        let mut reader: Reader<File> = XlSource::Path(XL_FILE_PATH.to_string()).try_into().unwrap();
+
+        assert!(reader.has_reader());
+
+        let foo = reader
+            .with_header(true)
+            .with_sheet_name("data")
+            .finish(None);
+
+        assert!(foo.is_ok());
+
+        println!("foo:\n {:?}", foo.unwrap());
+
+        assert!(!reader.has_reader());
+    }
+}

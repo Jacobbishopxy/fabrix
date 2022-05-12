@@ -25,7 +25,7 @@ async fn test_xl2db_async_no_index() {
 
     let mut xl2db = XlDbHelper::new(CONN2).await.unwrap();
 
-    let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+    let mut xle = XlDbExecutor::new_with_source(source);
 
     let res = xle
         .async_consume_fn_mut(
@@ -89,7 +89,7 @@ async fn test_xl2db_async_with_index_row_wised() {
 
     let mut xl2db = XlDbHelper::new(CONN2).await.unwrap();
 
-    let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+    let mut xle = XlDbExecutor::new_with_source(source);
 
     let res = xle
         .async_consume_fn_mut(
@@ -118,7 +118,7 @@ async fn test_xl2db_async_with_index_col_wised() {
 
     let xl2db = XlDbHelper::new(CONN2).await.unwrap();
 
-    let mut xle = XlDbExecutor::new_with_source(source).unwrap();
+    let mut xle = XlDbExecutor::new_with_source(source);
 
     let res = xle
         .async_consume_fn_mut(

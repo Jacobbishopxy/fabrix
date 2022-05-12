@@ -59,7 +59,7 @@ mod xl_bson_tests {
     fn convert_test() {
         let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
 
-        let mut xle = XlBsonExecutor::new_with_source(source).unwrap();
+        let mut xle = XlBsonExecutor::new_with_source(source);
 
         let foo = xle.consume_fn(
             Some(30),

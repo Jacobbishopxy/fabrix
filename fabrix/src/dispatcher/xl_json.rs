@@ -71,7 +71,7 @@ mod xl_json_tests {
     fn convert_test() {
         let source: Workbook<File> = XlSource::Path(SOURCE_PATH.to_owned()).try_into().unwrap();
 
-        let mut xle = XlJsonExecutor::new_with_source(source).unwrap();
+        let mut xle = XlJsonExecutor::new_with_source(source);
 
         xle.consume_fn(
             Some(30),
@@ -91,7 +91,7 @@ mod xl_json_tests {
 
         let mut helper = XlJson::new();
 
-        let mut xle = XlJsonExecutor::new_with_source(source).unwrap();
+        let mut xle = XlJsonExecutor::new_with_source(source);
 
         xle.consume_fn_mut(
             Some(30),

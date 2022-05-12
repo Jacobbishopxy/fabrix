@@ -2,17 +2,34 @@
 //!
 //! Xl is a module for reading (writing is temporary unsupported) Excel files.
 
+use std::borrow::Cow;
+use std::fs::File;
+use std::io::Cursor;
+
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+
 pub mod executor;
 pub mod reader;
 mod util;
 pub mod workbook;
 pub(crate) mod worksheet;
 
-pub use executor::{AsyncConsumeFP, ConvertFP, SyncConsumeFP, XlConsumer, XlExecutor, XlSource};
+pub use executor::{AsyncConsumeFP, ConvertFP, SyncConsumeFP, XlConsumer, XlExecutor};
 pub use reader::*;
 pub use workbook::Workbook;
 pub(crate) use worksheet::SheetReader;
 pub use worksheet::{Cell, ChunkCell, Row, RowIter, VecCell, Worksheet};
+
+pub(crate) const UNSUPPORTED_TYPE: &str = "Unsupported XlSource type";
+
+/// Xl file source type
+#[derive(Debug)]
+pub enum XlSource {
+    File(File),
+    Path(String),
+    Url(String),
+    Bytes(Cursor<Vec<u8>>),
+}
 
 /// Date system, used to determine the date format from an Excel file.
 ///
@@ -39,10 +56,10 @@ pub(crate) enum DateSystem {
 pub enum ExcelValue<'a> {
     Bool(bool),
     Number(f64),
-    String(std::borrow::Cow<'a, str>),
-    Date(chrono::NaiveDate),
-    Time(chrono::NaiveTime),
-    DateTime(chrono::NaiveDateTime),
+    String(Cow<'a, str>),
+    Date(NaiveDate),
+    Time(NaiveTime),
+    DateTime(NaiveDateTime),
     None,
     Error(String),
 }

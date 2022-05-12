@@ -8,6 +8,7 @@
 //! 1. new_empty
 //! 1. from_series
 //! 1. from_series_no_index
+//! 1. from_column_values
 //! 1. empty
 //! 1. rechunk
 //! 1. get_column
@@ -51,7 +52,7 @@ use polars::{
 };
 
 use super::{cis_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX};
-use crate::{CoreResult, Value, ValueType};
+use crate::{CoreResult, D2Value, Value, ValueType};
 
 /// IndexTag
 ///
@@ -196,6 +197,15 @@ impl Fabrix {
             data,
             index_tag: None,
         })
+    }
+
+    /// Create a DataFrame from by D2Value, column-wised
+    pub fn from_column_values(
+        values: D2Value,
+        index_col: Option<usize>,
+        has_header: bool,
+    ) -> CoreResult<Self> {
+        todo!()
     }
 
     /// rechunk: aggregate all chunks to a contiguous array of memory

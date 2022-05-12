@@ -328,7 +328,7 @@ impl SqlEngine for SqlExecutor {
             Err(_) => {
                 let que = self.driver.select(select);
                 let res = self.pool.as_ref().unwrap().fetch_all(&que).await?;
-                Fabrix::from_row_values(res, None)?
+                Fabrix::from_row_values(res, None, false)?
             }
         };
         df.set_column_names(&select.columns_name(true))?;
