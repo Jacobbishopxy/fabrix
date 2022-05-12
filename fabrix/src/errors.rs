@@ -7,8 +7,6 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::CoreError;
-#[cfg(feature = "file")]
-use crate::FlError;
 #[cfg(feature = "sql")]
 use crate::SqlError;
 
@@ -69,6 +67,10 @@ pub enum FabrixError {
     #[error(transparent)]
     POLARS(#[from] polars::prelude::PolarsError),
 
+    // Zip errors
+    #[error(transparent)]
+    Zip(#[from] zip::result::ZipError),
+
     // Sql errors
     #[cfg(feature = "sql")]
     #[error(transparent)]
@@ -78,11 +80,6 @@ pub enum FabrixError {
     // #[cfg(feature = "mongo")]
     // #[error(transparent)]
     // MONGO(#[from] MongoError),
-
-    // file errors
-    #[cfg(feature = "file")]
-    #[error(transparent)]
-    FL(#[from] FlError),
 
     // Tokio lock error
     #[error(transparent)]

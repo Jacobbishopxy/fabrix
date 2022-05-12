@@ -1,7 +1,5 @@
 //! Fabrix sources
 
-pub mod file_error;
-
 #[cfg(feature = "bson")]
 pub mod bson;
 #[cfg(feature = "csv")]

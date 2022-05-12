@@ -405,6 +405,10 @@ impl From<&DataType> for ValueType {
     }
 }
 
+// ================================================================================================
+// Wrappers for the Polars DataType enum
+// ================================================================================================
+
 pub struct ValueTypes {
     inner: Vec<DataType>,
 }
@@ -450,6 +454,10 @@ impl From<ValueTypes> for Vec<DataType> {
         val.inner
     }
 }
+
+// ================================================================================================
+// Conversions of Polars DataType & ValueType
+// ================================================================================================
 
 impl From<DataType> for ValueType {
     fn from(v: DataType) -> Self {
@@ -535,12 +543,9 @@ impl ValueType {
     }
 }
 
-/// default value: null
-impl Default for Value {
-    fn default() -> Self {
-        Value::Null
-    }
-}
+// ================================================================================================
+// Conversions of Polars AnyValue & Value
+// ================================================================================================
 
 /// from &dyn PolarsObjectSafe to Value, Beware performance.
 impl From<&dyn PolarsObjectSafe> for Value {

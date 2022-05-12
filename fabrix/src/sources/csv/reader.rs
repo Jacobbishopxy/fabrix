@@ -119,9 +119,6 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
         self
     }
 
-    // TODO:
-    // pub fn with_null_values(&mut self, null_values:)
-
     // schema must be a subset of the total schema
     pub fn with_dtypes(&mut self, schema: &'a Schema) -> &mut Self {
         self.csv_reader = self

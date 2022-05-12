@@ -9,9 +9,8 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 use zip::read::ZipFile;
 
-use crate::{FlError, FlResult};
-
 use super::{util, DateSystem, ExcelValue, Workbook};
+use crate::{FabrixError, FabrixResult};
 
 // type alias
 pub type VecCell<'a> = Vec<Cell<'a>>;
@@ -213,7 +212,7 @@ impl Worksheet {
     pub fn rows<'a, READER: Read + Seek>(
         &self,
         workbook: &'a mut Workbook<READER>,
-    ) -> FlResult<RowIter<'a>> {
+    ) -> FabrixResult<RowIter<'a>> {
         let reader = workbook.sheet_reader(&self.target)?;
         Ok(RowIter {
             worksheet_reader: reader,
@@ -242,7 +241,7 @@ pub struct RowIter<'a> {
     num_rows: u32,
     num_cols: u16,
     done_file: bool,
-    pub error: Option<FlError>,
+    pub error: Option<FabrixError>,
 }
 
 impl<'a> Iterator for RowIter<'a> {
@@ -421,7 +420,7 @@ impl<'a> Iterator for RowIter<'a> {
                     }
                     Ok(Event::Eof) => break None,
                     Err(e) => {
-                        self.error = Some(FlError::new_common_error(format!(
+                        self.error = Some(FabrixError::new_common_error(format!(
                             "Error at position {}: {:?}",
                             reader.buffer_position(),
                             e
