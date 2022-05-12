@@ -292,32 +292,13 @@ where
 
 #[cfg(test)]
 mod test_csv_reader {
-    use polars::io::RowCount;
-
-    use crate::{FieldInfo, ValueType};
-
     use super::*;
+    use crate::{FieldInfo, ValueType};
 
     const CSV_FILE_PATH: &str = "../mock/test.csv";
 
     #[test]
-    fn file_reader() {
-        let reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
-            .try_into()
-            .unwrap();
-
-        let rc = RowCount {
-            name: "new_index".to_owned(),
-            offset: 0,
-        };
-        let foo = reader.csv_reader.unwrap().with_row_count(Some(rc)).finish();
-
-        println!("{:?}", foo.unwrap());
-    }
-
-    #[test]
-    fn with_dtypes() {
-        // WARNING: ValueType such as Time/Date/DateTime and etc are not supported by polars' CsvReader
+    fn file_read() {
         let fi = vec![
             FieldInfo::new("id", ValueType::U32),
             FieldInfo::new("issued_times", ValueType::U8),

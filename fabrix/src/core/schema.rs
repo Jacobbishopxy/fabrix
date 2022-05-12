@@ -77,3 +77,9 @@ impl From<Schema> for PolarsSchema {
         schema.0
     }
 }
+
+impl From<PolarsSchema> for Schema {
+    fn from(schema: PolarsSchema) -> Self {
+        Self(schema)
+    }
+}

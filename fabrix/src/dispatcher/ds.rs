@@ -197,10 +197,12 @@ mod dispatcher_tests {
     use std::fs::File;
 
     use super::*;
-    use crate::csv;
+    use crate::{csv, parquet};
 
     const CSV_READ: &str = "../mock/test.csv";
     const CSV_WRITE: &str = "../cache/test.csv";
+    const PARQUET_READ: &str = "../mock/test.parquet";
+    const PARQUET_WRITE: &str = "../cache/test.parquet";
 
     #[test]
     fn test_empty_dispatcher() {
@@ -223,7 +225,7 @@ mod dispatcher_tests {
     }
 
     #[test]
-    fn test_csv_read_write() {
+    fn csv_read_write() {
         let reader = csv::CsvReader::new(File::open(CSV_READ).unwrap());
         let writer = csv::CsvWriter::new(File::create(CSV_WRITE).unwrap());
 
@@ -236,5 +238,41 @@ mod dispatcher_tests {
         let wo = csv::CsvWriteOptions::default();
         let res = dispatcher.sync_write(&wo);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn csv_read_parquet_write() {
+        let reader = csv::CsvReader::new(File::open(CSV_READ).unwrap());
+        let writer = parquet::ParquetWriter::new(File::create(PARQUET_WRITE).unwrap());
+
+        let mut dispatcher = Dispatcher::new(reader, writer);
+
+        let ro = csv::CsvReadOptions::default();
+        let res = dispatcher.sync_read(&ro);
+        assert!(res.is_ok());
+
+        let fx = dispatcher.fabrix();
+        assert!(fx.is_some());
+        println!("{:?}", fx.unwrap());
+
+        let wo = parquet::ParquetWriteOptions::default();
+        let res = dispatcher.sync_write(&wo);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn parquet_read() {
+        let reader = parquet::ParquetReader::new(File::open(PARQUET_READ).unwrap());
+        let write = EmptyWrite;
+
+        let mut dispatcher = Dispatcher::new(reader, write);
+
+        let ro = parquet::ParquetReadOptions::default();
+        let res = dispatcher.sync_read(&ro);
+        assert!(res.is_ok());
+
+        let fx = dispatcher.fabrix();
+        assert!(fx.is_some());
+        println!("{:?}", fx.unwrap());
     }
 }

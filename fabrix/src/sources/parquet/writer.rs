@@ -27,7 +27,7 @@ impl<W: Write> Writer<W> {
         }
     }
 
-    pub fn has_source(&self) -> bool {
+    pub fn has_writer(&self) -> bool {
         self.parquet_writer.is_some()
     }
 
@@ -68,7 +68,7 @@ impl TryFrom<ParquetSource> for Writer<File> {
     fn try_from(source: ParquetSource) -> FabrixResult<Self> {
         match source {
             ParquetSource::File(file) => Ok(Self::new(file)),
-            ParquetSource::Path(path) => Ok(Self::new(File::open(path)?)),
+            ParquetSource::Path(path) => Ok(Self::new(File::create(path)?)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -134,5 +134,32 @@ where
 
 #[cfg(test)]
 mod test_parquet_writer {
-    // TODO:
+    use super::*;
+    use crate::{date, datetime, fx, time};
+
+    const PARQUET_FILE_PATH: &str = "../cache/write.parquet";
+
+    #[test]
+    fn file_writer() {
+        let mut writer: Writer<File> = ParquetSource::Path(PARQUET_FILE_PATH.to_owned())
+            .try_into()
+            .unwrap();
+
+        assert!(writer.has_writer());
+
+        let fx = fx![
+            "id";
+            "id" => [1, 2, 3],
+            "name" => ["a", "b", "c"],
+            "date" => [date!(2020,1,1), date!(2020,1,2), date!(2020,1,3)],
+            "time" => [time!(12,0,0), time!(12,0,1), time!(12,0,2)],
+            "datetime" => [datetime!(2020,1,1,12,0,0), datetime!(2020,1,1,12,0,1), datetime!(2020,1,1,12,0,2)],
+        ]
+        .unwrap();
+
+        let foo = writer.finish(fx);
+
+        assert!(foo.is_ok());
+        assert!(!writer.has_writer());
+    }
 }

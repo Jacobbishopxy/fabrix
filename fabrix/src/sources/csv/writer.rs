@@ -29,7 +29,7 @@ impl<W: Write> Writer<W> {
         }
     }
 
-    pub fn has_source(&self) -> bool {
+    pub fn has_writer(&self) -> bool {
         self.csv_writer.is_some()
     }
 
@@ -98,10 +98,7 @@ impl TryFrom<CsvSource> for Writer<File> {
     fn try_from(source: CsvSource) -> FabrixResult<Self> {
         match source {
             CsvSource::File(file) => Ok(Self::new(file)),
-            CsvSource::Path(path) => {
-                let file = File::create(path)?;
-                Ok(Self::new(file))
-            }
+            CsvSource::Path(path) => Ok(Self::new(File::create(path)?)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -183,10 +180,8 @@ where
 
 #[cfg(test)]
 mod test_csv_writer {
-
-    use crate::{date, datetime, fx, time};
-
     use super::*;
+    use crate::{date, datetime, fx, time};
 
     const CSV_FILE_PATH: &str = "../cache/write.csv";
 
@@ -196,7 +191,7 @@ mod test_csv_writer {
             .try_into()
             .unwrap();
 
-        assert!(writer.has_source());
+        assert!(writer.has_writer());
 
         let fx = fx![
             "id";
@@ -212,6 +207,6 @@ mod test_csv_writer {
 
         assert!(foo.is_ok());
 
-        assert!(!writer.has_source());
+        assert!(!writer.has_writer());
     }
 }

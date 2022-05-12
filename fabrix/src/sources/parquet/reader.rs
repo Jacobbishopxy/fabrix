@@ -193,7 +193,24 @@ where
 
 #[cfg(test)]
 mod test_parquet_reader {
-    // use super::*;
+    use super::*;
 
-    // TODO:
+    const PARQUET_FILE_PATH: &str = "../mock/test.parquet";
+
+    #[test]
+    fn file_read() {
+        let mut reader: Reader<File> = ParquetSource::Path(PARQUET_FILE_PATH.to_string())
+            .try_into()
+            .unwrap();
+
+        assert!(reader.has_reader());
+
+        let foo = reader.with_row_count("index_column", 0).finish(Some(0));
+
+        assert!(foo.is_ok());
+
+        println!("foo:\n{:?}", foo.unwrap());
+
+        assert!(!reader.has_reader());
+    }
 }
