@@ -71,3 +71,8 @@ pub(crate) fn nnf_err(name: &str) -> CoreError {
 pub(crate) fn lnm_err(len1: usize, len2: usize) -> CoreError {
     CoreError::new_common_error(format!("length {len1} does not match length {len2}"))
 }
+
+/// invalid data length error
+pub(crate) fn idl_err(len: usize) -> CoreError {
+    CoreError::new_common_error(format!("invalid data length {len}"))
+}

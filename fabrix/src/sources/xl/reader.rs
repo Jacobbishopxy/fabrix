@@ -35,27 +35,8 @@ impl XlFabrix {
     ) -> FabrixResult<Fabrix> {
         if is_column_wised {
             Ok(Fabrix::from_column_values(data, None, has_header)?)
-        } else if has_header {
-            // TODO: make `from_row_values` work with `has_header`
-
-            let mut data = data;
-            if data.len() < 2 {
-                return Err(FabrixError::new_common_error(format!(
-                    "invalid data length: {:?}",
-                    data.len()
-                )));
-            }
-            let head = data
-                .remove(0)
-                .iter()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>();
-            let mut fb = Fabrix::from_row_values(data, None, true)?;
-            fb.set_column_names(&head)?;
-
-            Ok(fb)
         } else {
-            Ok(Fabrix::from_row_values(data, None, false)?)
+            Ok(Fabrix::from_row_values(data, None, has_header)?)
         }
     }
 
@@ -248,7 +229,7 @@ mod test_xl_reader {
     const XL_FILE_PATH: &str = "../mock/test.xlsx";
 
     #[test]
-    fn file_read() {
+    fn row_wised_file_read() {
         let mut reader: Reader<File> = XlSource::Path(XL_FILE_PATH.to_string()).try_into().unwrap();
 
         assert!(reader.has_reader());
@@ -257,6 +238,25 @@ mod test_xl_reader {
             .with_header(true)
             .with_sheet_name("data")
             .finish(None);
+
+        assert!(foo.is_ok());
+
+        println!("foo:\n {:?}", foo.unwrap());
+
+        assert!(!reader.has_reader());
+    }
+
+    #[test]
+    fn col_wised_file_read() {
+        let mut reader: Reader<File> = XlSource::Path(XL_FILE_PATH.to_string()).try_into().unwrap();
+
+        assert!(reader.has_reader());
+
+        let foo = reader
+            .with_header(true)
+            .with_column_wised(true)
+            .with_sheet_name("data_t")
+            .finish(Some(0));
 
         assert!(foo.is_ok());
 

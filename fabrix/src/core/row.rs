@@ -119,6 +119,7 @@ impl Fabrix {
     pub fn from_row_values_iter(
         iter: std::vec::IntoIter<Vec<Value>>,
         index_col: Option<usize>,
+        has_header: bool,
     ) -> CoreResult<Self> {
         // create a peekable iterator
         let mut iter = iter.peekable();
@@ -130,6 +131,19 @@ impl Fabrix {
         // length of the first row, and width of the dataframe. number of columns
         let n = iter.peek().unwrap().len();
         let mut transposed_values: D2Value = vec![vec![]; n];
+
+        // if has header, skip the first row
+        let header = if has_header {
+            Some(
+                iter.next()
+                    .unwrap()
+                    .into_iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            None
+        };
 
         for row in iter {
             row.into_iter()
@@ -144,14 +158,18 @@ impl Fabrix {
             .map(|(i, v)| Series::from_values(v, &format!("Column_{:?}", i), true))
             .collect::<CoreResult<Vec<_>>>()?;
 
-        match index_col {
+        let mut fx = match index_col {
             Some(s) => Fabrix::from_series(series, s),
             None => Fabrix::from_series_no_index(series),
-        }
-    }
+        }?;
 
-    // TODO:
-    // param has_header
+        // set header
+        if let Some(h) = &header {
+            fx.set_column_names(h)?;
+        }
+
+        Ok(fx)
+    }
 
     /// create a DataFrame by D2Value, slower than column-wise constructors
     pub fn from_row_values(
@@ -160,7 +178,7 @@ impl Fabrix {
         has_header: bool,
     ) -> CoreResult<Self> {
         let iter = values.into_iter();
-        Fabrix::from_row_values_iter(iter, index_col)
+        Fabrix::from_row_values_iter(iter, index_col, has_header)
     }
 
     /// get a row by idx. This method is slower than get a column (`self.data.get_row`).

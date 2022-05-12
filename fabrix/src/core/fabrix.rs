@@ -51,7 +51,9 @@ use polars::{
     prelude::{BooleanChunked, DataFrame, Field, IntoVec, NewChunkedArray},
 };
 
-use super::{cis_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX};
+use super::{
+    cis_err, idl_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX,
+};
 use crate::{CoreResult, D2Value, Value, ValueType};
 
 /// IndexTag
@@ -205,7 +207,25 @@ impl Fabrix {
         index_col: Option<usize>,
         has_header: bool,
     ) -> CoreResult<Self> {
-        todo!()
+        let series = values
+            .into_iter()
+            .map(|mut s| {
+                if has_header {
+                    if s.len() < 2 {
+                        return Err(idl_err(s.len()));
+                    }
+                    let name = s.remove(0).to_string();
+                    Series::from_values(s, name, true)
+                } else {
+                    Series::from_values_default_name(s, true)
+                }
+            })
+            .collect::<CoreResult<Vec<_>>>()?;
+
+        match index_col {
+            Some(i) => Fabrix::from_series(series, i),
+            None => Fabrix::from_series_no_index(series),
+        }
     }
 
     /// rechunk: aggregate all chunks to a contiguous array of memory
