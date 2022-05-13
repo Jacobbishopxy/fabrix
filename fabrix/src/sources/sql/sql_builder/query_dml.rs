@@ -54,11 +54,11 @@ impl DmlQuery for SqlBuilder {
         }
 
         if let Some(l) = &select.limit {
-            statement.limit(*l);
+            statement.limit(*l as u64);
         }
 
         if let Some(o) = &select.offset {
-            statement.offset(*o);
+            statement.offset(*o as u64);
         }
 
         statement!(self, statement)

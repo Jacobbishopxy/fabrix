@@ -4,7 +4,7 @@
 
 use async_trait::async_trait;
 
-use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, WriteOptions};
+use crate::{Fabrix, FabrixResult, IntoSource, WriteOptions};
 
 use super::{sql_adt, sql_executor::SqlConnInfo, SqlExecutor};
 

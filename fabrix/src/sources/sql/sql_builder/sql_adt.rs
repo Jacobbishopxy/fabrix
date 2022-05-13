@@ -165,8 +165,8 @@ pub struct Select {
     pub columns: Vec<ColumnAlias>,
     pub filter: Option<Vec<Expression>>,
     pub order: Option<Vec<Order>>,
-    pub limit: Option<u64>,
-    pub offset: Option<u64>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
 }
 
 // TODO: methods required: from_json, from_json_string
@@ -209,12 +209,12 @@ impl Select {
         self
     }
 
-    pub fn limit(&mut self, limit: u64) -> &mut Self {
+    pub fn limit(&mut self, limit: usize) -> &mut Self {
         self.limit = Some(limit);
         self
     }
 
-    pub fn offset(&mut self, offset: u64) -> &mut Self {
+    pub fn offset(&mut self, offset: usize) -> &mut Self {
         self.offset = Some(offset);
         self
     }

@@ -13,7 +13,7 @@ pub(crate) use loader::{FabrixDatabaseLoader, LoaderPool};
 pub(crate) use macros::*;
 pub(crate) use processor::SqlRowProcessor;
 
-use crate::SqlBuilder;
+use crate::{FabrixError, SqlBuilder};
 
 /// Connection information
 pub struct SqlConnInfo {
@@ -52,5 +52,13 @@ impl std::fmt::Display for SqlConnInfo {
             "{}://{}:{}@{}:{}/{}",
             self.driver, self.username, self.password, self.host, self.port, self.database,
         )
+    }
+}
+
+impl TryFrom<&str> for SqlConnInfo {
+    type Error = FabrixError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        todo!()
     }
 }

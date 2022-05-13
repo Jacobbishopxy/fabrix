@@ -5,6 +5,7 @@
 use std::error::Error as StdError;
 use std::fmt::Display;
 
+use nom::error::{ErrorKind, ParseError};
 use thiserror::Error;
 
 use crate::{CommonError, CoreError};
@@ -23,7 +24,13 @@ pub enum SqlError {
     Sqlx(#[from] sqlx::Error),
 
     #[error(transparent)]
+    ParseInt(#[from] std::num::ParseIntError),
+
+    #[error(transparent)]
     SeqQuery(#[from] sea_query::error::Error),
+
+    #[error("nom error {0}")]
+    Nom(NomError),
 }
 
 impl SqlError {
@@ -39,6 +46,31 @@ impl SqlError {
             SqlError::Sqlx(se) => se,
             _ => sqlx::Error::Decode(Box::new(SqlDecodeError::new("sql row decode error"))),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct NomError(pub(crate) String);
+
+impl Display for NomError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<'a> From<(&'a str, ErrorKind)> for NomError {
+    fn from(error: (&'a str, ErrorKind)) -> Self {
+        NomError(format!("error code was: {:?}", error))
+    }
+}
+
+impl<'a> ParseError<&'a str> for NomError {
+    fn from_error_kind(_: &'a str, kind: ErrorKind) -> Self {
+        NomError(format!("error code was: {:?}", kind))
+    }
+
+    fn append(_: &'a str, kind: ErrorKind, other: NomError) -> Self {
+        NomError(format!("{:?}\nerror code was: {:?}", other, kind))
     }
 }
 

@@ -4,9 +4,8 @@
 
 use async_trait::async_trait;
 
-use crate::{Fabrix, FabrixResult, FromSource, ReadOptions};
-
-use super::{sql_adt, sql_executor::SqlConnInfo, SqlExecutor};
+use super::{sql_adt, SqlConnInfo, SqlEngine, SqlExecutor};
+use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions};
 
 // ================================================================================================
 // Sql Reader
@@ -14,7 +13,7 @@ use super::{sql_adt, sql_executor::SqlConnInfo, SqlExecutor};
 
 /// Sql Reader
 pub struct Reader<'a> {
-    sql_reader: Option<SqlExecutor>,
+    sql_reader: SqlExecutor,
     table: Option<&'a str>,
     columns: Option<&'a [sql_adt::ColumnAlias]>,
     filter: Option<&'a [sql_adt::Expression]>,
@@ -24,20 +23,42 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-    pub fn new<C: Into<SqlConnInfo>>(conn: C) -> Self {
-        Self {
-            sql_reader: Some(SqlExecutor::new(conn.into())),
+    pub async fn new<C: TryInto<SqlConnInfo, Error = FabrixError>>(
+        conn: C,
+    ) -> FabrixResult<Reader<'a>> {
+        let conn = conn.try_into()?;
+        let mut sql_reader = SqlExecutor::new(conn);
+        sql_reader.connect().await?;
+
+        Ok(Self {
+            sql_reader,
             table: None,
             columns: None,
             filter: None,
             order: None,
             limit: None,
             offset: None,
-        }
+        })
     }
 
-    pub fn has_reader(&self) -> bool {
-        self.sql_reader.is_some()
+    pub async fn new_reader<C: TryInto<SqlConnInfo, Error = FabrixError>>(
+        &mut self,
+        conn: C,
+    ) -> FabrixResult<Reader<'a>> {
+        self.sql_reader.disconnect().await?;
+        let conn = conn.try_into()?;
+        let mut sql_reader = SqlExecutor::new(conn);
+        sql_reader.connect().await?;
+
+        Ok(Self {
+            sql_reader,
+            table: None,
+            columns: None,
+            filter: None,
+            order: None,
+            limit: None,
+            offset: None,
+        })
     }
 
     pub fn with_table(&mut self, table: &'a str) -> &mut Self {
@@ -70,9 +91,32 @@ impl<'a> Reader<'a> {
         self
     }
 
-    pub fn finish(&mut self) -> FabrixResult<Fabrix> {
-        // TODO:
-        todo!()
+    pub async fn finish(&mut self) -> FabrixResult<Fabrix> {
+        let table = self
+            .table
+            .ok_or_else(|| FabrixError::new_common_error("table is not set"))?;
+        let columns = self
+            .columns
+            .ok_or_else(|| FabrixError::new_common_error("columns is not set"))?;
+
+        let mut select = sql_adt::Select::new(table);
+        select.columns(columns);
+        if let Some(filter) = &self.filter {
+            select.filter(filter);
+        }
+        if let Some(order) = &self.order {
+            select.order(order);
+        }
+        if let Some(limit) = &self.limit {
+            select.limit(*limit);
+        }
+        if let Some(offset) = &self.offset {
+            select.offset(*offset);
+        }
+
+        let fx = self.sql_reader.select(&select).await?;
+
+        Ok(fx)
     }
 }
 
@@ -130,7 +174,7 @@ impl<'a> FromSource<'a, SqlReadOptions<'_>> for Reader<'a> {
             self.with_offset(*offset);
         }
 
-        self.finish()
+        self.finish().await
     }
 
     fn sync_read<'o>(&mut self, _options: &'o SqlReadOptions) -> FabrixResult<Fabrix>
