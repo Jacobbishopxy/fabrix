@@ -167,6 +167,7 @@ pub struct Select {
     pub order: Option<Vec<Order>>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+    pub include_primary_key: Option<bool>,
 }
 
 // TODO: methods required: from_json, from_json_string
@@ -179,6 +180,7 @@ impl Select {
             order: None,
             limit: None,
             offset: None,
+            include_primary_key: None,
         }
     }
 

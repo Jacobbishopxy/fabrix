@@ -2,10 +2,12 @@
 //!
 //! Reading by SQL.
 
+use std::str::FromStr;
+
 use async_trait::async_trait;
 
 use super::{sql_adt, SqlConnInfo, SqlEngine, SqlExecutor};
-use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions};
+use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, SqlError};
 
 // ================================================================================================
 // Sql Reader
@@ -23,7 +25,7 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-    pub async fn new<C: TryInto<SqlConnInfo, Error = FabrixError>>(
+    pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(
         conn: C,
     ) -> FabrixResult<Reader<'a>> {
         let conn = conn.try_into()?;
@@ -41,13 +43,44 @@ impl<'a> Reader<'a> {
         })
     }
 
-    pub async fn new_reader<C: TryInto<SqlConnInfo, Error = FabrixError>>(
+    pub async fn new_from_str(conn_str: &str) -> FabrixResult<Reader<'a>> {
+        let mut sql_reader = SqlExecutor::from_str(conn_str)?;
+        sql_reader.connect().await?;
+
+        Ok(Self {
+            sql_reader,
+            table: None,
+            columns: None,
+            filter: None,
+            order: None,
+            limit: None,
+            offset: None,
+        })
+    }
+
+    pub async fn new_reader<C: TryInto<SqlConnInfo, Error = SqlError>>(
         &mut self,
         conn: C,
     ) -> FabrixResult<Reader<'a>> {
         self.sql_reader.disconnect().await?;
         let conn = conn.try_into()?;
         let mut sql_reader = SqlExecutor::new(conn);
+        sql_reader.connect().await?;
+
+        Ok(Self {
+            sql_reader,
+            table: None,
+            columns: None,
+            filter: None,
+            order: None,
+            limit: None,
+            offset: None,
+        })
+    }
+
+    pub async fn new_reader_from_str(&mut self, conn_str: &str) -> FabrixResult<Reader<'a>> {
+        self.sql_reader.disconnect().await?;
+        let mut sql_reader = SqlExecutor::from_str(conn_str)?;
         sql_reader.connect().await?;
 
         Ok(Self {
@@ -187,5 +220,34 @@ impl<'a> FromSource<'a, SqlReadOptions<'_>> for Reader<'a> {
 
 #[cfg(test)]
 mod test_sql_reader {
-    // TODO:
+    use super::*;
+    use crate::{xpr_and, xpr_nest, xpr_or, xpr_simple};
+
+    const CONN: &str = "sqlite://dev.sqlite";
+    const TABLE: &str = "dev";
+
+    #[tokio::test]
+    async fn test_sql_reader() {
+        let mut reader = Reader::new_from_str(CONN).await.unwrap();
+
+        let columns = vec!["ord".into(), "name".into()];
+        let filter = vec![
+            xpr_simple!("ord", "=", 10),
+            xpr_or!(),
+            xpr_nest!(
+                xpr_simple!("names", "=", "Jacob"),
+                xpr_and!(),
+                xpr_simple!("val", ">", 10.0)
+            ),
+        ];
+
+        reader.with_table(TABLE);
+        reader.with_columns(&columns);
+        reader.with_filter(&filter);
+
+        let fx = reader.finish().await;
+        assert!(fx.is_ok());
+
+        println!("{:?}", fx);
+    }
 }

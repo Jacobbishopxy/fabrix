@@ -111,6 +111,7 @@ mod test_query_dml {
             ]),
             limit: Some(10),
             offset: Some(20),
+            include_primary_key: None,
         });
         println!("{:?}", select);
 
