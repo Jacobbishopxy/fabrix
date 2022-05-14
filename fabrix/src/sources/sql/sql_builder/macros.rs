@@ -103,6 +103,38 @@ macro_rules! xpr_simple {
             },
         })
     };
+
+    ($column:expr, $equation:expr, [$value1:expr, $value2:expr]) => {
+        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+            column: String::from($column),
+            equation: match $equation {
+                "between" => $crate::sql::sql_adt::Equation::Between((
+                    $crate::value!($value1),
+                    $crate::value!($value2),
+                )),
+                "in" => $crate::sql::sql_adt::Equation::In(vec![
+                    $crate::value!($value1),
+                    $crate::value!($value2),
+                ]),
+                _ => unimplemented!(),
+            },
+        })
+    };
+    ($column:expr, $equation:expr, [$($value:expr),* $(,)*]) => {
+        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+            column: String::from($column),
+            equation: match $equation {
+                "in" => {
+                    let mut values = Vec::<$crate::Value>::new();
+                    $(
+                        values.push($crate::value!($value));
+                    )*
+                    $crate::sql::sql_adt::Equation::In(values)
+                }
+                _ => unimplemented!(),
+            },
+        })
+    };
     ($column:expr, $equation:expr, $value:expr) => {
         $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
             column: String::from($column),
@@ -114,30 +146,6 @@ macro_rules! xpr_simple {
                 "<" => $crate::sql::sql_adt::Equation::Less($crate::value!($value)),
                 "<=" => $crate::sql::sql_adt::Equation::LessEqual($crate::value!($value)),
                 "%" => $crate::sql::sql_adt::Equation::Like(String::from(stringify!($value))),
-                _ => unimplemented!(),
-            },
-        })
-    };
-    ($column:expr, $equation:expr, [$($value:expr),* $(,)*]) => {
-        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
-            column: String::from($column),
-            equation: match $equation {
-                "in" => {
-                    let values = $value.map(|i| $crate::value!(i)).collect();
-                    $crate::sql::sql_adt::Equation::In(values)
-                }
-                _ => unimplemented!(),
-            },
-        })
-    };
-    ($column:expr, $equation:expr, [$value1:expr, $value2:expr]) => {
-        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
-            column: String::from($column),
-            equation: match $equation {
-                "between" => $crate::sql::sql_adt::Equation::Between((
-                    $crate::value!($value1),
-                    $crate::value!($value2),
-                )),
                 _ => unimplemented!(),
             },
         })
