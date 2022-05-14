@@ -2,8 +2,7 @@
 //!
 //! errors
 
-use std::fmt::Display;
-
+use nom::error::{ErrorKind, ParseError};
 use thiserror::Error;
 
 use crate::CoreError;
@@ -12,6 +11,10 @@ use crate::SqlError;
 
 /// Result type for fabrix
 pub type FabrixResult<T> = Result<T, FabrixError>;
+
+// ================================================================================================
+// Common error
+// ================================================================================================
 
 #[derive(Debug)]
 pub enum CommonError {
@@ -28,7 +31,7 @@ impl AsRef<str> for CommonError {
     }
 }
 
-impl Display for CommonError {
+impl std::fmt::Display for CommonError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CommonError::Str(v) => write!(f, "{:?}", v),
@@ -49,6 +52,41 @@ impl From<String> for CommonError {
     }
 }
 
+// ================================================================================================
+// Nom error
+// ================================================================================================
+
+#[derive(Debug)]
+pub struct NomError(String);
+
+impl std::fmt::Display for NomError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<T: AsRef<str>> From<(T, ErrorKind)> for NomError {
+    fn from(error: (T, ErrorKind)) -> Self {
+        let (s, kind) = error;
+        NomError(format!("Nom error code: {}, {:?}", s.as_ref(), kind))
+    }
+}
+
+impl<T: AsRef<str>> ParseError<T> for NomError {
+    fn from_error_kind(_: T, kind: ErrorKind) -> Self {
+        let s = format!("Nom error code:  {:?}", kind);
+        NomError(s)
+    }
+
+    fn append(_: T, kind: ErrorKind, other: Self) -> Self {
+        NomError(format!("{:?}\nerror code: {:?}", other, kind))
+    }
+}
+
+// ================================================================================================
+// Fabrix error
+// ================================================================================================
+
 #[derive(Error, Debug)]
 pub enum FabrixError {
     // common errors
@@ -66,6 +104,10 @@ pub enum FabrixError {
     // Polars errors
     #[error(transparent)]
     POLARS(#[from] polars::prelude::PolarsError),
+
+    // Nom errors
+    #[error(transparent)]
+    Nom(#[from] nom::Err<NomError>),
 
     // Zip errors
     #[error(transparent)]
