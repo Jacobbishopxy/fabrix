@@ -315,18 +315,19 @@ impl SqlEngine for SqlExecutor {
     async fn select(&self, select: &sql_adt::Select) -> SqlResult<Fabrix> {
         conn_n_err!(self.pool);
 
-        // Generally, primary key always exists, and in this case, use it as index.
-        // Otherwise, use default index.
-
         let mut df = None::<Fabrix>;
 
+        // if `select.include_primary_key` is true, try to get the primary key
+        // if primary key does not exist, ignore it
         if let Some(true) = select.include_primary_key {
             if let Ok(pk) = self.get_primary_key(&select.table).await {
                 let mut new_select = select.clone();
                 add_primary_key_to_select(&pk, &mut new_select);
                 let que = self.driver.select(&new_select);
                 let res = self.pool.as_ref().unwrap().fetch_all_to_rows(&que).await?;
-                df = Some(Fabrix::from_rows(res)?);
+                let mut res = Fabrix::from_rows(res)?;
+                res.set_index_tag(0)?;
+                df = Some(res);
             }
         };
 

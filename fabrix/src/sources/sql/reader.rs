@@ -224,20 +224,20 @@ mod test_sql_reader {
     use crate::{xpr_and, xpr_nest, xpr_or, xpr_simple};
 
     const CONN: &str = "sqlite://dev.sqlite";
-    const TABLE: &str = "dev";
+    const TABLE: &str = "ds_sql_test";
 
     #[tokio::test]
-    async fn test_sql_reader() {
+    async fn test_read() {
         let mut reader = Reader::new_from_str(CONN).await.unwrap();
 
         let columns = vec!["ord".into(), "name".into()];
         let filter = vec![
-            xpr_simple!("ord", "=", 10),
+            xpr_simple!("ord", ">=", 10),
             xpr_or!(),
             xpr_nest!(
-                xpr_simple!("names", "=", "Jacob"),
+                xpr_simple!("names", "in", ["John", "Lily", "Mike"]),
                 xpr_and!(),
-                xpr_simple!("val", ">", 10.0)
+                xpr_simple!("age", ">", 15)
             ),
         ];
 
