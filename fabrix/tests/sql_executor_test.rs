@@ -13,8 +13,8 @@
 use std::assert_matches::assert_matches;
 use std::str::FromStr;
 
-use fabrix::sql::{sql_adt, SqlEngine, SqlExecutor};
 use fabrix::{datetime, fx, xpr_and, xpr_nest, xpr_or, xpr_simple};
+use fabrix::{sql_adt, SqlEngine, SqlExecutor};
 
 const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";

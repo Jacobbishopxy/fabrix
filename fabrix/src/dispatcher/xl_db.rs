@@ -10,10 +10,12 @@ use std::sync::Arc;
 use itertools::Itertools;
 use tokio::sync::Mutex;
 
-use crate::sql::{SqlEngine, SqlExecutor};
-use crate::{sql, value, xl, D2Value, Fabrix, FabrixError, FabrixResult, Series, Value};
+use crate::{
+    sql_adt, value, D2Value, ExcelValue, Fabrix, FabrixError, FabrixResult, Series, SqlEngine,
+    SqlExecutor, Value, XlCell, XlConsumer, XlExecutor,
+};
 
-pub type XlDbExecutor<R> = xl::XlExecutor<SqlExecutor, XlDbConvertor, R>;
+pub type XlDbExecutor<R> = XlExecutor<SqlExecutor, XlDbConvertor, R>;
 
 /// XlDbConvertor
 ///
@@ -213,12 +215,12 @@ impl XlToDbConsumer {
         let exc = match self.consume_count {
             0 => {
                 self.executor
-                    .save(table_name, data, &sql::sql_adt::SaveStrategy::FailIfExists)
+                    .save(table_name, data, &sql_adt::SaveStrategy::FailIfExists)
                     .await
             }
             _ => {
                 self.executor
-                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
+                    .save(table_name, data, &sql_adt::SaveStrategy::Append)
                     .await
             }
         };
@@ -235,7 +237,7 @@ impl XlToDbConsumer {
     pub async fn append_table(&mut self, table_name: &str, data: Fabrix) -> FabrixResult<()> {
         let exc = self
             .executor
-            .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
+            .save(table_name, data, &sql_adt::SaveStrategy::Append)
             .await;
 
         match exc {
@@ -257,17 +259,17 @@ impl XlToDbConsumer {
         let exc = match self.consume_count {
             0 => {
                 self.executor
-                    .save(table_name, data, &sql::sql_adt::SaveStrategy::Replace)
+                    .save(table_name, data, &sql_adt::SaveStrategy::Replace)
                     .await
             }
             _ => {
                 if ignore_index {
                     self.executor
-                        .save(table_name, data, &sql::sql_adt::SaveStrategy::Append)
+                        .save(table_name, data, &sql_adt::SaveStrategy::Append)
                         .await
                 } else {
                     self.executor
-                        .save(table_name, data, &sql::sql_adt::SaveStrategy::Upsert)
+                        .save(table_name, data, &sql_adt::SaveStrategy::Upsert)
                         .await
                 }
             }
@@ -289,7 +291,7 @@ impl XlToDbConsumer {
         data: Fabrix,
     ) -> FabrixResult<()> {
         self.executor
-            .save(table_name, data, &sql::sql_adt::SaveStrategy::Upsert)
+            .save(table_name, data, &sql_adt::SaveStrategy::Upsert)
             .await
             .map(|_| ())
             .map_err(|e| e.into())
@@ -321,20 +323,20 @@ impl XlDbHelper {
     }
 }
 
-impl xl::XlConsumer<XlDbConvertor> for SqlExecutor {
+impl XlConsumer<XlDbConvertor> for SqlExecutor {
     type UnitOut = Value;
     type FinalOut = Fabrix;
 
-    fn transform(cell: xl::Cell) -> Self::UnitOut {
+    fn transform(cell: XlCell) -> Self::UnitOut {
         match cell.value {
-            xl::ExcelValue::Bool(v) => value!(v),
-            xl::ExcelValue::Number(v) => value!(v),
-            xl::ExcelValue::String(v) => value!(v.into_owned()),
-            xl::ExcelValue::Date(v) => value!(v),
-            xl::ExcelValue::Time(v) => value!(v),
-            xl::ExcelValue::DateTime(v) => value!(v),
-            xl::ExcelValue::None => Value::Null,
-            xl::ExcelValue::Error(v) => value!(v),
+            ExcelValue::Bool(v) => value!(v),
+            ExcelValue::Number(v) => value!(v),
+            ExcelValue::String(v) => value!(v.into_owned()),
+            ExcelValue::Date(v) => value!(v),
+            ExcelValue::Time(v) => value!(v),
+            ExcelValue::DateTime(v) => value!(v),
+            ExcelValue::None => Value::Null,
+            ExcelValue::Error(v) => value!(v),
         }
     }
 }
@@ -346,9 +348,7 @@ mod test_xl_reader {
     use std::fs::File;
 
     use super::*;
-    use crate::sources::xl::XlSource;
-    use crate::sql::SqlEngine;
-    use crate::xl::Workbook;
+    use crate::{SqlEngine, XlSource, XlWorkbook};
 
     const CONN3: &str = "sqlite://dev.sqlite";
 
@@ -359,7 +359,7 @@ mod test_xl_reader {
 
     #[test]
     fn test_xl_db_convertor_row_wised() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let mut convertor = XlDbConvertor::new();
         let mut xle = XlDbExecutor::new_with_source(source);
@@ -375,7 +375,7 @@ mod test_xl_reader {
 
     #[test]
     fn test_xl_db_convertor_col_wised() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
         let mut xle = XlDbExecutor::new_with_source(source);
@@ -392,7 +392,7 @@ mod test_xl_reader {
     #[tokio::test]
     async fn test_xl2db_sync() {
         // Xl read from a path
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         // converter & consumer instance
         let mut convertor = XlDbConvertor::new();
@@ -422,7 +422,7 @@ mod test_xl_reader {
         }
 
         // sql selection
-        let mut select = sql::sql_adt::Select::new("test_table");
+        let mut select = sql_adt::Select::new("test_table");
         select.columns(&[
             "id",
             "first_name",
@@ -442,7 +442,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
         let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
@@ -474,7 +474,7 @@ mod test_xl_reader {
 
     #[tokio::test]
     async fn test_xl2db_async_helper() {
-        let source: Workbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         // same as the above test case: `test_xl2db_async`
         // simplify the process from naming convertor and consumer separately;

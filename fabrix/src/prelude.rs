@@ -10,30 +10,27 @@ pub use crate::core::{
 
 // sources: db
 #[cfg(feature = "sql")]
-pub use crate::sources::sql::{
-    self,
-    error::{SqlError, SqlResult},
-};
+pub use crate::sources::sql::*;
 
 // sources: csv
 #[cfg(feature = "csv")]
-pub use crate::sources::csv;
+pub use crate::sources::csv::*;
 
 // sources: parquet
 #[cfg(feature = "parquet")]
-pub use crate::sources::parquet;
+pub use crate::sources::parquet::*;
 
 // sources: xl
 #[cfg(feature = "xl")]
-pub use crate::sources::xl;
+pub use crate::sources::xl::*;
 
 // sources: bson
 #[cfg(feature = "json")]
-pub use crate::sources::json;
+pub use crate::sources::json::*;
 
 // sources: bson
 #[cfg(feature = "bson")]
-pub use crate::sources::bson;
+pub use crate::sources::bson::*;
 
 // dispatcher
 #[cfg(all(feature = "xl", feature = "bson"))]

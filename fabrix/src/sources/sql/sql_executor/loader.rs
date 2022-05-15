@@ -9,9 +9,7 @@ use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{Executor, MySql, MySqlPool, PgPool, Postgres, Sqlite, SqlitePool, Transaction};
 
 use super::{fetch_process, fetch_process_cst, types::SqlRow, SqlRowProcessor};
-use crate::{
-    sql::sql_adt::ExecutionResult, D1Value, D2Value, Row, SqlBuilder, SqlResult, ValueType,
-};
+use crate::{sql_adt::ExecutionResult, D1Value, D2Value, Row, SqlBuilder, SqlResult, ValueType};
 
 /// turn MySqlQueryResult into ExecutionResult
 impl From<MySqlQueryResult> for ExecutionResult {

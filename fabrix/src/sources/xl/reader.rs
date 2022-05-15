@@ -9,7 +9,7 @@ use std::{
 
 use async_trait::async_trait;
 
-use super::{Cell, Workbook, XlConsumer, XlExecutor, XlSource, UNSUPPORTED_TYPE};
+use super::{XlCell, XlConsumer, XlExecutor, XlSource, XlWorkbook, UNSUPPORTED_TYPE};
 use crate::{value, Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, Value, D2};
 
 // ================================================================================================
@@ -49,7 +49,7 @@ impl XlConsumer<()> for XlFabrix {
     type UnitOut = Value;
     type FinalOut = Fabrix;
 
-    fn transform(cell: Cell) -> Self::UnitOut {
+    fn transform(cell: XlCell) -> Self::UnitOut {
         match cell.value {
             super::ExcelValue::Bool(v) => value!(v),
             super::ExcelValue::Number(v) => value!(v),
@@ -78,7 +78,7 @@ pub struct Reader<R: Read + Seek> {
 impl<R: Read + Seek> Reader<R> {
     pub fn new(reader: R) -> FabrixResult<Self> {
         Ok(Self {
-            xl_reader: Some(XlExecutor::new_with_source(Workbook::new(reader)?)),
+            xl_reader: Some(XlExecutor::new_with_source(XlWorkbook::new(reader)?)),
             sheet_name: None,
             has_header: None,
             is_column_wised: None,

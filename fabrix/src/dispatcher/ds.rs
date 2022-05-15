@@ -98,10 +98,26 @@ where
         self.fabrix.as_ref()
     }
 
+    pub fn has_data(&self) -> bool {
+        self.fabrix.is_some()
+    }
+
+    /// expose reader as reference to the outside
+    pub fn reader(&self) -> &R {
+        &self.reader
+    }
+
+    /// expose reader as mutable to the outside
     pub fn reader_mut(&mut self) -> &mut R {
         &mut self.reader
     }
 
+    /// expose writer as reference to the outside
+    pub fn writer(&self) -> &W {
+        &self.writer
+    }
+
+    /// expose writer as mutable to the outside
     pub fn writer_mut(&mut self) -> &mut W {
         &mut self.writer
     }
@@ -131,78 +147,76 @@ where
     }
 }
 
-// ================================================================================================
-// Empty Read & Write
-// ================================================================================================
-
-pub struct EmptySource;
-pub struct EmptyOption;
-
-impl ReadOptions for EmptyOption {
-    fn source_type(&self) -> &str {
-        "empty"
-    }
-}
-
-impl WriteOptions for EmptyOption {
-    fn source_type(&self) -> &str {
-        "empty"
-    }
-}
-
-pub struct EmptyRead;
-
-pub struct EmptyWrite;
-
-#[async_trait]
-impl<'a> FromSource<EmptyOption, 'a> for EmptyRead {
-    async fn async_read<'o>(&mut self, _options: &'o EmptyOption) -> FabrixResult<Fabrix>
-    where
-        'o: 'a,
-    {
-        Ok(Fabrix::empty())
-    }
-
-    fn sync_read<'o>(&mut self, _options: &'o EmptyOption) -> FabrixResult<Fabrix>
-    where
-        'o: 'a,
-    {
-        Ok(Fabrix::empty())
-    }
-}
-
-#[async_trait]
-impl<'a> IntoSource<EmptyOption, 'a> for EmptyWrite {
-    async fn async_write<'o>(
-        &mut self,
-        _fabrix: Fabrix,
-        _options: &'o EmptyOption,
-    ) -> FabrixResult<()>
-    where
-        'o: 'a,
-    {
-        Ok(())
-    }
-
-    fn sync_write<'o>(&mut self, _fabrix: Fabrix, _options: &'o EmptyOption) -> FabrixResult<()>
-    where
-        'o: 'a,
-    {
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod dispatcher_tests {
     use std::fs::File;
 
     use super::*;
-    use crate::{csv, parquet};
+    use crate::{
+        CsvReadOptions, CsvReader, CsvWriteOptions, CsvWriter, ParquetReadOptions, ParquetReader,
+        ParquetWriteOptions, ParquetWriter,
+    };
 
     const CSV_READ: &str = "../mock/test.csv";
     const CSV_WRITE: &str = "../cache/test.csv";
     const PARQUET_READ: &str = "../mock/test.parquet";
     const PARQUET_WRITE: &str = "../cache/test.parquet";
+
+    struct EmptyOption;
+
+    impl ReadOptions for EmptyOption {
+        fn source_type(&self) -> &str {
+            "empty"
+        }
+    }
+
+    impl WriteOptions for EmptyOption {
+        fn source_type(&self) -> &str {
+            "empty"
+        }
+    }
+
+    struct EmptyRead;
+
+    struct EmptyWrite;
+
+    #[async_trait]
+    impl<'a> FromSource<EmptyOption, 'a> for EmptyRead {
+        async fn async_read<'o>(&mut self, _options: &'o EmptyOption) -> FabrixResult<Fabrix>
+        where
+            'o: 'a,
+        {
+            Ok(Fabrix::empty())
+        }
+
+        fn sync_read<'o>(&mut self, _options: &'o EmptyOption) -> FabrixResult<Fabrix>
+        where
+            'o: 'a,
+        {
+            Ok(Fabrix::empty())
+        }
+    }
+
+    #[async_trait]
+    impl<'a> IntoSource<EmptyOption, 'a> for EmptyWrite {
+        async fn async_write<'o>(
+            &mut self,
+            _fabrix: Fabrix,
+            _options: &'o EmptyOption,
+        ) -> FabrixResult<()>
+        where
+            'o: 'a,
+        {
+            Ok(())
+        }
+
+        fn sync_write<'o>(&mut self, _fabrix: Fabrix, _options: &'o EmptyOption) -> FabrixResult<()>
+        where
+            'o: 'a,
+        {
+            Ok(())
+        }
+    }
 
     #[test]
     fn test_empty_dispatcher() {
@@ -226,28 +240,28 @@ mod dispatcher_tests {
 
     #[test]
     fn csv_read_write() {
-        let reader = csv::CsvReader::new(File::open(CSV_READ).unwrap());
-        let writer = csv::CsvWriter::new(File::create(CSV_WRITE).unwrap());
+        let reader = CsvReader::new(File::open(CSV_READ).unwrap());
+        let writer = CsvWriter::new(File::create(CSV_WRITE).unwrap());
 
         let mut dispatcher = Dispatcher::new(reader, writer);
 
-        let ro = csv::CsvReadOptions::default();
+        let ro = CsvReadOptions::default();
         let res = dispatcher.sync_read(&ro);
         assert!(res.is_ok());
 
-        let wo = csv::CsvWriteOptions::default();
+        let wo = CsvWriteOptions::default();
         let res = dispatcher.sync_write(&wo);
         assert!(res.is_ok());
     }
 
     #[test]
     fn csv_read_parquet_write() {
-        let reader = csv::CsvReader::new(File::open(CSV_READ).unwrap());
-        let writer = parquet::ParquetWriter::new(File::create(PARQUET_WRITE).unwrap());
+        let reader = CsvReader::new(File::open(CSV_READ).unwrap());
+        let writer = ParquetWriter::new(File::create(PARQUET_WRITE).unwrap());
 
         let mut dispatcher = Dispatcher::new(reader, writer);
 
-        let ro = csv::CsvReadOptions::default();
+        let ro = CsvReadOptions::default();
         let res = dispatcher.sync_read(&ro);
         assert!(res.is_ok());
 
@@ -255,19 +269,19 @@ mod dispatcher_tests {
         assert!(fx.is_some());
         println!("{:?}", fx.unwrap());
 
-        let wo = parquet::ParquetWriteOptions::default();
+        let wo = ParquetWriteOptions::default();
         let res = dispatcher.sync_write(&wo);
         assert!(res.is_ok());
     }
 
     #[test]
     fn parquet_read() {
-        let reader = parquet::ParquetReader::new(File::open(PARQUET_READ).unwrap());
+        let reader = ParquetReader::new(File::open(PARQUET_READ).unwrap());
         let write = EmptyWrite;
 
         let mut dispatcher = Dispatcher::new(reader, write);
 
-        let ro = parquet::ParquetReadOptions::default();
+        let ro = ParquetReadOptions::default();
         let res = dispatcher.sync_read(&ro);
         assert!(res.is_ok());
 

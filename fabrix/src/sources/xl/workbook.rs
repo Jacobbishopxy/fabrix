@@ -10,7 +10,7 @@ use lazy_static::lazy_static;
 use quick_xml::{events::Event, Reader};
 use zip::ZipArchive;
 
-use super::{util, DateSystem, SheetReader, Worksheet};
+use super::{util, DateSystem, SheetReader, XlWorksheet};
 use crate::{FabrixError, FabrixResult};
 
 /// The main struct of this module.
@@ -24,7 +24,7 @@ use crate::{FabrixError, FabrixResult};
 ///     let mut wb = Workbook::open("tests/data/Book1.xlsx").unwrap();
 ///
 #[derive(Debug)]
-pub struct Workbook<READER: Read + Seek> {
+pub struct XlWorkbook<READER: Read + Seek> {
     xls: ZipArchive<READER>,
     encoding: String,
     date_system: DateSystem,
@@ -44,7 +44,7 @@ pub struct Workbook<READER: Read + Seek> {
 #[derive(Debug)]
 pub struct SheetMap {
     sheets_by_name: HashMap<String, u8>,
-    sheets_by_num: Vec<Option<Worksheet>>,
+    sheets_by_num: Vec<Option<XlWorksheet>>,
 }
 
 impl SheetMap {
@@ -131,7 +131,7 @@ impl SheetMap {
     ///     // by position
     ///     let unknown_sheet = sheets.get(1);
     ///     assert_eq!(unknown_sheet.unwrap().name, "Sheet1");
-    pub fn get<T: SheetAccessTrait>(&self, sheet: T) -> Option<&Worksheet> {
+    pub fn get<T: SheetAccessTrait>(&self, sheet: T) -> Option<&XlWorksheet> {
         let sheet = sheet.go();
         match sheet {
             SheetNameOrNum::Name(n) => match self.sheets_by_name.get(n) {
@@ -160,7 +160,7 @@ impl SheetMap {
     }
 }
 
-impl<READER> Workbook<READER>
+impl<READER> XlWorkbook<READER>
 where
     READER: Read + Seek,
 {
@@ -285,7 +285,7 @@ where
                                     "xl/".to_owned() + s
                                 }
                             };
-                            let ws = Worksheet::new(name, current_sheet_num, id, target, num);
+                            let ws = XlWorksheet::new(name, current_sheet_num, id, target, num);
                             sheets.sheets_by_num.push(Some(ws));
                         }
                         Ok(Event::Eof) => break,
@@ -329,7 +329,7 @@ where
                 let strings = strings(&mut xls)?;
                 let styles = find_styles(&mut xls)?;
                 let date_system = get_date_system(&mut xls)?;
-                Ok(Workbook {
+                Ok(XlWorkbook {
                     xls,
                     encoding: "utf8".to_owned(),
                     date_system,

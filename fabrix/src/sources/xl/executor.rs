@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
 
-use super::{Cell, RowIter, Workbook, XlSource};
+use super::{RowIter, XlCell, XlSource, XlWorkbook};
 use crate::{FabrixError, FabrixResult, D2};
 
 /// A convert function pointer used for converting `D2<UnitOut>` into type parameter `FinalOut`.
@@ -50,7 +50,7 @@ pub trait XlConsumer<CORE> {
     type FinalOut: Display + Send;
 
     /// convert data to output type
-    fn transform(cell: Cell) -> Self::UnitOut;
+    fn transform(cell: XlCell) -> Self::UnitOut;
 
     /// consume `FinalOut` synchronously
     fn consume(
@@ -92,24 +92,24 @@ pub trait XlConsumer<CORE> {
     }
 }
 
-impl TryFrom<XlSource> for Workbook<File> {
+impl TryFrom<XlSource> for XlWorkbook<File> {
     type Error = FabrixError;
 
     fn try_from(value: XlSource) -> Result<Self, Self::Error> {
         match value {
-            XlSource::File(file) => Ok(Workbook::new(file)?),
-            XlSource::Path(path) => Ok(Workbook::new(File::open(path)?)?),
+            XlSource::File(file) => Ok(XlWorkbook::new(file)?),
+            XlSource::Path(path) => Ok(XlWorkbook::new(File::open(path)?)?),
             _ => Err(FabrixError::new_common_error("Unsupported XlSource type")),
         }
     }
 }
 
-impl TryFrom<XlSource> for Workbook<Cursor<Vec<u8>>> {
+impl TryFrom<XlSource> for XlWorkbook<Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
     fn try_from(value: XlSource) -> Result<Self, Self::Error> {
         match value {
-            XlSource::Bytes(bytes) => Ok(Workbook::new(bytes)?),
+            XlSource::Bytes(bytes) => Ok(XlWorkbook::new(bytes)?),
             _ => Err(FabrixError::new_common_error("Unsupported XlSource type")),
         }
     }
@@ -138,7 +138,7 @@ where
 {
     fn new(
         batch_size: Option<usize>,
-        workbook: &'a mut Workbook<READER>,
+        workbook: &'a mut XlWorkbook<READER>,
         sheet_name: &str,
     ) -> FabrixResult<Self> {
         let sheets = workbook.sheets()?;
@@ -261,7 +261,7 @@ where
     CONSUMER: XlConsumer<CORE> + Send,
     READER: Read + Seek,
 {
-    workbook: Option<Workbook<READER>>,
+    workbook: Option<XlWorkbook<READER>>,
     consumer: PhantomData<CONSUMER>,
     core: PhantomData<CORE>,
     xl_form: PhantomData<READER>,
@@ -283,7 +283,7 @@ where
     }
 
     /// constructor
-    pub fn new_with_source(source: Workbook<READER>) -> Self {
+    pub fn new_with_source(source: XlWorkbook<READER>) -> Self {
         Self {
             workbook: Some(source),
             consumer: PhantomData,
@@ -293,7 +293,7 @@ where
     }
 
     /// replace or set a new workbook
-    pub fn add_source(&mut self, source: Workbook<READER>) -> FabrixResult<()> {
+    pub fn add_source(&mut self, source: XlWorkbook<READER>) -> FabrixResult<()> {
         self.workbook = Some(source);
         Ok(())
     }
@@ -450,7 +450,7 @@ where
 /// The purpose of this function is to simplify the construction of XlSheetIter,
 /// since it will be used in `iter_sheet`, `consume` and `async_consume` methods.
 fn gen_worksheet_iter<'a, CONSUMER, CORE, READER: Read + Seek>(
-    workbook: &'a mut Option<Workbook<READER>>,
+    workbook: &'a mut Option<XlWorkbook<READER>>,
     batch_size: Option<usize>,
     sheet_name: &str,
 ) -> FabrixResult<XlSheetIter<'a, CONSUMER, CORE>>
@@ -504,7 +504,7 @@ mod test_xl_executor {
         type UnitOut = String;
         type FinalOut = Fo;
 
-        fn transform(cell: Cell) -> Self::UnitOut {
+        fn transform(cell: XlCell) -> Self::UnitOut {
             // here to show what information a cell contains
             dbg!(
                 &cell.value,
@@ -521,7 +521,7 @@ mod test_xl_executor {
 
     #[test]
     fn test_exec_iter_sheet() {
-        let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle.iter_sheet(None, SHEET_NAME).unwrap();
@@ -563,7 +563,7 @@ mod test_xl_executor {
 
     #[test]
     fn test_value_console() {
-        let source: Workbook<File> = XlSource::Path(XL_PATH2.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_PATH2.to_owned()).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
@@ -574,7 +574,7 @@ mod test_xl_executor {
     // consume synchronously
     #[test]
     fn test_exec_consume() {
-        let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
@@ -585,7 +585,7 @@ mod test_xl_executor {
     // consume synchronously
     #[tokio::test]
     async fn test_exec_async_consume() {
-        let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let foo = xle
@@ -600,7 +600,7 @@ mod test_xl_executor {
     // consume synchronously, mutable
     #[tokio::test]
     async fn test_exec_async_consume_mut() {
-        let source: Workbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
+        let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
         let mut xle = XlExecutor::<TestExec, (), File>::new_with_source(source);
 
         let sc = Arc::new(Mutex::new(StatefulConsumer::new()));

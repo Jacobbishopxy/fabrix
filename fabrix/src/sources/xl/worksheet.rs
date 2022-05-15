@@ -9,29 +9,25 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 use zip::read::ZipFile;
 
-use super::{util, DateSystem, ExcelValue, Workbook};
+use super::{util, DateSystem, ExcelValue, XlWorkbook};
 use crate::{FabrixError, FabrixResult};
-
-// type alias
-pub type VecCell<'a> = Vec<Cell<'a>>;
-pub type ChunkCell<'a> = Vec<VecCell<'a>>;
 
 /// a row of cells
 #[derive(Debug)]
-pub struct Row<'a> {
-    pub data: Vec<Cell<'a>>,
+pub struct XlRow<'a> {
+    pub data: Vec<XlCell<'a>>,
     pub num: usize,
 }
 
-impl<'a> Row<'a> {
-    pub fn new(data: Vec<Cell<'a>>, num: usize) -> Row<'a> {
-        Row { data, num }
+impl<'a> XlRow<'a> {
+    pub fn new(data: Vec<XlCell<'a>>, num: usize) -> XlRow<'a> {
+        XlRow { data, num }
     }
 }
 
 /// minimum Excel unit: cell
 #[derive(Debug)]
-pub struct Cell<'a> {
+pub struct XlCell<'a> {
     /// The value you get by converting the raw_value (a string) into a Rust value
     pub value: ExcelValue<'a>,
     /// The formula (may be "empty") of the cell
@@ -48,7 +44,7 @@ pub struct Cell<'a> {
     pub raw_value: String,
 }
 
-impl Cell<'_> {
+impl XlCell<'_> {
     /// return cell's row/column coordinates
     pub fn coordinates(&self) -> (u16, u32) {
         // let (col, row) = split_cell_reference(&self.reference);
@@ -69,7 +65,7 @@ impl Cell<'_> {
     }
 }
 
-impl std::fmt::Display for Cell<'_> {
+impl std::fmt::Display for XlCell<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.value)
     }
@@ -157,7 +153,7 @@ fn used_area(range: &str) -> (u32, u16) {
 /// The Worksheet is the primary object in this module since this is where most of the valuable
 /// data is. See the methods below for how to use.
 #[derive(Debug)]
-pub struct Worksheet {
+pub struct XlWorksheet {
     pub name: String,
     pub position: u8,
     relationship_id: String,
@@ -165,7 +161,7 @@ pub struct Worksheet {
     sheet_id: u8,
 }
 
-impl Worksheet {
+impl XlWorksheet {
     /// constructor
     ///
     /// Create a new worksheet. Note that this method will probably not be called directly.
@@ -184,7 +180,7 @@ impl Worksheet {
         target: String,
         sheet_id: u8,
     ) -> Self {
-        Worksheet {
+        XlWorksheet {
             name,
             position,
             relationship_id,
@@ -211,7 +207,7 @@ impl Worksheet {
     ///     assert_eq!(row1[1].value, ExcelValue::Number(2f64));
     pub fn rows<'a, READER: Read + Seek>(
         &self,
-        workbook: &'a mut Workbook<READER>,
+        workbook: &'a mut XlWorkbook<READER>,
     ) -> FabrixResult<RowIter<'a>> {
         let reader = workbook.sheet_reader(&self.target)?;
         Ok(RowIter {
@@ -237,7 +233,7 @@ impl Worksheet {
 pub struct RowIter<'a> {
     worksheet_reader: SheetReader<'a>,
     want_row: usize,
-    next_row: Option<Row<'a>>,
+    next_row: Option<XlRow<'a>>,
     num_rows: u32,
     num_cols: u16,
     done_file: bool,
@@ -245,13 +241,13 @@ pub struct RowIter<'a> {
 }
 
 impl<'a> Iterator for RowIter<'a> {
-    type Item = Row<'a>;
+    type Item = XlRow<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // the xml in the xlsx file will not contain elements for empty rows. So
         // we need to "simulate" the empty rows since the user expects to see
         // them when they iterate over the worksheet.
-        if let Some(Row { data: _, num }) = &self.next_row {
+        if let Some(XlRow { data: _, num }) = &self.next_row {
             // since we are currently buffering a row, we know we will either return it or a
             // "simulated" (i.e., emtpy) row. So we grab the current row and update the fact that
             // we will soon want a new row. We then figure out if we have the row we want or if we
@@ -280,7 +276,7 @@ impl<'a> Iterator for RowIter<'a> {
         let styles = self.worksheet_reader.styles;
         let date_system = self.worksheet_reader.date_system;
         let next_row = {
-            let mut row: Vec<Cell> = Vec::with_capacity(self.num_cols as usize);
+            let mut row: Vec<XlCell> = Vec::with_capacity(self.num_cols as usize);
             let mut in_cell = false;
             let mut in_value = false;
             let mut c = new_cell();
@@ -410,7 +406,7 @@ impl<'a> Iterator for RowIter<'a> {
                             cell.reference.push_str(&this_row.to_string());
                             row.push(cell);
                         }
-                        let next_row = Some(Row::new(row, this_row));
+                        let next_row = Some(XlRow::new(row, this_row));
                         if this_row == self.want_row {
                             break next_row;
                         } else {
@@ -442,8 +438,8 @@ impl<'a> Iterator for RowIter<'a> {
 }
 
 /// create a default cell
-fn new_cell() -> Cell<'static> {
-    Cell {
+fn new_cell() -> XlCell<'static> {
+    XlCell {
         value: ExcelValue::None,
         formula: "".to_string(),
         reference: "".to_string(),
@@ -454,7 +450,7 @@ fn new_cell() -> Cell<'static> {
 }
 
 /// create an optional static Row
-fn empty_row(num_cols: u16, this_row: usize) -> Option<Row<'static>> {
+fn empty_row(num_cols: u16, this_row: usize) -> Option<XlRow<'static>> {
     let mut row = vec![];
     for n in 0..num_cols {
         let mut c = new_cell();
@@ -462,10 +458,10 @@ fn empty_row(num_cols: u16, this_row: usize) -> Option<Row<'static>> {
         c.reference.push_str(&this_row.to_string());
         row.push(c);
     }
-    Some(Row::new(row, this_row))
+    Some(XlRow::new(row, this_row))
 }
 
-fn is_date(cell: &Cell) -> bool {
+fn is_date(cell: &XlCell) -> bool {
     let is_d = cell.style == "d";
     let is_like_d_and_not_like_red = cell.style.contains('d') && !cell.style.contains("Red");
     let is_like_m = cell.style.contains('m');

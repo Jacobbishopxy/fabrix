@@ -67,6 +67,10 @@ impl Writer {
         })
     }
 
+    pub fn writer(&self) -> &SqlExecutor {
+        &self.sql_writer
+    }
+
     pub fn with_save_strategy(&mut self, save_strategy: sql_adt::SaveStrategy) -> &mut Self {
         self.save_strategy = Some(save_strategy);
         self
@@ -93,8 +97,8 @@ impl Writer {
 
 #[derive(Default)]
 pub struct SqlWriteOptions<'a> {
-    table_name: Option<&'a str>,
-    save_strategy: Option<sql_adt::SaveStrategy>,
+    pub table_name: Option<&'a str>,
+    pub save_strategy: Option<sql_adt::SaveStrategy>,
 }
 
 impl<'a> WriteOptions for SqlWriteOptions<'a> {

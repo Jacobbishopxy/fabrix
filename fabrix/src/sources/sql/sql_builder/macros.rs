@@ -4,7 +4,7 @@ macro_rules! statement {
         match $builder {
             $crate::SqlBuilder::Mysql => $statement.to_string(sea_query::MysqlQueryBuilder),
             $crate::SqlBuilder::Postgres => $statement.to_string(sea_query::PostgresQueryBuilder),
-            $crate::SqlBuilder::Sqlite => $crate::sql::sql_builder::macros::sqlite_str_replace(
+            $crate::SqlBuilder::Sqlite => $crate::sql_builder::macros::sqlite_str_replace(
                 $statement.to_string(sea_query::SqliteQueryBuilder),
             ),
         }
@@ -62,7 +62,7 @@ pub(crate) use sv_2_v;
 #[macro_export]
 macro_rules! xpr_and {
     () => {
-        $crate::sql::sql_adt::Expression::Conjunction($crate::sql::sql_adt::Conjunction::AND)
+        $crate::sql_adt::Expression::Conjunction($crate::sql_adt::Conjunction::AND)
     };
 }
 
@@ -73,7 +73,7 @@ pub use xpr_and;
 #[macro_export]
 macro_rules! xpr_or {
     () => {
-        $crate::sql::sql_adt::Expression::Conjunction($crate::sql::sql_adt::Conjunction::OR)
+        $crate::sql_adt::Expression::Conjunction($crate::sql_adt::Conjunction::OR)
     };
 }
 
@@ -84,7 +84,7 @@ pub use xpr_or;
 #[macro_export]
 macro_rules! xpr_nest {
     ($($xpr:expr),*) => {
-        $crate::sql::sql_adt::Expression::Nest(vec![$($xpr),*])
+        $crate::sql_adt::Expression::Nest(vec![$($xpr),*])
     };
 }
 
@@ -95,7 +95,7 @@ pub use xpr_nest;
 #[macro_export]
 macro_rules! xpr_simple {
     ($column:expr, $equation:expr) => {
-        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+        $crate::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
                 "not" => $crate::sql::sql_adt::Equation::Not,
@@ -105,7 +105,7 @@ macro_rules! xpr_simple {
     };
 
     ($column:expr, $equation:expr, [$value1:expr, $value2:expr]) => {
-        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+        $crate::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
                 "between" => $crate::sql::sql_adt::Equation::Between((
@@ -121,7 +121,7 @@ macro_rules! xpr_simple {
         })
     };
     ($column:expr, $equation:expr, [$($value:expr),* $(,)*]) => {
-        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+        $crate::sql_adt::Expression::Simple($crate::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
                 "in" => {
@@ -129,23 +129,23 @@ macro_rules! xpr_simple {
                     $(
                         values.push($crate::value!($value));
                     )*
-                    $crate::sql::sql_adt::Equation::In(values)
+                    $crate::sql_adt::Equation::In(values)
                 }
                 _ => unimplemented!(),
             },
         })
     };
     ($column:expr, $equation:expr, $value:expr) => {
-        $crate::sql::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+        $crate::sql_adt::Expression::Simple($crate::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
-                "=" => $crate::sql::sql_adt::Equation::Equal($crate::value!($value)),
-                "!=" => $crate::sql::sql_adt::Equation::NotEqual($crate::value!($value)),
-                ">" => $crate::sql::sql_adt::Equation::Greater($crate::value!($value)),
-                ">=" => $crate::sql::sql_adt::Equation::GreaterEqual($crate::value!($value)),
-                "<" => $crate::sql::sql_adt::Equation::Less($crate::value!($value)),
-                "<=" => $crate::sql::sql_adt::Equation::LessEqual($crate::value!($value)),
-                "%" => $crate::sql::sql_adt::Equation::Like(String::from(stringify!($value))),
+                "=" => $crate::sql_adt::Equation::Equal($crate::value!($value)),
+                "!=" => $crate::sql_adt::Equation::NotEqual($crate::value!($value)),
+                ">" => $crate::sql_adt::Equation::Greater($crate::value!($value)),
+                ">=" => $crate::sql_adt::Equation::GreaterEqual($crate::value!($value)),
+                "<" => $crate::sql_adt::Equation::Less($crate::value!($value)),
+                "<=" => $crate::sql_adt::Equation::LessEqual($crate::value!($value)),
+                "%" => $crate::sql_adt::Equation::Like(String::from(stringify!($value))),
                 _ => unimplemented!(),
             },
         })

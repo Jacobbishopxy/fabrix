@@ -94,6 +94,10 @@ impl<'a> Reader<'a> {
         })
     }
 
+    pub fn reader(&self) -> &SqlExecutor {
+        &self.sql_reader
+    }
+
     pub fn with_table(&mut self, table: &'a str) -> &mut Self {
         self.table = Some(table);
         self
