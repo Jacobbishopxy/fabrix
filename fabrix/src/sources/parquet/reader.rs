@@ -132,12 +132,12 @@ impl TryFrom<ParquetSource> for Reader<Cursor<Vec<u8>>> {
 
 #[derive(Default)]
 pub struct ParquetReadOptions {
-    read_parallel: Option<bool>,
-    num_rows: Option<usize>,
-    select_columns: Option<Vec<String>>,
-    projection: Option<Vec<usize>>,
-    row_count: Option<(String, usize)>,
-    index: Option<usize>,
+    pub read_parallel: Option<bool>,
+    pub num_rows: Option<usize>,
+    pub select_columns: Option<Vec<String>>,
+    pub projection: Option<Vec<usize>>,
+    pub row_count: Option<(String, usize)>,
+    pub index: Option<usize>,
 }
 
 impl ReadOptions for ParquetReadOptions {

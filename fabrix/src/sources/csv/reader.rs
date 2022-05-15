@@ -192,19 +192,19 @@ impl<'a> TryFrom<CsvSource> for Reader<'a, Cursor<Vec<u8>>> {
 
 #[derive(Default)]
 pub struct CsvReadOptions {
-    has_header: Option<bool>,
-    skip_rows_after_header: Option<usize>,
-    num_rows: Option<usize>,
-    row_count: Option<(String, usize)>,
-    ignore_parser_errors: Option<bool>,
-    skip_rows: Option<usize>,
-    rechunk: Option<bool>,
-    delimiter: Option<u8>,
-    comment_char: Option<u8>,
-    dtypes: Option<Schema>,
-    dtypes_slice: Option<ValueTypes>,
-    projection: Option<Vec<usize>>,
-    index: Option<usize>,
+    pub has_header: Option<bool>,
+    pub skip_rows_after_header: Option<usize>,
+    pub num_rows: Option<usize>,
+    pub row_count: Option<(String, usize)>,
+    pub ignore_parser_errors: Option<bool>,
+    pub skip_rows: Option<usize>,
+    pub rechunk: Option<bool>,
+    pub delimiter: Option<u8>,
+    pub comment_char: Option<u8>,
+    pub dtypes: Option<Schema>,
+    pub dtypes_slice: Option<ValueTypes>,
+    pub projection: Option<Vec<usize>>,
+    pub index: Option<usize>,
 }
 
 impl ReadOptions for CsvReadOptions {

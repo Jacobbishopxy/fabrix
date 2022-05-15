@@ -163,12 +163,12 @@ impl<'a> Reader<'a> {
 
 #[derive(Default)]
 pub struct SqlReadOptions<'a> {
-    table: Option<&'a str>,
-    columns: Option<&'a [sql_adt::ColumnAlias]>,
-    filter: Option<&'a [sql_adt::Expression]>,
-    order: Option<&'a [sql_adt::Order]>,
-    limit: Option<usize>,
-    offset: Option<usize>,
+    pub table: Option<&'a str>,
+    pub columns: Option<&'a [sql_adt::ColumnAlias]>,
+    pub filter: Option<&'a [sql_adt::Expression]>,
+    pub order: Option<&'a [sql_adt::Order]>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
 }
 
 impl<'a> ReadOptions for SqlReadOptions<'a> {

@@ -91,7 +91,7 @@ impl TryFrom<ParquetSource> for Writer<Cursor<Vec<u8>>> {
 
 #[derive(Default)]
 pub struct ParquetWriteOptions {
-    statistics: Option<bool>,
+    pub statistics: Option<bool>,
 }
 
 impl WriteOptions for ParquetWriteOptions {

@@ -173,10 +173,10 @@ impl TryFrom<XlSource> for Reader<Cursor<Vec<u8>>> {
 
 #[derive(Default)]
 pub struct XlReadOptions {
-    sheet_name: Option<String>,
-    has_header: Option<bool>,
-    is_column_wised: Option<bool>,
-    index: Option<usize>,
+    pub sheet_name: Option<String>,
+    pub has_header: Option<bool>,
+    pub is_column_wised: Option<bool>,
+    pub index: Option<usize>,
 }
 
 impl ReadOptions for XlReadOptions {

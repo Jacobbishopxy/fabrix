@@ -121,12 +121,12 @@ impl TryFrom<CsvSource> for Writer<Cursor<Vec<u8>>> {
 
 #[derive(Default)]
 pub struct CsvWriteOptions<'a> {
-    has_header: Option<bool>,
-    delimiter: Option<u8>,
-    date_format: Option<&'a str>,
-    time_format: Option<&'a str>,
-    timestamp_format: Option<&'a str>,
-    quoting_char: Option<u8>,
+    pub has_header: Option<bool>,
+    pub delimiter: Option<u8>,
+    pub date_format: Option<&'a str>,
+    pub time_format: Option<&'a str>,
+    pub timestamp_format: Option<&'a str>,
+    pub quoting_char: Option<u8>,
 }
 
 impl<'a> WriteOptions for CsvWriteOptions<'a> {
