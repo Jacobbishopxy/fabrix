@@ -16,12 +16,12 @@ use crate::{Fabrix, FabrixError, FabrixResult};
 // Read & Write Options
 // ================================================================================================
 
-pub trait ReadOptions: Send {
-    fn source_type(&self) -> &str;
+pub trait ReadOptions: Send + Default {
+    fn source_type() -> &'static str;
 }
 
-pub trait WriteOptions: Send {
-    fn source_type(&self) -> &str;
+pub trait WriteOptions: Send + Default {
+    fn source_type() -> &'static str;
 }
 
 // ================================================================================================
@@ -34,6 +34,10 @@ pub trait FromSource<'a, R>
 where
     R: ReadOptions,
 {
+    fn source_type(&self) -> &str {
+        R::source_type()
+    }
+
     async fn async_read<'o>(&mut self, options: &'o R) -> FabrixResult<Fabrix>
     where
         'o: 'a;
@@ -48,6 +52,10 @@ pub trait IntoSource<'a, W>
 where
     W: WriteOptions,
 {
+    fn source_type(&self) -> &str {
+        W::source_type()
+    }
+
     async fn async_write<'o>(&mut self, fabrix: Fabrix, options: &'o W) -> FabrixResult<()>
     where
         'o: 'a;
@@ -100,6 +108,14 @@ where
 
     pub fn has_data(&self) -> bool {
         self.fabrix.is_some()
+    }
+
+    pub fn reader_type(&self) -> &str {
+        self.reader.source_type()
+    }
+
+    pub fn writer_type(&self) -> &str {
+        self.writer.source_type()
     }
 
     /// expose reader as reference to the outside
@@ -162,16 +178,17 @@ mod dispatcher_tests {
     const PARQUET_READ: &str = "../mock/test.parquet";
     const PARQUET_WRITE: &str = "../cache/test.parquet";
 
+    #[derive(Default)]
     struct EmptyOption;
 
     impl ReadOptions for EmptyOption {
-        fn source_type(&self) -> &str {
+        fn source_type() -> &'static str {
             "empty"
         }
     }
 
     impl WriteOptions for EmptyOption {
-        fn source_type(&self) -> &str {
+        fn source_type() -> &'static str {
             "empty"
         }
     }

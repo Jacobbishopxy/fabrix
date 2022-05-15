@@ -95,7 +95,7 @@ pub struct ParquetWriteOptions {
 }
 
 impl WriteOptions for ParquetWriteOptions {
-    fn source_type(&self) -> &str {
+    fn source_type() -> &'static str {
         "parquet"
     }
 }

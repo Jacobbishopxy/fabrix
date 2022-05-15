@@ -102,7 +102,7 @@ pub struct SqlWriteOptions<'a> {
 }
 
 impl<'a> WriteOptions for SqlWriteOptions<'a> {
-    fn source_type(&self) -> &str {
+    fn source_type() -> &'static str {
         "sql"
     }
 }

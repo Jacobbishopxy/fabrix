@@ -130,7 +130,7 @@ pub struct CsvWriteOptions<'a> {
 }
 
 impl<'a> WriteOptions for CsvWriteOptions<'a> {
-    fn source_type(&self) -> &str {
+    fn source_type() -> &'static str {
         "csv"
     }
 }

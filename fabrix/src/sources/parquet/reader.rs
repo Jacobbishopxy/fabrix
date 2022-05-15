@@ -141,7 +141,7 @@ pub struct ParquetReadOptions {
 }
 
 impl ReadOptions for ParquetReadOptions {
-    fn source_type(&self) -> &str {
+    fn source_type() -> &'static str {
         "parquet"
     }
 }

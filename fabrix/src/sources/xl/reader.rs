@@ -180,7 +180,7 @@ pub struct XlReadOptions {
 }
 
 impl ReadOptions for XlReadOptions {
-    fn source_type(&self) -> &str {
+    fn source_type() -> &'static str {
         "xl"
     }
 }

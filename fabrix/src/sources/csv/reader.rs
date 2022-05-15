@@ -208,7 +208,7 @@ pub struct CsvReadOptions {
 }
 
 impl ReadOptions for CsvReadOptions {
-    fn source_type(&self) -> &str {
+    fn source_type() -> &'static str {
         "csv"
     }
 }

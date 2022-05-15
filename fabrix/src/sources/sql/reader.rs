@@ -172,7 +172,7 @@ pub struct SqlReadOptions<'a> {
 }
 
 impl<'a> ReadOptions for SqlReadOptions<'a> {
-    fn source_type(&self) -> &str {
+    fn source_type() -> &'static str {
         "sql"
     }
 }
