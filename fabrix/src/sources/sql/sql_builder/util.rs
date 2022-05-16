@@ -11,10 +11,10 @@ pub(crate) enum DeleteOrSelect<'a> {
 }
 
 /// A general function to build Sql conditions for Delete and Select statements
-pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &[sql_adt::Expression]) {
+pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions) {
     let mut vec_cond = vec![];
 
-    cond_builder(&mut vec_cond, flt);
+    cond_builder(&mut vec_cond, &flt.0);
 
     vec_cond.iter().for_each(|c| match s {
         DeleteOrSelect::Delete(qs) => {

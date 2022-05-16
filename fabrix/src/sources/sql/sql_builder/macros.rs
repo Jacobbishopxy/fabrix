@@ -62,7 +62,7 @@ pub(crate) use sv_2_v;
 #[macro_export]
 macro_rules! xpr_and {
     () => {
-        $crate::sql_adt::Expression::Conjunction($crate::sql_adt::Conjunction::AND)
+        $crate::sql_adt::Conjunction::AND
     };
 }
 
@@ -73,18 +73,20 @@ pub use xpr_and;
 #[macro_export]
 macro_rules! xpr_or {
     () => {
-        $crate::sql_adt::Expression::Conjunction($crate::sql_adt::Conjunction::OR)
+        $crate::sql_adt::Conjunction::OR
     };
 }
 
 pub use xpr_or;
+
+// TODO:
 
 /// expression macro
 /// `sql_adt::Expression::Nest(...)`
 #[macro_export]
 macro_rules! xpr_nest {
     ($($xpr:expr),*) => {
-        $crate::sql_adt::Expression::Nest(vec![$($xpr),*])
+        $crate::sql_adt::Expressions(vec![$($xpr),*])
     };
 }
 
@@ -95,17 +97,17 @@ pub use xpr_nest;
 #[macro_export]
 macro_rules! xpr_simple {
     ($column:expr, $equation:expr) => {
-        $crate::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+        $crate::sql::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
                 "not" => $crate::sql::sql_adt::Equation::Not,
                 _ => unimplemented!(),
             },
-        })
+        }
     };
 
     ($column:expr, $equation:expr, [$value1:expr, $value2:expr]) => {
-        $crate::sql_adt::Expression::Simple($crate::sql::sql_adt::Condition {
+        $crate::sql::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
                 "between" => $crate::sql::sql_adt::Equation::Between((
@@ -118,10 +120,10 @@ macro_rules! xpr_simple {
                 ]),
                 _ => unimplemented!(),
             },
-        })
+        }
     };
     ($column:expr, $equation:expr, [$($value:expr),* $(,)*]) => {
-        $crate::sql_adt::Expression::Simple($crate::sql_adt::Condition {
+        $crate::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
                 "in" => {
@@ -133,10 +135,10 @@ macro_rules! xpr_simple {
                 }
                 _ => unimplemented!(),
             },
-        })
+        }
     };
     ($column:expr, $equation:expr, $value:expr) => {
-        $crate::sql_adt::Expression::Simple($crate::sql_adt::Condition {
+        $crate::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
                 "=" => $crate::sql_adt::Equation::Equal($crate::value!($value)),
@@ -148,7 +150,7 @@ macro_rules! xpr_simple {
                 "%" => $crate::sql_adt::Equation::Like(String::from(stringify!($value))),
                 _ => unimplemented!(),
             },
-        })
+        }
     };
 }
 

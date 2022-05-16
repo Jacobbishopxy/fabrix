@@ -18,7 +18,7 @@ pub struct Reader<'a> {
     sql_reader: SqlExecutor,
     table: Option<&'a str>,
     columns: Option<&'a [sql_adt::ColumnAlias]>,
-    filter: Option<&'a [sql_adt::Expression]>,
+    filter: Option<&'a sql_adt::Expressions>,
     order: Option<&'a [sql_adt::Order]>,
     limit: Option<usize>,
     offset: Option<usize>,
@@ -108,7 +108,7 @@ impl<'a> Reader<'a> {
         self
     }
 
-    pub fn with_filter(&mut self, filter: &'a [sql_adt::Expression]) -> &mut Self {
+    pub fn with_filter(&mut self, filter: &'a sql_adt::Expressions) -> &mut Self {
         self.filter = Some(filter);
         self
     }
@@ -165,7 +165,7 @@ impl<'a> Reader<'a> {
 pub struct SqlReadOptions<'a> {
     pub table: Option<&'a str>,
     pub columns: Option<&'a [sql_adt::ColumnAlias]>,
-    pub filter: Option<&'a [sql_adt::Expression]>,
+    pub filter: Option<&'a sql_adt::Expressions>,
     pub order: Option<&'a [sql_adt::Order]>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
@@ -225,7 +225,7 @@ impl<'a> FromSource<'a, SqlReadOptions<'_>> for Reader<'a> {
 #[cfg(test)]
 mod test_sql_reader {
     use super::*;
-    use crate::{xpr_and, xpr_nest, xpr_or, xpr_simple};
+    use crate::{sql_adt, sql_adt::ExpressionSetup, xpr_and, xpr_or, xpr_simple};
 
     const CONN: &str = "sqlite://dev.sqlite";
     const TABLE: &str = "ds_sql_test";
@@ -235,15 +235,20 @@ mod test_sql_reader {
         let mut reader = Reader::new_from_str(CONN).await.unwrap();
 
         let columns = vec!["ord".into(), "name".into()];
-        let filter = vec![
-            xpr_simple!("ord", ">=", 10),
-            xpr_or!(),
-            xpr_nest!(
-                xpr_simple!("names", "in", ["John", "Lily", "Mike"]),
-                xpr_and!(),
-                xpr_simple!("age", ">", 15)
-            ),
-        ];
+
+        let filter = sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("ord", ">=", 10))
+            .append(xpr_or!())
+            .append(
+                sql_adt::ExpressionsBuilder::from_condition(xpr_simple!(
+                    "names",
+                    "in",
+                    ["John", "Lily", "Mike"]
+                ))
+                .append(xpr_and!())
+                .append(xpr_simple!("age", ">", 15))
+                .finish(),
+            )
+            .finish();
 
         reader.with_table(TABLE);
         reader.with_columns(&columns);

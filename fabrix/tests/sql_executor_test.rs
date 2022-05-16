@@ -13,7 +13,8 @@
 use std::assert_matches::assert_matches;
 use std::str::FromStr;
 
-use fabrix::{datetime, fx, xpr_and, xpr_nest, xpr_or, xpr_simple};
+use fabrix::sql_adt::ExpressionSetup;
+use fabrix::{datetime, fx, xpr_and, xpr_or, xpr_simple};
 use fabrix::{sql_adt, SqlEngine, SqlExecutor};
 
 const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
@@ -241,17 +242,19 @@ cargo test --package fabrix --test sql_executor_test -- test_delete --exact --no
 */
 #[tokio::test]
 async fn test_delete() {
+    let filter = sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("ord", "=", 15))
+        .append(xpr_or!())
+        .append(
+            sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("names", "=", "Livia"))
+                .append(xpr_and!())
+                .append(xpr_simple!("val", ">=", 10.0))
+                .finish(),
+        )
+        .finish();
+
     let delete = sql_adt::Delete {
         table: TABLE_NAME.to_owned(),
-        filter: vec![
-            xpr_simple!("ord", "=", 15),
-            xpr_or!(),
-            xpr_nest!(
-                xpr_simple!("names", "=", "Livia"),
-                xpr_and!(),
-                xpr_simple!("val", ">", 10.0)
-            ),
-        ],
+        filter,
     };
 
     // mysql

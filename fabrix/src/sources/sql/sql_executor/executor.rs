@@ -411,7 +411,7 @@ async fn txn_create_and_insert<'a>(
 mod test_executor {
 
     use super::*;
-    use crate::{datetime, fx, series, xpr_and, xpr_nest, xpr_or, xpr_simple};
+    use crate::{datetime, fx, series, sql_adt::ExpressionSetup, xpr_and, xpr_or, xpr_simple};
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -646,17 +646,19 @@ mod test_executor {
 
     #[tokio::test]
     async fn test_delete() {
+        let filter = sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("ord", "=", 15))
+            .append(xpr_or!())
+            .append(
+                sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("names", "=", "Livia"))
+                    .append(xpr_and!())
+                    .append(xpr_simple!("val", ">=", 10.0))
+                    .finish(),
+            )
+            .finish();
+
         let delete = sql_adt::Delete {
             table: TABLE_NAME.to_owned(),
-            filter: vec![
-                xpr_simple!("ord", "=", 15),
-                xpr_or!(),
-                xpr_nest!(
-                    xpr_simple!("names", "=", "Livia"),
-                    xpr_and!(),
-                    xpr_simple!("val", ">", 10.0)
-                ),
-            ],
+            filter,
         };
 
         // mysql

@@ -98,7 +98,7 @@ mod test_mutation_dml {
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{fx, xpr_and, xpr_nest, xpr_or, xpr_simple};
+    use crate::{fx, sql_adt::ExpressionSetup, xpr_and, xpr_or, xpr_simple};
 
     #[test]
     fn test_insert() {
@@ -198,17 +198,19 @@ mod test_mutation_dml {
 
     #[test]
     fn test_delete() {
+        let filter = sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("ord", "=", 15))
+            .append(xpr_or!())
+            .append(
+                sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("names", "=", "X"))
+                    .append(xpr_and!())
+                    .append(xpr_simple!("val", ">=", 10.0))
+                    .finish(),
+            )
+            .finish();
+
         let delete = sql_adt::Delete {
             table: "test".to_string(),
-            filter: vec![
-                xpr_simple!("ord", "=", 15),
-                xpr_or!(),
-                xpr_nest!(
-                    xpr_simple!("names", "=", "X"),
-                    xpr_and!(),
-                    xpr_simple!("val", ">=", 10.0)
-                ),
-            ],
+            filter,
         };
 
         let foo = SqlBuilder::Mysql.delete(&delete);

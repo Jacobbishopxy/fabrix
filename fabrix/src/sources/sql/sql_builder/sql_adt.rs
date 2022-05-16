@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{FieldInfo, Series, SqlError, SqlResult, Value, ValueType};
 
+// ================================================================================================
+// Schema
+// ================================================================================================
+
 /// Table Schema
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TableSchema {
@@ -12,6 +16,10 @@ pub struct TableSchema {
     pub dtype: ValueType,
     pub is_nullable: bool,
 }
+
+// ================================================================================================
+// Order
+// ================================================================================================
 
 /// order type
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -27,6 +35,10 @@ pub struct Order {
     pub order: Option<OrderType>,
 }
 
+// ================================================================================================
+// Index
+// ================================================================================================
+
 /// index with its' unique name, table belonged, and related index/ indices
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Index {
@@ -34,6 +46,10 @@ pub struct Index {
     pub table: String,
     pub columns: Vec<Order>,
 }
+
+// ================================================================================================
+// Foreign Key
+// ================================================================================================
 
 /// foreign key direction
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -67,6 +83,10 @@ pub struct ForeignKey {
     pub on_delete: ForeignKeyAction,
     pub on_update: ForeignKeyAction,
 }
+
+// ================================================================================================
+// Column
+// ================================================================================================
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 
@@ -114,6 +134,10 @@ impl From<(&str, &str)> for ColumnAlias {
     }
 }
 
+// ================================================================================================
+// Expression & Expressions (filter)
+// ================================================================================================
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Conjunction {
     AND,
@@ -142,15 +166,15 @@ pub struct Condition {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
-pub enum Expression {
+pub(crate) enum Expression {
     Conjunction(Conjunction),
     Simple(Condition),
     Nest(Vec<Expression>),
 }
 
-impl From<Vec<Expression>> for Expression {
-    fn from(v: Vec<Expression>) -> Self {
-        Expression::Nest(v)
+impl From<Expressions> for Expression {
+    fn from(v: Expressions) -> Self {
+        Expression::Nest(v.0)
     }
 }
 
@@ -166,6 +190,14 @@ impl From<Condition> for Expression {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct Expressions(pub(crate) Vec<Expression>);
+
+// ================================================================================================
+// Expression builder
+// - finite state machine
+// ================================================================================================
+
 pub struct ConjunctionState {
     stack: Vec<Expression>,
 }
@@ -174,108 +206,96 @@ pub struct SimpleState {
     stack: Vec<Expression>,
 }
 
+impl From<Condition> for SimpleState {
+    fn from(c: Condition) -> Self {
+        SimpleState {
+            stack: vec![Expression::Simple(c)],
+        }
+    }
+}
+
 pub struct NestState {
     stack: Vec<Expression>,
 }
 
-pub trait ContentState<C: Into<Expression>> {
-    fn new(cont: C) -> Self;
-
-    fn append(self, conj: Conjunction) -> ConjunctionState;
-}
-
-impl ContentState<Condition> for SimpleState {
-    fn new(cont: Condition) -> Self {
-        SimpleState {
-            stack: vec![cont.into()],
-        }
-    }
-
-    fn append(self, conj: Conjunction) -> ConjunctionState {
-        let mut stack = self.stack;
-        stack.push(Expression::Conjunction(conj));
-
-        ConjunctionState { stack }
+impl From<Expressions> for NestState {
+    fn from(val: Expressions) -> Self {
+        NestState { stack: val.0 }
     }
 }
 
-impl ContentState<Vec<Expression>> for NestState {
-    fn new(cont: Vec<Expression>) -> Self {
-        NestState {
-            stack: vec![Expression::Nest(cont)],
-        }
-    }
+pub trait ExpressionSetup<T, S> {
+    fn append(self, state: T) -> S;
 
-    fn append(self, conj: Conjunction) -> ConjunctionState {
-        let mut stack = self.stack;
-        stack.push(Expression::Conjunction(conj));
-
-        ConjunctionState { stack }
-    }
+    fn finish(self) -> Expressions;
 }
 
-pub trait JoinState<S: ContentState<E>, E: Into<Expression>> {
-    fn append<C: Into<Expression>>(self, join: C) -> S;
-}
+impl ExpressionSetup<Conjunction, ConjunctionState> for SimpleState {
+    fn append(mut self, state: Conjunction) -> ConjunctionState {
+        self.stack.push(Expression::from(state));
+        ConjunctionState { stack: self.stack }
+    }
 
-impl JoinState<SimpleState, Condition> for ConjunctionState {
-    fn append<C: Into<Expression>>(self, join: C) -> SimpleState {
-        let mut stack = self.stack;
-        match join.into() {
-            Expression::Conjunction(c) => {
-                stack.pop();
-                stack.push(Expression::Conjunction(c));
-            }
-            e => {
-                stack.push(e);
-            }
-        }
-
-        SimpleState { stack }
+    fn finish(self) -> Expressions {
+        Expressions(self.stack)
     }
 }
 
-impl JoinState<NestState, Vec<Expression>> for ConjunctionState {
-    fn append<C: Into<Expression>>(self, join: C) -> NestState {
-        let mut stack = self.stack;
-        match join.into() {
-            Expression::Conjunction(c) => {
-                stack.pop();
-                stack.push(Expression::Conjunction(c));
-            }
-            e => {
-                stack.push(e);
-            }
-        }
+impl ExpressionSetup<Conjunction, ConjunctionState> for NestState {
+    fn append(mut self, state: Conjunction) -> ConjunctionState {
+        self.stack.push(Expression::from(state));
+        ConjunctionState { stack: self.stack }
+    }
 
-        NestState { stack }
+    fn finish(self) -> Expressions {
+        Expressions(self.stack)
     }
 }
 
-// TODO:
-#[derive(Default)]
-pub struct FilterBuilder {
-    expressions: Vec<Expression>,
-}
-
-impl FilterBuilder {
-    pub fn new() -> Self {
-        FilterBuilder {
-            expressions: vec![],
-        }
+impl ExpressionSetup<Condition, SimpleState> for ConjunctionState {
+    fn append(mut self, state: Condition) -> SimpleState {
+        self.stack.push(Expression::from(state));
+        SimpleState { stack: self.stack }
     }
 
-    pub fn append<E: Into<Expression>, C: ContentState<E>>(content: C) {
-        todo!()
+    fn finish(self) -> Expressions {
+        Expressions(self.stack)
     }
 }
+
+impl ExpressionSetup<Expressions, NestState> for ConjunctionState {
+    fn append(mut self, state: Expressions) -> NestState {
+        self.stack.push(Expression::from(state));
+        NestState { stack: self.stack }
+    }
+
+    fn finish(self) -> Expressions {
+        Expressions(self.stack)
+    }
+}
+
+pub struct ExpressionsBuilder;
+
+impl ExpressionsBuilder {
+    pub fn from_condition(value: Condition) -> SimpleState {
+        value.into()
+    }
+
+    pub fn from_expressions(value: Expressions) -> NestState {
+        value.into()
+    }
+}
+
+// ================================================================================================
+// Select
+// ================================================================================================
 
 /// Select statement
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Select {
     pub table: String,
     pub columns: Vec<ColumnAlias>,
-    pub filter: Option<Vec<Expression>>,
+    pub filter: Option<Expressions>,
     pub order: Option<Vec<Order>>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
@@ -313,8 +333,8 @@ impl Select {
         self
     }
 
-    pub fn filter(&mut self, filter: &[Expression]) -> &mut Self {
-        self.filter = Some(filter.to_vec());
+    pub fn filter(&mut self, filter: &Expressions) -> &mut Self {
+        self.filter = Some(filter.to_owned());
         self
     }
 
@@ -333,10 +353,15 @@ impl Select {
         self
     }
 }
+
+// ================================================================================================
+// Delete
+// ================================================================================================
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Delete {
     pub table: String,
-    pub filter: Vec<Expression>,
+    pub filter: Expressions,
 }
 
 // TODO: methods required: from_json, from_json_string
@@ -344,15 +369,19 @@ impl Delete {
     pub fn new(table: String) -> Self {
         Delete {
             table,
-            filter: Vec::new(),
+            filter: Expressions::default(),
         }
     }
 
-    pub fn filter(&mut self, filter: &[Expression]) -> &mut Self {
-        self.filter = filter.to_vec();
+    pub fn filter(&mut self, filter: &Expressions) -> &mut Self {
+        self.filter = filter.to_owned();
         self
     }
 }
+
+// ================================================================================================
+// SaveStrategy
+// ================================================================================================
 
 /// saving strategy for `save` function
 /// Variants:
@@ -369,6 +398,10 @@ pub enum SaveStrategy {
     // Index is always used
     Upsert,
 }
+
+// ================================================================================================
+// IndexType & IndexOption
+// ================================================================================================
 
 // TODO: maybe we need more index type?
 /// index type is used for defining Sql column type
@@ -482,6 +515,10 @@ impl TryFrom<FieldInfo> for IndexOption {
     }
 }
 
+// ================================================================================================
+// ExecutionResult
+// ================================================================================================
+
 pub struct ExecutionResult {
     pub rows_affected: u64,
 }
@@ -493,6 +530,35 @@ impl From<u64> for ExecutionResult {
 }
 
 #[cfg(test)]
-mod Sql_adt {
+mod test_sql_adt {
     use super::*;
+
+    #[test]
+    fn build_filter() {
+        let a = ExpressionsBuilder::from_condition(Condition {
+            column: String::from("name"),
+            equation: Equation::Equal("foo".into()),
+        })
+        .append(Conjunction::AND)
+        .append(Condition {
+            column: String::from("age"),
+            equation: Equation::Equal(10.into()),
+        })
+        .append(Conjunction::OR)
+        .append(Condition {
+            column: String::from("age"),
+            equation: Equation::Equal(20.into()),
+        })
+        .finish();
+
+        let b = ExpressionsBuilder::from_condition(Condition {
+            column: String::from("name"),
+            equation: Equation::Equal("bar".into()),
+        })
+        .append(Conjunction::OR)
+        .append(a)
+        .finish();
+
+        println!("{:?}", b);
+    }
 }
