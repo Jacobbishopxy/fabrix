@@ -103,3 +103,14 @@ impl TryFrom<&str> for SqlConnInfo {
         get_conn_info(value)
     }
 }
+
+#[allow(dead_code)]
+#[cfg(test)]
+mod test_sql_conn_info {
+    // use super::*;
+
+    const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
+    const CONN2: &str = "postgres://root:secret@127.0.0.1:5432/dev";
+    // TODO: `get_conn_info` doesn't work with `sqlite://`
+    const CONN3: &str = "sqlite://dev.sqlite";
+}

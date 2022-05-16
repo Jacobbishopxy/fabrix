@@ -148,12 +148,124 @@ pub enum Expression {
     Nest(Vec<Expression>),
 }
 
-/// Expression Statement
-pub struct ExprStatement(Vec<Expression>);
+impl From<Vec<Expression>> for Expression {
+    fn from(v: Vec<Expression>) -> Self {
+        Expression::Nest(v)
+    }
+}
 
-// TODO: expression builder ... legitimate construction processing
-impl ExprStatement {
-    pub fn builder() -> Vec<Expression> {
+impl From<Conjunction> for Expression {
+    fn from(c: Conjunction) -> Self {
+        Expression::Conjunction(c)
+    }
+}
+
+impl From<Condition> for Expression {
+    fn from(c: Condition) -> Self {
+        Expression::Simple(c)
+    }
+}
+
+pub struct ConjunctionState {
+    stack: Vec<Expression>,
+}
+
+pub struct SimpleState {
+    stack: Vec<Expression>,
+}
+
+pub struct NestState {
+    stack: Vec<Expression>,
+}
+
+pub trait ContentState<C: Into<Expression>> {
+    fn new(cont: C) -> Self;
+
+    fn append(self, conj: Conjunction) -> ConjunctionState;
+}
+
+impl ContentState<Condition> for SimpleState {
+    fn new(cont: Condition) -> Self {
+        SimpleState {
+            stack: vec![cont.into()],
+        }
+    }
+
+    fn append(self, conj: Conjunction) -> ConjunctionState {
+        let mut stack = self.stack;
+        stack.push(Expression::Conjunction(conj));
+
+        ConjunctionState { stack }
+    }
+}
+
+impl ContentState<Vec<Expression>> for NestState {
+    fn new(cont: Vec<Expression>) -> Self {
+        NestState {
+            stack: vec![Expression::Nest(cont)],
+        }
+    }
+
+    fn append(self, conj: Conjunction) -> ConjunctionState {
+        let mut stack = self.stack;
+        stack.push(Expression::Conjunction(conj));
+
+        ConjunctionState { stack }
+    }
+}
+
+pub trait JoinState<S: ContentState<E>, E: Into<Expression>> {
+    fn append<C: Into<Expression>>(self, join: C) -> S;
+}
+
+impl JoinState<SimpleState, Condition> for ConjunctionState {
+    fn append<C: Into<Expression>>(self, join: C) -> SimpleState {
+        let mut stack = self.stack;
+        match join.into() {
+            Expression::Conjunction(c) => {
+                stack.pop();
+                stack.push(Expression::Conjunction(c));
+            }
+            e => {
+                stack.push(e);
+            }
+        }
+
+        SimpleState { stack }
+    }
+}
+
+impl JoinState<NestState, Vec<Expression>> for ConjunctionState {
+    fn append<C: Into<Expression>>(self, join: C) -> NestState {
+        let mut stack = self.stack;
+        match join.into() {
+            Expression::Conjunction(c) => {
+                stack.pop();
+                stack.push(Expression::Conjunction(c));
+            }
+            e => {
+                stack.push(e);
+            }
+        }
+
+        NestState { stack }
+    }
+}
+
+// TODO:
+#[derive(Default)]
+pub struct FilterBuilder {
+    expressions: Vec<Expression>,
+}
+
+impl FilterBuilder {
+    pub fn new() -> Self {
+        FilterBuilder {
+            expressions: vec![],
+        }
+    }
+
+    pub fn append<E: Into<Expression>, C: ContentState<E>>(content: C) {
         todo!()
     }
 }
@@ -378,4 +490,9 @@ impl From<u64> for ExecutionResult {
     fn from(v: u64) -> Self {
         ExecutionResult { rows_affected: v }
     }
+}
+
+#[cfg(test)]
+mod Sql_adt {
+    use super::*;
 }

@@ -87,6 +87,9 @@ async fn read_db_write_parquet() {
     assert!(res.is_ok());
     assert!(dispatcher.has_data());
 
+    // TODO: operations here
+    // let data = dispatcher.fabrix_mut().unwrap();
+
     let wo = ParquetWriteOptions::default();
     let res = dispatcher.sync_write(&wo);
     assert!(res.is_ok());

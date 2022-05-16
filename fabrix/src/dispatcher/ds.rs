@@ -106,6 +106,10 @@ where
         self.fabrix.as_ref()
     }
 
+    pub fn fabrix_mut(&mut self) -> Option<&mut Fabrix> {
+        self.fabrix.as_mut()
+    }
+
     pub fn has_data(&self) -> bool {
         self.fabrix.is_some()
     }
