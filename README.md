@@ -61,6 +61,8 @@ There are three main parts in this crate:
 │   │   └── writer.rs                   // Parquet writer
 │   │
 │   ├── json                            // JSON data source
+│   │   ├── reader.rs                   // JSON reader
+│   │   └── writer.rs                   // JSON writer
 │   │
 │   ├── bson                            // BSON data source
 │   │
@@ -92,5 +94,6 @@ There are three main parts in this crate:
 ## Todo
 
 - sql_adt: Join, Group by
-- JSON/BSON support
+- sources: from remote (use `reqwest` crate)
+- BSON support
 - MongoDB support

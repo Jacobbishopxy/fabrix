@@ -173,14 +173,15 @@ mod dispatcher_tests {
 
     use super::*;
     use crate::{
-        CsvReadOptions, CsvReader, CsvWriteOptions, CsvWriter, ParquetReadOptions, ParquetReader,
-        ParquetWriteOptions, ParquetWriter,
+        CsvReadOptions, CsvReader, CsvWriteOptions, CsvWriter, JsonWriteOptions, JsonWriter,
+        ParquetReadOptions, ParquetReader, ParquetWriteOptions, ParquetWriter,
     };
 
     const CSV_READ: &str = "../mock/test.csv";
     const CSV_WRITE: &str = "../cache/test.csv";
     const PARQUET_READ: &str = "../mock/test.parquet";
     const PARQUET_WRITE: &str = "../cache/test.parquet";
+    const JSON_WRITE: &str = "../cache/test.json";
 
     #[derive(Default)]
     struct EmptyOption;
@@ -296,9 +297,9 @@ mod dispatcher_tests {
     }
 
     #[test]
-    fn parquet_read() {
+    fn parquet_read_json_write() {
         let reader = ParquetReader::new(File::open(PARQUET_READ).unwrap());
-        let write = EmptyWrite;
+        let write = JsonWriter::new(File::create(JSON_WRITE).unwrap());
 
         let mut dispatcher = Dispatcher::new(reader, write);
 
@@ -309,5 +310,11 @@ mod dispatcher_tests {
         let fx = dispatcher.fabrix();
         assert!(fx.is_some());
         println!("{:?}", fx.unwrap());
+
+        let wo = JsonWriteOptions {
+            is_json: Some(true),
+        };
+        let res = dispatcher.sync_write(&wo);
+        assert!(res.is_ok());
     }
 }

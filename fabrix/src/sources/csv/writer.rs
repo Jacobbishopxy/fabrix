@@ -206,7 +206,6 @@ mod test_csv_writer {
         let foo = writer.finish(fx);
 
         assert!(foo.is_ok());
-
         assert!(!writer.has_writer());
     }
 }
