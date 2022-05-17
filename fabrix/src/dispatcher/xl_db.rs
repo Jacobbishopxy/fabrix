@@ -422,8 +422,7 @@ mod test_xl_reader {
         }
 
         // sql selection
-        let mut select = sql_adt::Select::new("test_table");
-        select.columns(&[
+        let select = sql_adt::Select::new("test_table").columns(&[
             "id",
             "first_name",
             "last_name",

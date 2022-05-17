@@ -47,8 +47,7 @@ async fn read_csv_write_db() {
         "issued_times",
     ];
 
-    let mut select = sql_adt::Select::new(TABLE);
-    select.columns(&columns).limit(10);
+    let select = sql_adt::Select::new(TABLE).columns(&columns).limit(10);
 
     let res = dispatcher.writer().writer().select(&select).await;
     assert!(res.is_ok());

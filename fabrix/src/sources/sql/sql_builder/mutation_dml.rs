@@ -98,7 +98,7 @@ mod test_mutation_dml {
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{fx, sql_adt::ExpressionSetup, xpr};
+    use crate::{fx, sql_adt::ExpressionTransit, xpr};
 
     #[test]
     fn test_insert() {

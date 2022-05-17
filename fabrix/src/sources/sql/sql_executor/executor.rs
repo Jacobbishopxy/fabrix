@@ -411,7 +411,7 @@ async fn txn_create_and_insert<'a>(
 mod test_executor {
 
     use super::*;
-    use crate::{datetime, fx, series, sql_adt::ExpressionSetup, xpr};
+    use crate::{datetime, fx, series, sql_adt::ExpressionTransit, xpr};
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";

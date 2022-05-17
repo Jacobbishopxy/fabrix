@@ -46,8 +46,7 @@ async fn test_xl2db_async_no_index() {
 
     println!("{:?}", res);
 
-    let mut select = sql_adt::Select::new(SQL_TABLE_NAME);
-    select.columns(&[
+    let select = sql_adt::Select::new(SQL_TABLE_NAME).columns(&[
         "id",
         "first_name",
         "last_name",

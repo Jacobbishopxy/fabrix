@@ -22,6 +22,7 @@ pub struct Reader<'a> {
     order: Option<&'a [sql_adt::Order]>,
     limit: Option<usize>,
     offset: Option<usize>,
+    include_primary_key: Option<bool>,
 }
 
 impl<'a> Reader<'a> {
@@ -40,6 +41,7 @@ impl<'a> Reader<'a> {
             order: None,
             limit: None,
             offset: None,
+            include_primary_key: None,
         })
     }
 
@@ -55,6 +57,7 @@ impl<'a> Reader<'a> {
             order: None,
             limit: None,
             offset: None,
+            include_primary_key: None,
         })
     }
 
@@ -75,6 +78,7 @@ impl<'a> Reader<'a> {
             order: None,
             limit: None,
             offset: None,
+            include_primary_key: None,
         })
     }
 
@@ -91,6 +95,7 @@ impl<'a> Reader<'a> {
             order: None,
             limit: None,
             offset: None,
+            include_primary_key: None,
         })
     }
 
@@ -128,28 +133,30 @@ impl<'a> Reader<'a> {
         self
     }
 
+    pub fn with_include_primary_key(&mut self, include_primary_key: bool) -> &mut Self {
+        self.include_primary_key = Some(include_primary_key);
+        self
+    }
+
     pub async fn finish(&mut self) -> FabrixResult<Fabrix> {
         let table = self
             .table
-            .ok_or_else(|| FabrixError::new_common_error("table is not set"))?;
+            .ok_or_else(|| FabrixError::new_common_error("table is not set"))?
+            .to_owned();
         let columns = self
             .columns
-            .ok_or_else(|| FabrixError::new_common_error("columns is not set"))?;
+            .ok_or_else(|| FabrixError::new_common_error("columns is not set"))?
+            .to_vec();
 
-        let mut select = sql_adt::Select::new(table);
-        select.columns(columns);
-        if let Some(filter) = &self.filter {
-            select.filter(filter);
-        }
-        if let Some(order) = &self.order {
-            select.order(order);
-        }
-        if let Some(limit) = &self.limit {
-            select.limit(*limit);
-        }
-        if let Some(offset) = &self.offset {
-            select.offset(*offset);
-        }
+        let select = sql_adt::Select {
+            table,
+            columns,
+            filter: self.filter.cloned(),
+            order: self.order.map(|o| o.to_vec()),
+            limit: self.limit,
+            offset: self.offset,
+            include_primary_key: self.include_primary_key,
+        };
 
         let fx = self.sql_reader.select(&select).await?;
 
@@ -225,7 +232,7 @@ impl<'a> FromSource<'a, SqlReadOptions<'_>> for Reader<'a> {
 #[cfg(test)]
 mod test_sql_reader {
     use super::*;
-    use crate::{sql_adt, sql_adt::ExpressionSetup, xpr};
+    use crate::{sql_adt, sql_adt::ExpressionTransit, xpr};
 
     const CONN: &str = "sqlite://dev.sqlite";
     const TABLE: &str = "ds_sql_test";

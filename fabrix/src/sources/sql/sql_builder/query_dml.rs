@@ -69,7 +69,7 @@ impl DmlQuery for SqlBuilder {
 mod test_query_dml {
 
     use super::*;
-    use crate::{series, sql_adt::ExpressionSetup, xpr};
+    use crate::{series, sql_adt::ExpressionTransit, xpr};
 
     #[test]
     fn test_select_exist_ids() {
@@ -115,6 +115,37 @@ mod test_query_dml {
             offset: Some(20),
             include_primary_key: None,
         });
+        println!("{:?}", select);
+
+        assert_eq!(
+            select,
+            r#"SELECT "v1", "v2", "v3", "v4" FROM "test" WHERE "ord" = 15 OR ("names" = 'X' AND "val" >= 10) ORDER BY "v1" ASC, "v4" ASC LIMIT 10 OFFSET 20"#
+        );
+    }
+
+    #[test]
+    fn test_xpr_select() {
+        // same as above, but using xpr!
+
+        let filter = xpr!([
+            xpr!("ord", "=", 15),
+            xpr!("or"),
+            xpr!([
+                xpr!("names", "=", "X"),
+                xpr!("and"),
+                xpr!("val", ">=", 10.0)
+            ])
+        ]);
+
+        // Note: ("v1", "a") is the same as "v1", since Order's default type is Ascending
+        let select = sql_adt::Select::new("test")
+            .columns(&["v1", "v2", "v3", "v4"])
+            .filter(&filter)
+            .order(&["v1", "v4"])
+            .limit(10)
+            .offset(20);
+
+        let select = SqlBuilder::Postgres.select(&select);
         println!("{:?}", select);
 
         assert_eq!(

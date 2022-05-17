@@ -13,7 +13,7 @@
 use std::assert_matches::assert_matches;
 use std::str::FromStr;
 
-use fabrix::sql_adt::ExpressionSetup;
+use fabrix::sql_adt::ExpressionTransit;
 use fabrix::{datetime, fx, xpr};
 use fabrix::{sql_adt, SqlEngine, SqlExecutor};
 

@@ -28,11 +28,41 @@ pub enum OrderType {
     Desc,
 }
 
+impl From<&str> for OrderType {
+    fn from(s: &str) -> Self {
+        match s {
+            "asc" | "a" => OrderType::Asc,
+            "desc" | "d" => OrderType::Desc,
+            _ => OrderType::Asc,
+        }
+    }
+}
+
 /// an order contains a column name and it's order type
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Order {
     pub name: String,
     pub order: Option<OrderType>,
+}
+
+impl From<&str> for Order {
+    fn from(value: &str) -> Self {
+        Order {
+            name: value.to_string(),
+            order: None,
+        }
+    }
+}
+
+impl From<(&str, &str)> for Order {
+    fn from(value: (&str, &str)) -> Self {
+        let name = value.0.to_string();
+        let order = value.1.into();
+        Order {
+            name,
+            order: Some(order),
+        }
+    }
 }
 
 // ================================================================================================
@@ -195,14 +225,21 @@ pub struct Expressions(pub(crate) Vec<Expression>);
 
 // ================================================================================================
 // Expression builder
-// - finite state machine
+// A finite state machine used for building expressions
 // ================================================================================================
 
+// AND/OR
 pub struct ConjunctionState {
     stack: Vec<Expression>,
 }
 
+// Simple expression
 pub struct SimpleState {
+    stack: Vec<Expression>,
+}
+
+// Nested expression
+pub struct NestState {
     stack: Vec<Expression>,
 }
 
@@ -214,23 +251,21 @@ impl From<Condition> for SimpleState {
     }
 }
 
-pub struct NestState {
-    stack: Vec<Expression>,
-}
-
 impl From<Expressions> for NestState {
     fn from(val: Expressions) -> Self {
         NestState { stack: val.0 }
     }
 }
 
-pub trait ExpressionSetup<T, S> {
+// Trait represents transition from one state to another
+pub trait ExpressionTransit<T, S> {
     fn append(self, state: T) -> S;
 
     fn finish(self) -> Expressions;
 }
 
-impl ExpressionSetup<Conjunction, ConjunctionState> for SimpleState {
+// Simple -> Conjunction
+impl ExpressionTransit<Conjunction, ConjunctionState> for SimpleState {
     fn append(mut self, state: Conjunction) -> ConjunctionState {
         self.stack.push(Expression::from(state));
         ConjunctionState { stack: self.stack }
@@ -241,7 +276,8 @@ impl ExpressionSetup<Conjunction, ConjunctionState> for SimpleState {
     }
 }
 
-impl ExpressionSetup<Conjunction, ConjunctionState> for NestState {
+// Nest -> Conjunction
+impl ExpressionTransit<Conjunction, ConjunctionState> for NestState {
     fn append(mut self, state: Conjunction) -> ConjunctionState {
         self.stack.push(Expression::from(state));
         ConjunctionState { stack: self.stack }
@@ -252,7 +288,8 @@ impl ExpressionSetup<Conjunction, ConjunctionState> for NestState {
     }
 }
 
-impl ExpressionSetup<Condition, SimpleState> for ConjunctionState {
+// Conjunction -> Simple
+impl ExpressionTransit<Condition, SimpleState> for ConjunctionState {
     fn append(mut self, state: Condition) -> SimpleState {
         self.stack.push(Expression::from(state));
         SimpleState { stack: self.stack }
@@ -263,7 +300,8 @@ impl ExpressionSetup<Condition, SimpleState> for ConjunctionState {
     }
 }
 
-impl ExpressionSetup<Expressions, NestState> for ConjunctionState {
+// Conjunction -> Nest
+impl ExpressionTransit<Expressions, NestState> for ConjunctionState {
     fn append(mut self, state: Expressions) -> NestState {
         self.stack.push(Expression::from(state));
         NestState { stack: self.stack }
@@ -332,33 +370,41 @@ impl Select {
             .collect_vec()
     }
 
-    pub fn columns<T>(&mut self, columns: &[T]) -> &mut Self
+    pub fn columns<T>(mut self, columns: &[T]) -> Self
     where
-        T: Clone,
-        T: Into<ColumnAlias>,
+        ColumnAlias: From<T>,
+        T: Copy,
     {
-        self.columns
-            .extend(columns.iter().map(|c| c.to_owned().into()));
+        self.columns.extend(columns.iter().map(|c| (*c).into()));
         self
     }
 
-    pub fn filter(&mut self, filter: &Expressions) -> &mut Self {
+    pub fn filter(mut self, filter: &Expressions) -> Self {
         self.filter = Some(filter.to_owned());
         self
     }
 
-    pub fn order(&mut self, order: &[Order]) -> &mut Self {
-        self.order = Some(order.to_vec());
+    pub fn order<T>(mut self, order: &[T]) -> Self
+    where
+        Order: From<T>,
+        T: Copy,
+    {
+        self.order = Some(order.iter().map(|c| (*c).into()).collect());
         self
     }
 
-    pub fn limit(&mut self, limit: usize) -> &mut Self {
+    pub fn limit(mut self, limit: usize) -> Self {
         self.limit = Some(limit);
         self
     }
 
-    pub fn offset(&mut self, offset: usize) -> &mut Self {
+    pub fn offset(mut self, offset: usize) -> Self {
         self.offset = Some(offset);
+        self
+    }
+
+    pub fn include_primary_key(mut self, include: bool) -> Self {
+        self.include_primary_key = Some(include);
         self
     }
 }

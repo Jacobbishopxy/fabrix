@@ -64,7 +64,7 @@ pub(crate) use sv_2_v;
 macro_rules! xpr {
     // Expression builder
     ([$($xpr:expr),* $(,)*]) => {{
-        use $crate::sql_adt::ExpressionSetup;
+        use $crate::sql_adt::ExpressionTransit;
 
         let expr = $crate::sql_adt::ExpressionsBuilder::new();
 
