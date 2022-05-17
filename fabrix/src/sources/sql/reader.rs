@@ -225,7 +225,7 @@ impl<'a> FromSource<'a, SqlReadOptions<'_>> for Reader<'a> {
 #[cfg(test)]
 mod test_sql_reader {
     use super::*;
-    use crate::{sql_adt, sql_adt::ExpressionSetup, xpr_and, xpr_or, xpr_simple};
+    use crate::{sql_adt, sql_adt::ExpressionSetup, xpr};
 
     const CONN: &str = "sqlite://dev.sqlite";
     const TABLE: &str = "ds_sql_test";
@@ -236,16 +236,16 @@ mod test_sql_reader {
 
         let columns = vec!["ord".into(), "name".into()];
 
-        let filter = sql_adt::ExpressionsBuilder::from_condition(xpr_simple!("ord", ">=", 10))
-            .append(xpr_or!())
+        let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", ">=", 10))
+            .append(xpr!("or"))
             .append(
-                sql_adt::ExpressionsBuilder::from_condition(xpr_simple!(
+                sql_adt::ExpressionsBuilder::from_condition(xpr!(
                     "names",
                     "in",
                     ["John", "Lily", "Mike"]
                 ))
-                .append(xpr_and!())
-                .append(xpr_simple!("age", ">", 15))
+                .append(xpr!("and"))
+                .append(xpr!("age", ">", 15))
                 .finish(),
             )
             .finish();

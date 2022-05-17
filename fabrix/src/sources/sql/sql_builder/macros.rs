@@ -58,63 +58,53 @@ macro_rules! sv_2_v {
 pub(crate) use sv_2_v;
 
 /// expression macro
-/// `sql_adt::Expression::Conjunction(sql_adt::Conjunction::AND)`
-#[macro_export]
-macro_rules! xpr_and {
-    () => {
-        $crate::sql_adt::Conjunction::AND
-    };
-}
-
-pub use xpr_and;
-
-/// expression macro
-/// `sql_adt::Expression::Conjunction(sql_adt::Conjunction::OR)`
-#[macro_export]
-macro_rules! xpr_or {
-    () => {
-        $crate::sql_adt::Conjunction::OR
-    };
-}
-
-pub use xpr_or;
-
-// TODO:
-
-/// expression macro
 /// `sql_adt::Expression::Nest(...)`
-#[macro_export]
-macro_rules! xpr_nest {
-    ($($xpr:expr),*) => {
-        $crate::sql_adt::Expressions(vec![$($xpr),*])
-    };
-}
-
-pub use xpr_nest;
-
-/// expression macro
 /// `sql_adt::Expression::Simple(...)`
 #[macro_export]
-macro_rules! xpr_simple {
+macro_rules! xpr {
+    // Expression builder
+    ([$($xpr:expr),* $(,)*]) => {{
+        use $crate::sql_adt::ExpressionSetup;
+
+        let expr = $crate::sql_adt::ExpressionsBuilder::new();
+
+        $(
+            let expr = expr.append($xpr);
+        )*
+
+        expr.finish()
+    }};
+
+    // Case: And/Or
+    ($value:expr) => {
+        match $value {
+            "and" => $crate::sql_adt::Conjunction::AND,
+            "or" => $crate::sql_adt::Conjunction::OR,
+            _ => unimplemented!(),
+        }
+    };
+
+    // Case: Not
     ($column:expr, $equation:expr) => {
-        $crate::sql::sql_adt::Condition {
+        $crate::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
-                "not" => $crate::sql::sql_adt::Equation::Not,
+                "not" => $crate::sql_adt::Equation::Not,
                 _ => unimplemented!(),
             },
         }
     };
 
+    // Case: Between
     ($column:expr, $equation:expr, [$value1:expr, $value2:expr]) => {
-        $crate::sql::sql_adt::Condition {
+        $crate::sql_adt::Condition {
             column: String::from($column),
             equation: match $equation {
-                "between" => $crate::sql::sql_adt::Equation::Between((
+                "between" => $crate::sql_adt::Equation::Between((
                     $crate::value!($value1),
                     $crate::value!($value2),
                 )),
-                "in" => $crate::sql::sql_adt::Equation::In(vec![
+                "in" => $crate::sql_adt::Equation::In(vec![
                     $crate::value!($value1),
                     $crate::value!($value2),
                 ]),
@@ -122,6 +112,8 @@ macro_rules! xpr_simple {
             },
         }
     };
+
+    // Case: In
     ($column:expr, $equation:expr, [$($value:expr),* $(,)*]) => {
         $crate::sql_adt::Condition {
             column: String::from($column),
@@ -137,6 +129,8 @@ macro_rules! xpr_simple {
             },
         }
     };
+
+    // Case: other equations
     ($column:expr, $equation:expr, $value:expr) => {
         $crate::sql_adt::Condition {
             column: String::from($column),
@@ -154,4 +148,22 @@ macro_rules! xpr_simple {
     };
 }
 
-pub use xpr_simple;
+pub use xpr;
+
+#[cfg(test)]
+mod sql_adt_macros {
+    use super::*;
+
+    #[test]
+    fn test_xpr_nest() {
+        let a = xpr!([
+            xpr!("name", "=", "Jacob"),
+            xpr!("and"),
+            xpr!("age", "in", [10, 30, 50]),
+        ]);
+
+        let b = xpr!([xpr!("ord", "between", [1, 100]), xpr!("or"), a]);
+
+        println!("{:?}", b);
+    }
+}

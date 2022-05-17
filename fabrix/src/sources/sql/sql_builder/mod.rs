@@ -12,5 +12,4 @@ pub mod util;
 
 pub(crate) use builder::*;
 pub(crate) use macros::{alias, statement, sv_2_v};
-pub use macros::{xpr_and, xpr_or};
 pub(crate) use util::*;

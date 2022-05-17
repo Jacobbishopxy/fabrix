@@ -91,6 +91,6 @@ There are three main parts in this crate:
 
 ## Todo
 
-- impl `FromSource` & `IntoSource` for Sql and Excel
+- sql_adt: Join, Group by
 - JSON/BSON support
 - MongoDB support

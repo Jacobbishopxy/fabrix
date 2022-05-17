@@ -274,14 +274,23 @@ impl ExpressionSetup<Expressions, NestState> for ConjunctionState {
     }
 }
 
+#[derive(Default)]
 pub struct ExpressionsBuilder;
 
 impl ExpressionsBuilder {
+    pub fn new() -> Self {
+        ExpressionsBuilder
+    }
+
     pub fn from_condition(value: Condition) -> SimpleState {
         value.into()
     }
 
     pub fn from_expressions(value: Expressions) -> NestState {
+        value.into()
+    }
+
+    pub fn append(self, value: Condition) -> SimpleState {
         value.into()
     }
 }
