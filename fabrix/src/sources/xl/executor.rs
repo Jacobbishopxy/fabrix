@@ -109,7 +109,7 @@ impl TryFrom<XlSource> for XlWorkbook<Cursor<Vec<u8>>> {
 
     fn try_from(value: XlSource) -> Result<Self, Self::Error> {
         match value {
-            XlSource::Bytes(bytes) => Ok(XlWorkbook::new(bytes)?),
+            XlSource::Buff(bytes) => Ok(XlWorkbook::new(bytes)?),
             _ => Err(FabrixError::new_common_error("Unsupported XlSource type")),
         }
     }

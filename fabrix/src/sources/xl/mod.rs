@@ -27,8 +27,8 @@ pub(crate) const UNSUPPORTED_TYPE: &str = "Unsupported XlSource type";
 pub enum XlSource {
     File(File),
     Path(String),
-    Url(String),
-    Bytes(Cursor<Vec<u8>>),
+    Uri(String),
+    Buff(Cursor<Vec<u8>>),
 }
 
 /// Date system, used to determine the date format from an Excel file.

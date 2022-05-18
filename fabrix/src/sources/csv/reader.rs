@@ -163,10 +163,10 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
 // CsvReader TryFrom CsvSource
 // ================================================================================================
 
-impl<'a> TryFrom<CsvSource> for Reader<'a, File> {
+impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, File> {
     type Error = FabrixError;
 
-    fn try_from(source: CsvSource) -> FabrixResult<Self> {
+    fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
         match source {
             CsvSource::File(file) => Ok(Self::new(file)),
             CsvSource::Path(path) => Ok(Self::new(File::open(path)?)),
@@ -175,12 +175,12 @@ impl<'a> TryFrom<CsvSource> for Reader<'a, File> {
     }
 }
 
-impl<'a> TryFrom<CsvSource> for Reader<'a, Cursor<Vec<u8>>> {
+impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
     fn try_from(source: CsvSource) -> FabrixResult<Self> {
         match source {
-            CsvSource::Bytes(bytes) => Ok(Self::new(bytes)),
+            CsvSource::BuffRead(bytes) => Ok(Reader::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -288,6 +288,8 @@ where
 
 #[cfg(test)]
 mod test_csv_reader {
+    use std::io::Cursor;
+
     use super::*;
     use crate::{FieldInfo, ValueType};
 
@@ -301,9 +303,7 @@ mod test_csv_reader {
         ];
         let foo = Schema::from_field_infos(fi);
 
-        let mut reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
-            .try_into()
-            .unwrap();
+        let mut reader: Reader<File> = CsvSource::Path(CSV_FILE_PATH).try_into().unwrap();
 
         assert!(reader.has_reader());
 
@@ -314,5 +314,29 @@ mod test_csv_reader {
         println!("foo:\n{:?}", foo.unwrap());
 
         assert!(!reader.has_reader());
+    }
+
+    #[test]
+    fn buff_read() {
+        let mock_data = r#"
+        id,first_name,last_name,email,gender,ip_address,company,birth,issued_date,issued_times
+        1,Bartlett,Blythin,bblythin0@ebay.co.uk,Polygender,,Flashset,7/16/1985,,
+        2,Aguie,Searchwell,asearchwell1@domainmarket.com,Agender,68.35.53.37,Vidoo,10/20/1989,,
+        3,Bogey,Gajewski,bgajewski2@dailymail.co.uk,Polygender,121.199.95.125,Fiveclub,1/16/1995,4/5/2006,5
+        4,William,Nelius,wnelius3@sina.com.cn,Bigender,172.34.97.121,Topiczoom,3/2/1991,12/27/2004,1
+        5,Corney,Bresman,cbresman4@exblog.jp,Genderqueer,8.204.27.11,Skyba,9/26/1986,,
+        6,Corine,Dowry,cdowry5@shutterfly.com,Agender,199.166.218.12,Rhycero,10/21/1984,,
+        7,Gilda,Itzchaky,gitzchaky6@marriott.com,Genderqueer,87.69.205.125,Meetz,1/27/1983,,
+        8,Morry,Liepina,mliepina7@youku.com,Agender,13.183.127.154,Brainlounge,12/7/1999,,
+        9,Tresa,Jiracek,tjiracek8@devhub.com,Non-binary,42.168.32.144,Linkbuzz,9/19/1980,12/7/2003,2
+        "#;
+
+        let crs = Cursor::new(mock_data);
+
+        let mut reader = Reader::new(crs);
+
+        let foo = reader.finish(None);
+
+        println!("{:?}", foo);
     }
 }

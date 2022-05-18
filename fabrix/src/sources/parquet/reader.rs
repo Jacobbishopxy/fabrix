@@ -100,10 +100,10 @@ impl<R: MmapBytesReader> Reader<R> {
 // ParquetReader TryFrom ParquetSource
 // ================================================================================================
 
-impl TryFrom<ParquetSource> for Reader<File> {
+impl<'a> TryFrom<ParquetSource<'a>> for Reader<File> {
     type Error = FabrixError;
 
-    fn try_from(value: ParquetSource) -> Result<Self, Self::Error> {
+    fn try_from(value: ParquetSource<'a>) -> Result<Self, Self::Error> {
         match value {
             ParquetSource::File(file) => Ok(Self::new(file)),
             ParquetSource::Path(path) => {
@@ -115,12 +115,12 @@ impl TryFrom<ParquetSource> for Reader<File> {
     }
 }
 
-impl TryFrom<ParquetSource> for Reader<Cursor<Vec<u8>>> {
+impl<'a> TryFrom<ParquetSource<'a>> for Reader<Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(value: ParquetSource) -> Result<Self, Self::Error> {
+    fn try_from(value: ParquetSource<'a>) -> Result<Self, Self::Error> {
         match value {
-            ParquetSource::Bytes(bytes) => Ok(Self::new(bytes)),
+            ParquetSource::BuffRead(bytes) => Ok(Self::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -199,9 +199,7 @@ mod test_parquet_reader {
 
     #[test]
     fn file_read() {
-        let mut reader: Reader<File> = ParquetSource::Path(PARQUET_FILE_PATH.to_string())
-            .try_into()
-            .unwrap();
+        let mut reader: Reader<File> = ParquetSource::Path(PARQUET_FILE_PATH).try_into().unwrap();
 
         assert!(reader.has_reader());
 

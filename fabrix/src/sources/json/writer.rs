@@ -65,10 +65,10 @@ impl<W: Write> Writer<W> {
 // JsonWriter TryFrom JsonSource
 // ================================================================================================
 
-impl TryFrom<JsonSource> for Writer<File> {
+impl<'a> TryFrom<JsonSource<'a>> for Writer<File> {
     type Error = FabrixError;
 
-    fn try_from(source: JsonSource) -> FabrixResult<Self> {
+    fn try_from(source: JsonSource<'a>) -> FabrixResult<Self> {
         match source {
             JsonSource::File(file) => Ok(Writer::new(file)),
             JsonSource::Path(path) => Ok(Writer::new(File::create(path)?)),
@@ -77,12 +77,12 @@ impl TryFrom<JsonSource> for Writer<File> {
     }
 }
 
-impl TryFrom<JsonSource> for Writer<Cursor<Vec<u8>>> {
+impl<'a> TryFrom<JsonSource<'a>> for Writer<&'a mut Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(source: JsonSource) -> FabrixResult<Self> {
+    fn try_from(source: JsonSource<'a>) -> FabrixResult<Self> {
         match source {
-            JsonSource::Bytes(bytes) => Ok(Writer::new(bytes)),
+            JsonSource::BuffWrite(bytes) => Ok(Writer::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -162,10 +162,9 @@ mod test_json_writer {
 
     #[test]
     fn buff_write() {
-        // TODO:
-        // converted json is saved into memory, but is dumped after calling `finish`
+        let mut crs = Cursor::new(Vec::new());
 
-        let mut writer = Writer::new(Cursor::new(Vec::new()));
+        let mut writer = Writer::new(crs.by_ref());
         assert!(writer.has_writer());
 
         let fx = fx![
@@ -181,5 +180,7 @@ mod test_json_writer {
 
         assert!(foo.is_ok());
         assert!(!writer.has_writer());
+
+        println!("{:?}", crs);
     }
 }

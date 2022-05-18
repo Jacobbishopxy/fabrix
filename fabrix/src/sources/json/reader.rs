@@ -107,7 +107,7 @@ impl<R: BufRead + Seek> Reader<R> {
 // JsonReader TryFrom JsonSource
 // ================================================================================================
 
-impl TryFrom<JsonSource> for Reader<BufReader<File>> {
+impl<'a> TryFrom<JsonSource<'a>> for Reader<BufReader<File>> {
     type Error = FabrixError;
 
     fn try_from(source: JsonSource) -> Result<Self, Self::Error> {
@@ -119,12 +119,12 @@ impl TryFrom<JsonSource> for Reader<BufReader<File>> {
     }
 }
 
-impl TryFrom<JsonSource> for Reader<Cursor<Vec<u8>>> {
+impl<'a> TryFrom<JsonSource<'a>> for Reader<Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(source: JsonSource) -> Result<Self, Self::Error> {
+    fn try_from(source: JsonSource<'a>) -> Result<Self, Self::Error> {
         match source {
-            JsonSource::Bytes(bytes) => Ok(Reader::new(bytes)),
+            JsonSource::BuffRead(bytes) => Ok(Reader::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }

@@ -92,10 +92,10 @@ impl<W: Write> Writer<W> {
 // CsvWriter TryFrom CsvSource
 // ================================================================================================
 
-impl TryFrom<CsvSource> for Writer<File> {
+impl<'a> TryFrom<CsvSource<'a>> for Writer<File> {
     type Error = FabrixError;
 
-    fn try_from(source: CsvSource) -> FabrixResult<Self> {
+    fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
         match source {
             CsvSource::File(file) => Ok(Self::new(file)),
             CsvSource::Path(path) => Ok(Self::new(File::create(path)?)),
@@ -104,12 +104,12 @@ impl TryFrom<CsvSource> for Writer<File> {
     }
 }
 
-impl TryFrom<CsvSource> for Writer<Cursor<Vec<u8>>> {
+impl<'a> TryFrom<CsvSource<'a>> for Writer<&'a mut Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(source: CsvSource) -> FabrixResult<Self> {
+    fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
         match source {
-            CsvSource::Bytes(bytes) => Ok(Self::new(bytes)),
+            CsvSource::BuffWrite(bytes) => Ok(Self::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -187,9 +187,7 @@ mod test_csv_writer {
 
     #[test]
     fn file_writer() {
-        let mut writer: Writer<File> = CsvSource::Path(CSV_FILE_PATH.to_owned())
-            .try_into()
-            .unwrap();
+        let mut writer: Writer<File> = CsvSource::Path(CSV_FILE_PATH).try_into().unwrap();
 
         assert!(writer.has_writer());
 

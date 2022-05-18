@@ -161,7 +161,7 @@ impl TryFrom<XlSource> for Reader<Cursor<Vec<u8>>> {
 
     fn try_from(source: XlSource) -> Result<Self, Self::Error> {
         match source {
-            XlSource::Bytes(bytes) => Self::new(bytes),
+            XlSource::Buff(bytes) => Self::new(bytes),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }

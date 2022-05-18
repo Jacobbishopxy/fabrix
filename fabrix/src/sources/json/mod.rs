@@ -14,8 +14,10 @@ pub use writer::{JsonWriteOptions, Writer as JsonWriter};
 pub(crate) const UNSUPPORTED_TYPE: &str = "Unsupported JsonSource type";
 
 #[derive(Debug)]
-pub enum JsonSource {
+pub enum JsonSource<'a> {
     File(File),
-    Path(String),
-    Bytes(Cursor<Vec<u8>>),
+    Path(&'a str),
+    Uri(&'a str),
+    BuffRead(Cursor<Vec<u8>>),
+    BuffWrite(&'a mut Cursor<Vec<u8>>),
 }

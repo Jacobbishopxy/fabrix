@@ -62,10 +62,10 @@ impl<W: Write> Writer<W> {
 // ParquetWriter TryFrom ParquetSource
 // ================================================================================================
 
-impl TryFrom<ParquetSource> for Writer<File> {
+impl<'a> TryFrom<ParquetSource<'a>> for Writer<File> {
     type Error = FabrixError;
 
-    fn try_from(source: ParquetSource) -> FabrixResult<Self> {
+    fn try_from(source: ParquetSource<'a>) -> FabrixResult<Self> {
         match source {
             ParquetSource::File(file) => Ok(Self::new(file)),
             ParquetSource::Path(path) => Ok(Self::new(File::create(path)?)),
@@ -74,12 +74,12 @@ impl TryFrom<ParquetSource> for Writer<File> {
     }
 }
 
-impl TryFrom<ParquetSource> for Writer<Cursor<Vec<u8>>> {
+impl<'a> TryFrom<ParquetSource<'a>> for Writer<&'a mut Cursor<Vec<u8>>> {
     type Error = FabrixError;
 
-    fn try_from(source: ParquetSource) -> FabrixResult<Self> {
+    fn try_from(source: ParquetSource<'a>) -> FabrixResult<Self> {
         match source {
-            ParquetSource::Bytes(bytes) => Ok(Self::new(bytes)),
+            ParquetSource::BuffWrite(bytes) => Ok(Self::new(bytes)),
             _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
         }
     }
@@ -141,9 +141,7 @@ mod test_parquet_writer {
 
     #[test]
     fn file_writer() {
-        let mut writer: Writer<File> = ParquetSource::Path(PARQUET_FILE_PATH.to_owned())
-            .try_into()
-            .unwrap();
+        let mut writer: Writer<File> = ParquetSource::Path(PARQUET_FILE_PATH).try_into().unwrap();
 
         assert!(writer.has_writer());
 

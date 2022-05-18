@@ -14,8 +14,10 @@ pub use writer::{CsvWriteOptions, Writer as CsvWriter};
 pub(crate) const UNSUPPORTED_TYPE: &str = "Unsupported CSVSource type";
 
 #[derive(Debug)]
-pub enum CsvSource {
+pub enum CsvSource<'a> {
     File(File),
-    Path(String),
-    Bytes(Cursor<Vec<u8>>),
+    Path(&'a str),
+    Uri(&'a str),
+    BuffRead(Cursor<Vec<u8>>),
+    BuffWrite(&'a mut Cursor<Vec<u8>>),
 }
