@@ -9,8 +9,6 @@
 //! 1. test save: upsert
 //! 1. test delete
 
-#![feature(assert_matches)]
-use std::assert_matches::assert_matches;
 use std::str::FromStr;
 
 use fabrix::sql_adt::ExpressionTransit;
@@ -41,7 +39,7 @@ async fn test_create_sqlite_db() -> anyhow::Result<()> {
         .connect()
         .await;
 
-    assert_matches!(conn, Ok(_));
+    assert!(conn.is_ok());
 
     Ok(())
 }
@@ -56,13 +54,13 @@ async fn test_connection() {
     let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
 
     let r1 = exc1.connect().await;
-    assert_matches!(r1, Ok(_));
+    assert!(r1.is_ok());
 
     let r2 = exc2.connect().await;
-    assert_matches!(r2, Ok(_));
+    assert!(r2.is_ok());
 
     let r3 = exc3.connect().await;
-    assert_matches!(r3, Ok(_));
+    assert!(r3.is_ok());
 }
 
 /*
@@ -92,21 +90,21 @@ async fn test_save_fail_if_exists() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res1, Ok(_));
+    assert!(res1.is_ok());
 
     // postgres
     let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res2, Ok(_));
+    assert!(res2.is_ok());
 
     // sqlite
     let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res3, Ok(_));
+    assert!(res3.is_ok());
 }
 
 /*
@@ -139,21 +137,21 @@ async fn test_save_replace() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res1, Ok(_));
+    assert!(res1.is_ok());
 
     // postgres
     let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res2, Ok(_));
+    assert!(res2.is_ok());
 
     // sqlite
     let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res3, Ok(_));
+    assert!(res3.is_ok());
 }
 
 /*
@@ -183,21 +181,21 @@ async fn test_save_append() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res1, Ok(_));
+    assert!(res1.is_ok());
 
     // postgres
     let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res2, Ok(_));
+    assert!(res2.is_ok());
 
     // sqlite
     let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res3, Ok(_));
+    assert!(res3.is_ok());
 }
 
 /*
@@ -220,21 +218,21 @@ async fn test_save_upsert() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res1, Ok(_));
+    assert!(res1.is_ok());
 
     // postgres
     let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res2, Ok(_));
+    assert!(res2.is_ok());
 
     // sqlite
     let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert_matches!(res3, Ok(_));
+    assert!(res3.is_ok());
 }
 
 /*
@@ -262,19 +260,19 @@ async fn test_delete() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.delete(&delete).await;
-    assert_matches!(res1, Ok(_));
+    assert!(res1.is_ok());
 
     // postgres
     let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.delete(&delete).await;
-    assert_matches!(res2, Ok(_));
+    assert!(res2.is_ok());
 
     // sqlite
     let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.delete(&delete).await;
-    assert_matches!(res3, Ok(_));
+    assert!(res3.is_ok());
 }

@@ -2,12 +2,15 @@
 //!
 //! Writing a Fabrix struct in to Json
 
-use std::io::Write;
+use std::fs::File;
+use std::io::{Cursor, Write};
 
 use async_trait::async_trait;
 use polars::prelude::{JsonFormat, JsonWriter, SerWriter};
 
-use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, WriteOptions};
+use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, JsonSource, WriteOptions};
+
+use super::UNSUPPORTED_TYPE;
 
 // ================================================================================================
 // JSON Writer
@@ -62,7 +65,28 @@ impl<W: Write> Writer<W> {
 // JsonWriter TryFrom JsonSource
 // ================================================================================================
 
-// TODO:
+impl TryFrom<JsonSource> for Writer<File> {
+    type Error = FabrixError;
+
+    fn try_from(source: JsonSource) -> FabrixResult<Self> {
+        match source {
+            JsonSource::File(file) => Ok(Writer::new(file)),
+            JsonSource::Path(path) => Ok(Writer::new(File::create(path)?)),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+        }
+    }
+}
+
+impl TryFrom<JsonSource> for Writer<Cursor<Vec<u8>>> {
+    type Error = FabrixError;
+
+    fn try_from(source: JsonSource) -> FabrixResult<Self> {
+        match source {
+            JsonSource::Bytes(bytes) => Ok(Writer::new(bytes)),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+        }
+    }
+}
 
 // ================================================================================================
 // JSON write options & IntoSource impl
@@ -117,8 +141,31 @@ mod test_json_writer {
     const JSON_FILE_PATH: &str = "../cache/write.json";
 
     #[test]
-    fn file_writer() {
+    fn file_write() {
         let mut writer = Writer::new(File::create(JSON_FILE_PATH).unwrap());
+        assert!(writer.has_writer());
+
+        let fx = fx![
+            "id";
+            "id" => [1, 2, 3],
+            "name" => ["a", "b", "c"],
+            "date" => [date!(2020,1,1), date!(2020,1,2), date!(2020,1,3)],
+            "datetime" => [datetime!(2020,1,1,12,0,0), datetime!(2020,1,1,12,0,1), datetime!(2020,1,1,12,0,2)],
+        ]
+        .unwrap();
+
+        let foo = writer.with_json_format(true).finish(fx);
+
+        assert!(foo.is_ok());
+        assert!(!writer.has_writer());
+    }
+
+    #[test]
+    fn buff_write() {
+        // TODO:
+        // converted json is saved into memory, but is dumped after calling `finish`
+
+        let mut writer = Writer::new(Cursor::new(Vec::new()));
         assert!(writer.has_writer());
 
         let fx = fx![

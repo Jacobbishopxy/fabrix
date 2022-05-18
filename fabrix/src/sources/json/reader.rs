@@ -2,12 +2,15 @@
 //!
 //! Reading JSON into a Fabrix struct.
 
-use std::io::{BufRead, Seek};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Cursor, Seek};
 
 use async_trait::async_trait;
 use polars::prelude::{JsonFormat, JsonReader, SerReader};
 
-use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, Schema};
+use crate::{Fabrix, FabrixError, FabrixResult, FromSource, JsonSource, ReadOptions, Schema};
+
+use super::UNSUPPORTED_TYPE;
 
 // ================================================================================================
 // JSON Reader
@@ -104,7 +107,28 @@ impl<R: BufRead + Seek> Reader<R> {
 // JsonReader TryFrom JsonSource
 // ================================================================================================
 
-// TODO:
+impl TryFrom<JsonSource> for Reader<BufReader<File>> {
+    type Error = FabrixError;
+
+    fn try_from(source: JsonSource) -> Result<Self, Self::Error> {
+        match source {
+            JsonSource::File(file) => Ok(Reader::new(BufReader::new(file))),
+            JsonSource::Path(path) => Ok(Reader::new(BufReader::new(File::open(path)?))),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+        }
+    }
+}
+
+impl TryFrom<JsonSource> for Reader<Cursor<Vec<u8>>> {
+    type Error = FabrixError;
+
+    fn try_from(source: JsonSource) -> Result<Self, Self::Error> {
+        match source {
+            JsonSource::Bytes(bytes) => Ok(Reader::new(bytes)),
+            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+        }
+    }
+}
 
 // ================================================================================================
 // Json read options & FromSource impl
@@ -173,14 +197,9 @@ where
 
 #[cfg(test)]
 mod test_json_reader {
-    use std::{fs::File, io::BufReader};
-
     use super::*;
 
     const JSON_FILE_PATH: &str = "../mock/test.json";
-
-    // TODO:
-    // try more test cases which satisfy BufRead + Seek
 
     #[test]
     fn file_read() {
@@ -188,6 +207,32 @@ mod test_json_reader {
         let br = BufReader::new(file);
 
         let mut reader = Reader::new(br);
+        let foo = reader.finish(None);
+
+        assert!(foo.is_ok());
+
+        println!("foo:\n{:?}", foo.unwrap());
+
+        assert!(!reader.has_reader());
+    }
+
+    #[test]
+    fn buff_read() {
+        let mock_data = r#"
+        [
+            {
+                "name": "foo",
+                "age": 20
+            },
+            {
+                "name": "bar",
+                "age": 30
+            }
+        ]"#;
+
+        let buff = Cursor::new(mock_data);
+
+        let mut reader = Reader::new(buff);
         let foo = reader.finish(None);
 
         assert!(foo.is_ok());

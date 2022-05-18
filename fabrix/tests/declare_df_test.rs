@@ -1,8 +1,5 @@
 //! Df test case
 
-#![feature(assert_matches)]
-use std::assert_matches::assert_matches;
-
 use fabrix::{datetime, fx, series, uuid, Uuid};
 
 /*
@@ -28,7 +25,7 @@ fn test_new_df() {
         ]
     ];
 
-    assert_matches!(result_df, Ok(_));
+    assert!(result_df.is_ok());
 
     let df = result_df.unwrap();
 
