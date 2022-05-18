@@ -1,7 +1,8 @@
 {
 	"rust-analyzer.linkedProjects": [
 		"fabrix/Cargo.toml",
-		"examples/file_process_service/Cargo.toml"
+		"examples/file_process_service/Cargo.toml",
+		"examples/dispatcher_service/Cargo.toml"
 	],
 	"cSpell.words": [
 		"accum",
