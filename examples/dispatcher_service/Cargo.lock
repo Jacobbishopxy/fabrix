@@ -858,7 +858,7 @@ version = "0.1.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
- "derive_more",
+ "anyhow",
  "env_logger",
  "fabrix",
  "futures",
@@ -867,6 +867,8 @@ dependencies = [
  "sanitize-filename",
  "serde",
  "serde_json",
+ "sqlx",
+ "thiserror",
 ]
 
 [[package]]

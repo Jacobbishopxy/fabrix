@@ -6,5 +6,10 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct UploadedFile {
     filename: String,
     time: u64,
-    size: u64,
+}
+
+impl UploadedFile {
+    pub(crate) fn new(filename: String, time: u64) -> Self {
+        Self { filename, time }
+    }
 }

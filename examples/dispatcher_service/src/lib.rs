@@ -12,8 +12,11 @@ pub mod xl2db;
 pub mod xl2json;
 
 pub use error::*;
+pub(crate) use responses::*;
 
 pub(crate) const MULTIPART_KEY_FILE: &str = "file";
+pub(crate) const FILE_TYPE_CSV: &str = "text/csv";
+pub(crate) const DB_CONN: &str = "sqlite://ds.sqlite";
 
 pub(crate) fn get_current_time() -> u64 {
     SystemTime::now()

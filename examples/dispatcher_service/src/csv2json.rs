@@ -1,6 +1,6 @@
 //! Csv file to Json
 //!
-//! Dispatcher<CsvReader, JsonWriter>
+//! CsvReader + JsonWriter
 
 use std::collections::HashMap;
 use std::io::{Cursor, Write};
@@ -11,20 +11,23 @@ use fabrix::{CsvReader, JsonWriter};
 use futures::{StreamExt, TryStreamExt};
 use serde_json::Value;
 
-use crate::{AppError, MULTIPART_KEY_FILE};
-
-// TODO: error handling
+use crate::{AppError, FILE_TYPE_CSV, MULTIPART_KEY_FILE};
 
 pub async fn csv_to_json(mut payload: Multipart) -> Result<HttpResponse> {
     let mut result = Vec::<HashMap<String, Value>>::new();
 
     while let Ok(Some(mut field)) = payload.try_next().await {
+        // skip non-csv files
+        if *field.content_type() != FILE_TYPE_CSV {
+            continue;
+        }
+
         let cd = field.content_disposition();
 
         if let Some(MULTIPART_KEY_FILE) = cd.get_name() {
-            let filename = cd.get_filename().ok_or_else(|| AppError::Uncategorized {
-                e: "Filename not found".to_string(),
-            })?;
+            let filename = cd
+                .get_filename()
+                .ok_or_else(|| AppError::Uncategorized("Filename not found".to_string()))?;
             let name = sanitize_filename::sanitize(filename);
 
             // turn buffer into fabrix struct
@@ -35,15 +38,20 @@ pub async fn csv_to_json(mut payload: Multipart) -> Result<HttpResponse> {
                 buff.get_mut().write_all(&chunk)?;
             }
 
+            // turn buffer into fabrix
             let mut reader = CsvReader::new(buff);
-            let fx = reader.finish(None).unwrap();
+            let fx = reader.finish(None).map_err(AppError::Fabrix)?;
 
-            // turn fabrix struct into json
+            // turn fabrix into json
             let mut json = Cursor::new(Vec::new());
             let mut writer = JsonWriter::new(json.by_ref());
-            writer.with_json_format(true).finish(fx).unwrap();
+            writer
+                .with_json_format(true)
+                .finish(fx)
+                .map_err(AppError::Fabrix)?;
 
-            let json_str: Value = serde_json::from_slice(json.get_ref()).unwrap();
+            let json_str: Value =
+                serde_json::from_slice(json.get_ref()).map_err(AppError::Serde)?;
             let mut res = HashMap::new();
             res.insert(name, json_str);
             result.push(res);
