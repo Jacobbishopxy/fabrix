@@ -135,6 +135,8 @@ where
 mod test_json_writer {
     use std::fs::File;
 
+    use serde_json::Value;
+
     use super::*;
     use crate::{date, datetime, fx};
 
@@ -181,6 +183,11 @@ mod test_json_writer {
         assert!(foo.is_ok());
         assert!(!writer.has_writer());
 
-        println!("{:?}", crs);
+        println!("{:?}", crs.get_ref());
+
+        // turn bytes into Json string
+        let bar: Result<Value, serde_json::Error> = serde_json::from_slice(crs.get_ref());
+        assert!(bar.is_ok());
+        println!("{:?}", bar.unwrap().to_string());
     }
 }
