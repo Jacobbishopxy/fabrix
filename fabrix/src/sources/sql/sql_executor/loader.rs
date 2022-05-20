@@ -39,7 +39,7 @@ impl From<SqliteQueryResult> for ExecutionResult {
 }
 
 /// Loader transaction aims to provide a common interface for all database transaction objects
-pub(crate) enum LoaderTransaction<'a> {
+pub enum LoaderTransaction<'a> {
     Mysql(Transaction<'a, MySql>),
     Pg(Transaction<'a, Postgres>),
     Sqlite(Transaction<'a, Sqlite>),
@@ -83,7 +83,7 @@ impl<'a> LoaderTransaction<'a> {
     }
 }
 
-pub(crate) enum ExecutionResultOrData {
+pub enum ExecutionResultOrData {
     ExecutionResult(ExecutionResult),
     // Data(Vec<Row>),
 }
@@ -93,7 +93,10 @@ type CstPrc = Box<dyn Fn(SqlRow) -> SqlResult<D1Value> + Sync + Send>;
 
 /// database loader interface
 #[async_trait]
-pub trait FabrixDatabaseLoader<T>: Send + Sync {
+pub trait FabrixDatabaseLoader<T>: Send + Sync
+where
+    T: DatabaseType,
+{
     /// connect to database
     async fn connect(conn_str: &str) -> SqlResult<T>;
 
@@ -160,15 +163,15 @@ pub trait DatabaseType: Send + Sync
 where
     Self: Sized,
 {
-    fn new_mysql_pool(pool: MySqlPool) -> Self {
+    fn new_mysql_pool(_pool: MySqlPool) -> Self {
         unimplemented!()
     }
 
-    fn new_pg_pool(pool: PgPool) -> Self {
+    fn new_pg_pool(_pool: PgPool) -> Self {
         unimplemented!()
     }
 
-    fn new_sqlite_pool(pool: SqlitePool) -> Self {
+    fn new_sqlite_pool(_pool: SqlitePool) -> Self {
         unimplemented!()
     }
 
@@ -232,23 +235,23 @@ pub enum LoaderPool<'a> {
     Sqlite(&'a SqlitePool),
 }
 
-// impl From<MySqlPool> for LoaderPool {
-//     fn from(pool: MySqlPool) -> Self {
-//         LoaderPool::Mysql(pool)
-//     }
-// }
+impl<'a> From<&'a MySqlPool> for LoaderPool<'a> {
+    fn from(v: &'a MySqlPool) -> Self {
+        LoaderPool::Mysql(v)
+    }
+}
 
-// impl From<PgPool> for LoaderPool {
-//     fn from(pool: PgPool) -> Self {
-//         LoaderPool::Pg(pool)
-//     }
-// }
+impl<'a> From<&'a PgPool> for LoaderPool<'a> {
+    fn from(v: &'a PgPool) -> Self {
+        LoaderPool::Pg(v)
+    }
+}
 
-// impl From<SqlitePool> for LoaderPool {
-//     fn from(pool: SqlitePool) -> Self {
-//         LoaderPool::Sqlite(pool)
-//     }
-// }
+impl<'a> From<&'a SqlitePool> for LoaderPool<'a> {
+    fn from(v: &'a SqlitePool) -> Self {
+        LoaderPool::Sqlite(v)
+    }
+}
 
 #[async_trait]
 impl<T> FabrixDatabaseLoader<T> for T
@@ -619,13 +622,21 @@ mod test_pool {
         assert!(res.is_ok());
 
         // Pg
-        let pool2 = LoaderPool::from(sqlx::PgPool::connect(CONN2).await.unwrap());
+        let pool2 = sqlx::PgPool::connect(CONN2).await.unwrap();
 
         let que = SqlBuilder::Postgres.check_table_schema(TABLE_NAME);
 
-        let d2value = pool2.fetch_all(&que).await.unwrap();
-
-        println!("{:?}", d2value);
+        let res = sqlx::query(&que)
+            .try_map(|row: sqlx::postgres::PgRow| {
+                let name: String = row.get_unchecked(0);
+                let col_type: String = row.get_unchecked(1);
+                let is_nullable: String = row.get_unchecked(2);
+                Ok(vec![value!(name), value!(col_type), value!(is_nullable)])
+            })
+            .fetch_all(&pool2)
+            .await;
+        println!("{:?}", res);
+        assert!(res.is_ok());
 
         // Sqlite
         let sqlx_pool = sqlx::SqlitePool::connect(CONN3).await.unwrap();
@@ -649,7 +660,7 @@ mod test_pool {
     #[tokio::test]
     async fn test_fetch_optional() {
         // MySQL
-        let pool1 = LoaderPool::from(sqlx::MySqlPool::connect(CONN1).await.unwrap());
+        let pool1 = DatabaseMysql::connect(CONN1).await.unwrap();
 
         let que = SqlBuilder::Mysql.check_table_exists(TABLE_NAME);
 
@@ -659,7 +670,7 @@ mod test_pool {
         assert!(res.is_some());
 
         // Pg
-        let pool2 = LoaderPool::from(sqlx::PgPool::connect(CONN2).await.unwrap());
+        let pool2 = DatabasePg::connect(CONN2).await.unwrap();
 
         let que = SqlBuilder::Postgres.check_table_exists(TABLE_NAME);
 
@@ -669,7 +680,7 @@ mod test_pool {
         assert!(res.is_some());
 
         // Sqlite
-        let pool3 = LoaderPool::from(sqlx::SqlitePool::connect(CONN3).await.unwrap());
+        let pool3 = DatabaseSqlite::connect(CONN3).await.unwrap();
 
         let que = SqlBuilder::Sqlite.check_table_exists(TABLE_NAME);
 

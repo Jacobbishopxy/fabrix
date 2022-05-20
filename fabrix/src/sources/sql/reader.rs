@@ -7,21 +7,18 @@ use std::str::FromStr;
 use async_trait::async_trait;
 
 use super::{sql_adt, SqlConnInfo, SqlEngine, SqlExecutor};
-use crate::{
-    DatabaseType, Fabrix, FabrixDatabaseLoader, FabrixError, FabrixResult, FromSource, ReadOptions,
-    SqlError,
-};
+use crate::{DatabaseType, Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, SqlError};
 
 // ================================================================================================
 // Sql Reader
 // ================================================================================================
 
 /// Sql Reader
-pub struct Reader<'a, L>
+pub struct Reader<'a, T>
 where
-    L: FabrixDatabaseLoader<L> + DatabaseType,
+    T: DatabaseType,
 {
-    sql_reader: SqlExecutor<L>,
+    sql_reader: SqlExecutor<T>,
     table: Option<&'a str>,
     columns: Option<&'a [sql_adt::ColumnAlias]>,
     filter: Option<&'a sql_adt::Expressions>,
@@ -31,13 +28,13 @@ where
     include_primary_key: Option<bool>,
 }
 
-impl<'a, L> Reader<'a, L>
+impl<'a, T> Reader<'a, T>
 where
-    L: FabrixDatabaseLoader<L> + DatabaseType,
+    T: DatabaseType,
 {
     pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(
         conn: C,
-    ) -> FabrixResult<Reader<'a, L>> {
+    ) -> FabrixResult<Reader<'a, T>> {
         let conn = conn.try_into()?;
         let mut sql_reader = SqlExecutor::new(conn);
         sql_reader.connect().await?;
@@ -54,7 +51,7 @@ where
         })
     }
 
-    pub async fn new_from_str(conn_str: &str) -> FabrixResult<Reader<'a, L>> {
+    pub async fn new_from_str(conn_str: &str) -> FabrixResult<Reader<'a, T>> {
         let mut sql_reader = SqlExecutor::from_str(conn_str)?;
         sql_reader.connect().await?;
 
@@ -73,7 +70,7 @@ where
     pub async fn new_reader<C: TryInto<SqlConnInfo, Error = SqlError>>(
         &mut self,
         conn: C,
-    ) -> FabrixResult<Reader<'a, L>> {
+    ) -> FabrixResult<Reader<'a, T>> {
         self.sql_reader.disconnect().await?;
         let conn = conn.try_into()?;
         let mut sql_reader = SqlExecutor::new(conn);
@@ -91,7 +88,7 @@ where
         })
     }
 
-    pub async fn new_reader_from_str(&mut self, conn_str: &str) -> FabrixResult<Reader<'a, L>> {
+    pub async fn new_reader_from_str(&mut self, conn_str: &str) -> FabrixResult<Reader<'a, T>> {
         self.sql_reader.disconnect().await?;
         let mut sql_reader = SqlExecutor::from_str(conn_str)?;
         sql_reader.connect().await?;
@@ -108,7 +105,7 @@ where
         })
     }
 
-    pub fn reader(&self) -> &SqlExecutor<L> {
+    pub fn reader(&self) -> &SqlExecutor<T> {
         &self.sql_reader
     }
 
@@ -194,9 +191,9 @@ impl<'a> ReadOptions for SqlReadOptions<'a> {
 }
 
 #[async_trait]
-impl<'a, L> FromSource<'a, SqlReadOptions<'_>> for Reader<'a, L>
+impl<'a, T> FromSource<'a, SqlReadOptions<'_>> for Reader<'a, T>
 where
-    L: FabrixDatabaseLoader<L> + DatabaseType,
+    T: DatabaseType,
 {
     async fn async_read<'o>(&mut self, options: &'o SqlReadOptions) -> FabrixResult<Fabrix>
     where
@@ -244,14 +241,14 @@ where
 #[cfg(test)]
 mod test_sql_reader {
     use super::*;
-    use crate::{sql_adt, sql_adt::ExpressionTransit, xpr};
+    use crate::{sql_adt, sql_adt::ExpressionTransit, xpr, DatabaseSqlite};
 
     const CONN: &str = "sqlite://dev.sqlite";
     const TABLE: &str = "ds_sql_test";
 
     #[tokio::test]
     async fn test_read() {
-        let mut reader = Reader::new_from_str(CONN).await.unwrap();
+        let mut reader = Reader::<DatabaseSqlite>::new_from_str(CONN).await.unwrap();
 
         let columns = vec!["ord".into(), "name".into()];
 

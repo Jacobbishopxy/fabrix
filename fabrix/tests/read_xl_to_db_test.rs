@@ -5,7 +5,7 @@
 
 use std::fs::File;
 
-use fabrix::prelude::*;
+use fabrix::{prelude::*, DatabasePg};
 
 // const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -21,9 +21,9 @@ const SQL_TABLE_NAME: &str = "test_xl2db";
 async fn test_xl2db_async_no_index() {
     let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
 
-    let mut xl2db = XlDbHelper::new(CONN2).await.unwrap();
+    let mut xl2db = XlDbHelper::<DatabasePg>::new(CONN2).await.unwrap();
 
-    let mut xle = XlDbExecutor::new_with_source(source);
+    let mut xle = XlDbExecutor::<File, DatabasePg>::new_with_source(source);
 
     let res = xle
         .async_consume_fn_mut(
@@ -84,9 +84,9 @@ async fn test_xl2db_async_no_index() {
 async fn test_xl2db_async_with_index_row_wised() {
     let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
 
-    let mut xl2db = XlDbHelper::new(CONN2).await.unwrap();
+    let mut xl2db = XlDbHelper::<DatabasePg>::new(CONN2).await.unwrap();
 
-    let mut xle = XlDbExecutor::new_with_source(source);
+    let mut xle = XlDbExecutor::<File, DatabasePg>::new_with_source(source);
 
     let res = xle
         .async_consume_fn_mut(
@@ -113,9 +113,9 @@ async fn test_xl2db_async_with_index_row_wised() {
 async fn test_xl2db_async_with_index_col_wised() {
     let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
 
-    let xl2db = XlDbHelper::new(CONN2).await.unwrap();
+    let xl2db = XlDbHelper::<DatabasePg>::new(CONN2).await.unwrap();
 
-    let mut xle = XlDbExecutor::new_with_source(source);
+    let mut xle = XlDbExecutor::<File, DatabasePg>::new_with_source(source);
 
     let res = xle
         .async_consume_fn_mut(

@@ -14,6 +14,7 @@ use std::str::FromStr;
 use fabrix::sql_adt::ExpressionTransit;
 use fabrix::{datetime, fx, xpr};
 use fabrix::{sql_adt, SqlEngine, SqlExecutor};
+use fabrix::{DatabaseMysql, DatabasePg, DatabaseSqlite};
 
 const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -49,9 +50,9 @@ cargo test --package fabrix --test sql_executor_test -- test_connection --exact 
 */
 #[tokio::test]
 async fn test_connection() {
-    let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
-    let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
-    let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
+    let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+    let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+    let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
 
     let r1 = exc1.connect().await;
     assert!(r1.is_ok());
@@ -86,21 +87,21 @@ async fn test_save_fail_if_exists() {
     let save_strategy = sql_adt::SaveStrategy::FailIfExists;
 
     // mysql
-    let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
+    let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res1.is_ok());
 
     // postgres
-    let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
+    let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res2.is_ok());
 
     // sqlite
-    let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
+    let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -133,21 +134,21 @@ async fn test_save_replace() {
     let save_strategy = sql_adt::SaveStrategy::Replace;
 
     // mysql
-    let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
+    let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res1.is_ok());
 
     // postgres
-    let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
+    let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res2.is_ok());
 
     // sqlite
-    let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
+    let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -177,21 +178,21 @@ async fn test_save_append() {
     let save_strategy = sql_adt::SaveStrategy::Append;
 
     // mysql
-    let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
+    let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res1.is_ok());
 
     // postgres
-    let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
+    let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res2.is_ok());
 
     // sqlite
-    let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
+    let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -214,21 +215,21 @@ async fn test_save_upsert() {
     let save_strategy = sql_adt::SaveStrategy::Upsert;
 
     // mysql
-    let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
+    let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res1.is_ok());
 
     // postgres
-    let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
+    let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
     assert!(res2.is_ok());
 
     // sqlite
-    let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
+    let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
@@ -256,21 +257,21 @@ async fn test_delete() {
     };
 
     // mysql
-    let mut exc1 = SqlExecutor::from_str(CONN1).unwrap();
+    let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.delete(&delete).await;
     assert!(res1.is_ok());
 
     // postgres
-    let mut exc2 = SqlExecutor::from_str(CONN2).unwrap();
+    let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.delete(&delete).await;
     assert!(res2.is_ok());
 
     // sqlite
-    let mut exc3 = SqlExecutor::from_str(CONN3).unwrap();
+    let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.delete(&delete).await;

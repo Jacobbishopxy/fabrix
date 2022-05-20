@@ -20,7 +20,7 @@ const MISMATCHED_SQL_ROW: &str = "mismatched sql row";
 pub(crate) type OptMarker = Option<&'static dyn SqlTypeTagMarker>;
 
 /// Type of Sql row
-pub(crate) enum SqlRow {
+pub enum SqlRow {
     Mysql(MySqlRow),
     Pg(PgRow),
     Sqlite(SqliteRow),
