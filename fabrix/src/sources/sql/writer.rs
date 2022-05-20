@@ -6,7 +6,10 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 
-use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, SqlError, WriteOptions};
+use crate::{
+    DatabaseType, Fabrix, FabrixDatabaseLoader, FabrixError, FabrixResult, IntoSource, SqlError,
+    WriteOptions,
+};
 
 use super::{sql_adt, sql_executor::SqlConnInfo, SqlEngine, SqlExecutor};
 
@@ -14,13 +17,21 @@ use super::{sql_adt, sql_executor::SqlConnInfo, SqlEngine, SqlExecutor};
 // Sql Writer
 // ================================================================================================
 
-pub struct Writer {
-    sql_writer: SqlExecutor,
+pub struct Writer<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
+    sql_writer: SqlExecutor<L>,
     save_strategy: Option<sql_adt::SaveStrategy>,
 }
 
-impl Writer {
-    pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(conn: C) -> FabrixResult<Writer> {
+impl<L> Writer<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
+    pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(
+        conn: C,
+    ) -> FabrixResult<Writer<L>> {
         let conn = conn.try_into()?;
         let mut sql_writer = SqlExecutor::new(conn);
         sql_writer.connect().await?;
@@ -31,7 +42,7 @@ impl Writer {
         })
     }
 
-    pub async fn new_from_str(conn_str: &str) -> FabrixResult<Writer> {
+    pub async fn new_from_str(conn_str: &str) -> FabrixResult<Writer<L>> {
         let mut sql_writer = SqlExecutor::from_str(conn_str)?;
         sql_writer.connect().await?;
 
@@ -44,7 +55,7 @@ impl Writer {
     pub async fn new_writer<C: TryInto<SqlConnInfo, Error = SqlError>>(
         &mut self,
         conn: C,
-    ) -> FabrixResult<Writer> {
+    ) -> FabrixResult<Writer<L>> {
         self.sql_writer.disconnect().await?;
         let conn = conn.try_into()?;
         let mut sql_writer = SqlExecutor::new(conn);
@@ -56,7 +67,7 @@ impl Writer {
         })
     }
 
-    pub async fn new_writer_from_str(&mut self, conn_str: &str) -> FabrixResult<Writer> {
+    pub async fn new_writer_from_str(&mut self, conn_str: &str) -> FabrixResult<Writer<L>> {
         self.sql_writer.disconnect().await?;
         let mut sql_writer = SqlExecutor::from_str(conn_str)?;
         sql_writer.connect().await?;
@@ -67,7 +78,7 @@ impl Writer {
         })
     }
 
-    pub fn writer(&self) -> &SqlExecutor {
+    pub fn writer(&self) -> &SqlExecutor<L> {
         &self.sql_writer
     }
 
@@ -108,7 +119,10 @@ impl<'a> WriteOptions for SqlWriteOptions<'a> {
 }
 
 #[async_trait]
-impl<'a> IntoSource<'a, SqlWriteOptions<'_>> for Writer {
+impl<'a, L> IntoSource<'a, SqlWriteOptions<'_>> for Writer<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     async fn async_write<'o>(
         &mut self,
         fabrix: Fabrix,

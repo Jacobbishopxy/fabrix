@@ -11,11 +11,11 @@ use itertools::Itertools;
 use tokio::sync::Mutex;
 
 use crate::{
-    sql_adt, value, D2Value, ExcelValue, Fabrix, FabrixError, FabrixResult, Series, SqlEngine,
-    SqlExecutor, Value, XlCell, XlConsumer, XlExecutor,
+    sql_adt, value, D2Value, DatabaseType, ExcelValue, Fabrix, FabrixDatabaseLoader, FabrixError,
+    FabrixResult, Series, SqlEngine, SqlExecutor, Value, XlCell, XlConsumer, XlExecutor,
 };
 
-pub type XlDbExecutor<R> = XlExecutor<SqlExecutor, XlDbConvertor, R>;
+pub type XlDbExecutor<R, L> = XlExecutor<SqlExecutor<L>, XlDbConvertor, R>;
 
 /// XlDbConvertor
 ///
@@ -191,12 +191,18 @@ impl<'a> From<()> for XlIndexSelection<'a> {
 /// XlToDbConsumer
 ///
 /// Used for consuming DataFrame and interacts with database, for instance, inserting or updating data.
-pub struct XlToDbConsumer {
-    pub executor: SqlExecutor,
+pub struct XlToDbConsumer<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
+    pub executor: SqlExecutor<L>,
     pub consume_count: usize,
 }
 
-impl XlToDbConsumer {
+impl<L> XlToDbConsumer<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     pub async fn new(conn: &str) -> FabrixResult<Self> {
         let mut executor = SqlExecutor::from_str(conn)?;
         executor.connect().await?;
@@ -302,12 +308,18 @@ impl XlToDbConsumer {
 ///
 /// A XlDb is a combinator of convertor and consumer, whereas the consumer is wrapped in `Arc<Mutex<T>>`.
 /// This is to ensure the consumer is thread-safe, and can be called by an `async fn`.
-pub struct XlDbHelper {
+pub struct XlDbHelper<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     pub convertor: XlDbConvertor,
-    pub consumer: Arc<Mutex<XlToDbConsumer>>,
+    pub consumer: Arc<Mutex<XlToDbConsumer<L>>>,
 }
 
-impl XlDbHelper {
+impl<L> XlDbHelper<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     pub async fn new(conn: &str) -> FabrixResult<Self> {
         let convertor = XlDbConvertor::new();
         let consumer = Arc::new(Mutex::new(XlToDbConsumer::new(conn).await?));
@@ -323,7 +335,10 @@ impl XlDbHelper {
     }
 }
 
-impl XlConsumer<XlDbConvertor> for SqlExecutor {
+impl<L> XlConsumer<XlDbConvertor> for SqlExecutor<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     type UnitOut = Value;
     type FinalOut = Fabrix;
 

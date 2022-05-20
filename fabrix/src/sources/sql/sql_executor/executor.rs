@@ -6,7 +6,9 @@ use async_trait::async_trait;
 use sqlx::{MySqlPool, PgPool, SqlitePool};
 
 use super::{
-    conn_e_err, conn_n_err, loader::LoaderTransaction, types::string_try_into_value_type,
+    conn_e_err, conn_n_err,
+    loader::{DatabaseType, LoaderTransaction},
+    types::string_try_into_value_type,
     FabrixDatabaseLoader, LoaderPool, SqlConnInfo,
 };
 use crate::{
@@ -68,13 +70,19 @@ pub trait SqlEngine: SqlHelper {
 
 /// Executor is the core struct of db mod.
 /// It plays a role of CRUD and provides data manipulation functionality.
-pub struct SqlExecutor {
+pub struct SqlExecutor<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     driver: SqlBuilder,
     conn_str: String,
-    pool: Option<Box<dyn FabrixDatabaseLoader>>,
+    pool: Option<L>,
 }
 
-impl SqlExecutor {
+impl<L> SqlExecutor<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     /// constructor
     pub fn new(conn_info: SqlConnInfo) -> Self {
         SqlExecutor {
@@ -85,7 +93,10 @@ impl SqlExecutor {
     }
 }
 
-impl FromStr for SqlExecutor {
+impl<L> FromStr for SqlExecutor<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     type Err = SqlError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -104,7 +115,10 @@ impl FromStr for SqlExecutor {
 }
 
 #[async_trait]
-impl SqlHelper for SqlExecutor {
+impl<L> SqlHelper for SqlExecutor<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String> {
         conn_n_err!(self.pool);
         let que = self.driver.get_primary_key(table_name);
@@ -174,18 +188,21 @@ impl SqlHelper for SqlExecutor {
 }
 
 #[async_trait]
-impl SqlEngine for SqlExecutor {
+impl<L> SqlEngine for SqlExecutor<L>
+where
+    L: FabrixDatabaseLoader<L> + DatabaseType,
+{
     async fn connect(&mut self) -> SqlResult<()> {
         conn_e_err!(self.pool);
         match self.driver {
             SqlBuilder::Mysql => MySqlPool::connect(&self.conn_str).await.map(|pool| {
-                self.pool = Some(Box::new(LoaderPool::from(pool)));
+                self.pool = Some(LoaderPool::from(pool));
             })?,
             SqlBuilder::Postgres => PgPool::connect(&self.conn_str).await.map(|pool| {
-                self.pool = Some(Box::new(LoaderPool::from(pool)));
+                self.pool = Some(LoaderPool::from(pool));
             })?,
             SqlBuilder::Sqlite => SqlitePool::connect(&self.conn_str).await.map(|pool| {
-                self.pool = Some(Box::new(LoaderPool::from(pool)));
+                self.pool = Some(LoaderPool::from(pool));
             })?,
         }
         Ok(())
