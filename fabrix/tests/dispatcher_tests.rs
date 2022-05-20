@@ -6,8 +6,8 @@ use std::fs::File;
 use std::path::Path;
 
 use fabrix::{
-    sql_adt, CsvReadOptions, CsvReader, Dispatcher, ParquetWriteOptions, ParquetWriter, SqlEngine,
-    SqlReadOptions, SqlReader, SqlWriteOptions, SqlWriter,
+    sql_adt, CsvReadOptions, CsvReader, DatabaseSqlite, Dispatcher, ParquetWriteOptions,
+    ParquetWriter, SqlEngine, SqlReadOptions, SqlReader, SqlWriteOptions, SqlWriter,
 };
 
 const CSV_READ: &str = "../mock/test.csv";
@@ -18,7 +18,7 @@ const TABLE: &str = "dispatcher_test";
 #[tokio::test]
 async fn read_csv_write_db() {
     let reader = CsvReader::new(File::open(CSV_READ).expect("file not found"));
-    let writer = SqlWriter::new_from_str(CONN)
+    let writer = SqlWriter::<DatabaseSqlite>::new_from_str(CONN)
         .await
         .expect("cannot establish connection");
 
@@ -57,7 +57,7 @@ async fn read_csv_write_db() {
 
 #[tokio::test]
 async fn read_db_write_parquet() {
-    let reader = SqlReader::new_from_str(CONN)
+    let reader = SqlReader::<DatabaseSqlite>::new_from_str(CONN)
         .await
         .expect("cannot establish connection");
     let writer = ParquetWriter::new(File::create(PARQUET_WRITE).expect("file cannot be created"));
