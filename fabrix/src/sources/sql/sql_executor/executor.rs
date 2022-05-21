@@ -17,14 +17,51 @@ use crate::{
 
 #[async_trait]
 pub trait SqlHelper {
-    /// get primary key from a table
-    async fn get_primary_key(&self, table_name: &str) -> SqlResult<String>;
+    // ================================================================================================
+    // Query
+    // ================================================================================================
+
+    /// check if table exists
+    async fn get_table_exists(&self, table_name: &str) -> bool;
 
     /// get schema from a table
     async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<sql_adt::TableSchema>>;
 
+    /// list all tables
+    async fn list_tables(&self) -> SqlResult<Vec<String>>;
+
+    /// get primary key from a table
+    async fn get_primary_key(&self, table_name: &str) -> SqlResult<String>;
+
     /// get existing ids, supposing that the primary key is a single column, and the value is a string
     async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1Value>;
+
+    /// get all indexes from a table
+    // async fn get_indexes(&self, table_name: &str) -> SqlResult<Vec<String>>;
+
+    // ================================================================================================
+    // Mutation
+    // ================================================================================================
+
+    /// drop a table
+    async fn drop_table(&self, table_name: &str) -> SqlResult<()>;
+
+    /// rename a table
+    async fn rename_table(&self, from: &str, to: &str) -> SqlResult<()>;
+
+    /// truncate a table
+    async fn truncate_table(&self, table_name: &str) -> SqlResult<()>;
+
+    /// create an index
+    async fn create_index(
+        &self,
+        table_name: &str,
+        column_name: &str,
+        index_name: Option<&str>,
+    ) -> SqlResult<()>;
+
+    /// drop an index
+    async fn drop_index(&self, table_name: &str, index_name: &str) -> SqlResult<()>;
 }
 
 /// An engin is an interface to describe sql executor's business logic
@@ -41,11 +78,6 @@ pub trait SqlEngine: SqlHelper {
 
     /// update data in a table, dataframe index is the primary key
     async fn update(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
-
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // ================================================================================================
-    // TODO: should know whether the primary key exists or not
-    // ================================================================================================
 
     /// save data into a table
     /// saving strategy:
@@ -118,24 +150,16 @@ impl<T> SqlHelper for SqlExecutor<T>
 where
     T: DatabaseType,
 {
-    async fn get_primary_key(&self, table_name: &str) -> SqlResult<String> {
-        conn_n_err!(self.pool);
-        let que = self.driver.get_primary_key(table_name);
-        let schema = [ValueType::String];
-        let res = self
-            .pool
-            .as_ref()
-            .unwrap()
-            .fetch_optional_with_schema(&que, &schema)
-            .await?;
+    async fn get_table_exists(&self, table_name: &str) -> bool {
+        let que = self.driver.check_table_exists(table_name);
 
-        if let Some(v) = res {
-            if let Some(k) = v.first() {
-                return try_value_into_string(k);
-            }
+        // BEWARE: use fetch_optional instead of fetch_one is because `check_table_exists`
+        // will only return one row or none
+        if let Ok(Some(_)) = self.pool.as_ref().unwrap().fetch_optional(&que).await {
+            return true;
         }
 
-        Err(SqlError::new_common_error("primary key not found"))
+        false
     }
 
     async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<sql_adt::TableSchema>> {
@@ -168,6 +192,43 @@ where
         Ok(res)
     }
 
+    async fn list_tables(&self) -> SqlResult<Vec<String>> {
+        conn_n_err!(self.pool);
+        let que = self.driver.list_tables();
+        let schema = [ValueType::String];
+        let res = self
+            .pool
+            .as_ref()
+            .unwrap()
+            .fetch_all_with_schema(&que, &schema)
+            .await?;
+        if let Some(values) = res.first() {
+            return values.iter().map(try_value_into_string).collect();
+        }
+
+        Err(SqlError::new_common_error("tables not found"))
+    }
+
+    async fn get_primary_key(&self, table_name: &str) -> SqlResult<String> {
+        conn_n_err!(self.pool);
+        let que = self.driver.get_primary_key(table_name);
+        let schema = [ValueType::String];
+        let res = self
+            .pool
+            .as_ref()
+            .unwrap()
+            .fetch_optional_with_schema(&que, &schema)
+            .await?;
+
+        if let Some(v) = res {
+            if let Some(k) = v.first() {
+                return try_value_into_string(k);
+            }
+        }
+
+        Err(SqlError::new_common_error("primary key not found"))
+    }
+
     async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1Value> {
         conn_n_err!(self.pool);
         let que = self.driver.select_existing_ids(table_name, ids)?;
@@ -183,6 +244,48 @@ where
             .collect::<Vec<Value>>();
 
         Ok(res)
+    }
+
+    async fn drop_table(&self, table_name: &str) -> SqlResult<()> {
+        conn_n_err!(self.pool);
+        let que = self.driver.drop_table(table_name);
+        self.pool.as_ref().unwrap().execute(&que).await?;
+        Ok(())
+    }
+
+    async fn rename_table(&self, from: &str, to: &str) -> SqlResult<()> {
+        conn_n_err!(self.pool);
+        let que = self.driver.rename_table(from, to);
+        self.pool.as_ref().unwrap().execute(&que).await?;
+        Ok(())
+    }
+
+    async fn truncate_table(&self, table_name: &str) -> SqlResult<()> {
+        conn_n_err!(self.pool);
+        let que = self.driver.truncate_table(table_name);
+        self.pool.as_ref().unwrap().execute(&que).await?;
+        Ok(())
+    }
+
+    async fn create_index(
+        &self,
+        table_name: &str,
+        column_name: &str,
+        index_name: Option<&str>,
+    ) -> SqlResult<()> {
+        conn_n_err!(self.pool);
+        let que = self
+            .driver
+            .create_index(table_name, column_name, index_name);
+        self.pool.as_ref().unwrap().execute(&que).await?;
+        Ok(())
+    }
+
+    async fn drop_index(&self, table_name: &str, index_name: &str) -> SqlResult<()> {
+        conn_n_err!(self.pool);
+        let que = self.driver.drop_index(table_name, index_name);
+        self.pool.as_ref().unwrap().execute(&que).await?;
+        Ok(())
     }
 }
 
@@ -236,40 +339,24 @@ where
 
         match strategy {
             sql_adt::SaveStrategy::FailIfExists => {
-                // check if table exists
-                let ck_str = self.driver.check_table_exists(table_name);
-
-                // loader
-                let ldr = self.pool.as_ref().unwrap();
-
-                // BEWARE: use fetch_optional instead of fetch_one is because `check_table_exists`
-                // will only return one row or none
-                if ldr.fetch_optional(&ck_str).await?.is_some() {
+                if self.get_table_exists(table_name).await {
                     return Err(SqlError::new_common_error(
                         "table already exist, table cannot be saved",
                     ));
                 }
 
                 // start a transaction
-                let txn = ldr.begin_transaction().await?;
+                let txn = self.pool.as_ref().unwrap().begin_transaction().await?;
 
                 let res = txn_create_and_insert(&self.driver, txn, table_name, data).await?;
 
                 Ok(res as usize)
             }
             sql_adt::SaveStrategy::Replace => {
-                // check if table exists
-                let ck_str = self.driver.check_table_exists(table_name);
-
-                // loader
-                let ldr = self.pool.as_ref().unwrap();
-
                 // start a transaction
-                let mut txn = ldr.begin_transaction().await?;
+                let mut txn = self.pool.as_ref().unwrap().begin_transaction().await?;
 
-                // BEWARE: use fetch_optional instead of fetch_one is because `check_table_exists`
-                // will only return one row or none
-                if ldr.fetch_optional(&ck_str).await?.is_some() {
+                if self.get_table_exists(table_name).await {
                     let del_str = self.driver.delete_table(table_name);
                     txn.execute(&del_str).await?;
                 }

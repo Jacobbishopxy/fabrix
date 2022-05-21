@@ -1,6 +1,6 @@
 //! Sql Builder: ddl mutation
 
-use sea_query::{ColumnDef, Table};
+use sea_query::{ColumnDef, Index, Table};
 
 use super::{alias, sql_adt, statement};
 use crate::{DdlMutation, FieldInfo, SqlBuilder, ValueType};
@@ -31,6 +31,52 @@ impl DdlMutation for SqlBuilder {
     fn delete_table(&self, table_name: &str) -> String {
         let mut statement = Table::drop();
         statement.table(alias!(table_name));
+
+        statement!(self, statement)
+    }
+
+    // fn alter_table(&self) -> String;
+
+    fn drop_table(&self, table_name: &str) -> String {
+        let mut statement = Table::drop();
+        statement.table(alias!(table_name));
+
+        statement!(self, statement)
+    }
+
+    fn rename_table(&self, from: &str, to: &str) -> String {
+        let mut statement = Table::rename();
+        statement.table(alias!(from), alias!(to));
+
+        statement!(self, statement)
+    }
+
+    fn truncate_table(&self, table_name: &str) -> String {
+        let mut statement = Table::truncate();
+        statement.table(alias!(table_name));
+
+        statement!(self, statement)
+    }
+
+    fn create_index(
+        &self,
+        table_name: &str,
+        column_name: &str,
+        index_name: Option<&str>,
+    ) -> String {
+        let mut statement = Index::create();
+        let default_name = format!("idx_{column_name}");
+        statement
+            .name(index_name.unwrap_or(&default_name))
+            .table(alias!(table_name))
+            .col(alias!(column_name));
+
+        statement!(self, statement)
+    }
+
+    fn drop_index(&self, table_name: &str, index_name: &str) -> String {
+        let mut statement = Index::drop();
+        statement.name(index_name).table(alias!(table_name));
 
         statement!(self, statement)
     }
