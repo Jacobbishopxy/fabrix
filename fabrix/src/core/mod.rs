@@ -1,5 +1,7 @@
 //! Fabrix core
 
+use polars::datatypes::Field as PolarsField;
+
 pub mod error;
 pub mod fabrix;
 pub mod fmt;
@@ -23,7 +25,8 @@ pub(crate) use macros::*;
 pub use util::IDX;
 pub(crate) use util::*;
 
-use polars::datatypes::Field as PolarsField;
+// TODO:
+// add is_nullable (default true)
 
 /// field info: column name, column type & has null
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

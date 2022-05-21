@@ -357,7 +357,7 @@ where
                 let mut txn = self.pool.as_ref().unwrap().begin_transaction().await?;
 
                 if self.get_table_exists(table_name).await {
-                    let del_str = self.driver.delete_table(table_name);
+                    let del_str = self.driver.drop_table(table_name);
                     txn.execute(&del_str).await?;
                 }
 

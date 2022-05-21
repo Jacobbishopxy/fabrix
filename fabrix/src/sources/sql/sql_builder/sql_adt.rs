@@ -165,6 +165,30 @@ impl From<(&str, &str)> for ColumnAlias {
 }
 
 // ================================================================================================
+// AlterTable
+// ================================================================================================
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum AlterTable {
+    Add {
+        table: String,
+        column: String,
+        dtype: ValueType,
+        is_nullable: bool,
+    },
+    Delete {
+        table: String,
+        column: String,
+    },
+    Modify {
+        table: String,
+        column: String,
+        dtype: ValueType,
+        is_nullable: bool,
+    },
+}
+
+// ================================================================================================
 // Expression & Expressions (filter)
 // ================================================================================================
 
