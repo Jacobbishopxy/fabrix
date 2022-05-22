@@ -6,10 +6,8 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use sea_query::Value as SValue;
 
 use super::sv_2_v;
-use crate::{
-    core::{DAYS19700101, NANO10E9},
-    Decimal, SqlError, SqlResult, Uuid, Value, ValueType,
-};
+use crate::core::Value2ChronoHelper;
+use crate::{Decimal, SqlError, SqlResult, Uuid, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub enum SqlBuilder {
@@ -60,21 +58,15 @@ impl From<Value> for SValue {
             Value::F32(v) => SValue::Float(Some(v)),
             Value::F64(v) => SValue::Double(Some(v)),
             Value::String(v) => SValue::String(Some(Box::new(v))),
-            Value::Date(v) => {
-                let v = v + DAYS19700101;
-                let d = NaiveDate::from_num_days_from_ce(v);
-                SValue::ChronoDate(Some(Box::new(d)))
-            }
-            Value::Time(v) => {
-                let v = (v / NANO10E9) as u32;
-                let t = NaiveTime::from_num_seconds_from_midnight(v, 0);
-                SValue::ChronoTime(Some(Box::new(t)))
-            }
-            Value::DateTime(v) => {
-                let v = v / NANO10E9;
-                let dt = NaiveDateTime::from_timestamp(v, 0);
-                SValue::ChronoDateTime(Some(Box::new(dt)))
-            }
+            v @ Value::Date(..) => SValue::ChronoDate(Some(Box::new(
+                Value2ChronoHelper::convert_value_to_naive_date(v).unwrap(),
+            ))),
+            v @ Value::Time(..) => SValue::ChronoTime(Some(Box::new(
+                Value2ChronoHelper::convert_value_to_naive_time(v).unwrap(),
+            ))),
+            v @ Value::DateTime(..) => SValue::ChronoDateTime(Some(Box::new(
+                Value2ChronoHelper::convert_value_to_naive_datetime(v).unwrap(),
+            ))),
             Value::Decimal(v) => SValue::Decimal(Some(Box::new(v.0))),
             Value::Uuid(v) => SValue::Uuid(Some(Box::new(v.0))),
             Value::Bytes(v) => SValue::Bytes(Some(Box::new(v.0))),
@@ -134,21 +126,15 @@ pub(crate) fn try_from_value_to_svalue(
         Value::F32(v) => Ok(SValue::Float(Some(v))),
         Value::F64(v) => Ok(SValue::Double(Some(v))),
         Value::String(v) => Ok(SValue::String(Some(Box::new(v)))),
-        Value::Date(v) => {
-            let v = v + DAYS19700101;
-            let d = NaiveDate::from_num_days_from_ce(v);
-            Ok(SValue::ChronoDate(Some(Box::new(d))))
-        }
-        Value::Time(v) => {
-            let v = (v / NANO10E9) as u32;
-            let t = NaiveTime::from_num_seconds_from_midnight(v, 0);
-            Ok(SValue::ChronoTime(Some(Box::new(t))))
-        }
-        Value::DateTime(v) => {
-            let v = v / NANO10E9;
-            let dt = NaiveDateTime::from_timestamp(v, 0);
-            Ok(SValue::ChronoDateTime(Some(Box::new(dt))))
-        }
+        v @ Value::Date(..) => Ok(SValue::ChronoDate(Some(Box::new(
+            Value2ChronoHelper::convert_value_to_naive_date(v)?,
+        )))),
+        v @ Value::Time(..) => Ok(SValue::ChronoTime(Some(Box::new(
+            Value2ChronoHelper::convert_value_to_naive_time(v)?,
+        )))),
+        v @ Value::DateTime(..) => Ok(SValue::ChronoDateTime(Some(Box::new(
+            Value2ChronoHelper::convert_value_to_naive_datetime(v)?,
+        )))),
         Value::Decimal(v) => Ok(SValue::Decimal(Some(Box::new(v.0)))),
         Value::Uuid(v) => Ok(SValue::Uuid(Some(Box::new(v.0)))),
         Value::Bytes(v) => Ok(SValue::Bytes(Some(Box::new(v.0)))),

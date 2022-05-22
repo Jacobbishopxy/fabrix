@@ -581,7 +581,6 @@ fn from_values(values: Vec<Value>, name: &str, nullable: bool) -> CoreResult<Ser
             ValueType::F32 => sfv!(nullable; name, values; f32, Float32Type),
             ValueType::F64 => sfv!(nullable; name, values; f64, Float64Type),
             ValueType::Date => {
-                dbg!(&values);
                 let ca = if nullable {
                     chunked_array_from_values!(name, values; i32, Int32Type)
                 } else {
