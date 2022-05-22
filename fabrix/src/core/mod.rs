@@ -25,9 +25,6 @@ pub(crate) use macros::*;
 pub use util::IDX;
 pub(crate) use util::*;
 
-// TODO:
-// add is_nullable (default true)
-
 /// field info: column name, column type & has null
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FieldInfo {

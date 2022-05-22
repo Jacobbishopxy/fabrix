@@ -15,6 +15,20 @@ pub struct TableSchema {
     pub name: String,
     pub dtype: ValueType,
     pub is_nullable: bool,
+    // pub is_primary: bool,
+    // pub is_unique: bool,
+}
+
+impl From<FieldInfo> for TableSchema {
+    fn from(fi: FieldInfo) -> Self {
+        TableSchema {
+            name: fi.name,
+            dtype: fi.dtype,
+            is_nullable: true,
+            // is_primary: false,
+            // is_unique: false,
+        }
+    }
 }
 
 // ================================================================================================
@@ -23,44 +37,16 @@ pub struct TableSchema {
 
 /// order type
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum OrderType {
-    Asc,
-    Desc,
+pub enum Order {
+    Asc(String),
+    Desc(String),
 }
 
-impl From<&str> for OrderType {
-    fn from(s: &str) -> Self {
-        match s {
-            "asc" | "a" => OrderType::Asc,
-            "desc" | "d" => OrderType::Desc,
-            _ => OrderType::Asc,
-        }
-    }
-}
-
-/// an order contains a column name and it's order type
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct Order {
-    pub name: String,
-    pub order: Option<OrderType>,
-}
-
-impl From<&str> for Order {
-    fn from(value: &str) -> Self {
-        Order {
-            name: value.to_string(),
-            order: None,
-        }
-    }
-}
-
-impl From<(&str, &str)> for Order {
-    fn from(value: (&str, &str)) -> Self {
-        let name = value.0.to_string();
-        let order = value.1.into();
-        Order {
-            name,
-            order: Some(order),
+impl Order {
+    pub fn name(&self) -> &str {
+        match self {
+            Order::Asc(name) => name,
+            Order::Desc(name) => name,
         }
     }
 }
@@ -118,33 +104,26 @@ pub struct ForeignKey {
 // Column
 // ================================================================================================
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-
-pub struct NameAlias {
-    pub from: String,
-    pub to: String,
-}
-
 /// column name, can be alias. used it in `select`
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum ColumnAlias {
     Simple(String),
-    Alias(NameAlias),
+    Alias(String, String), // (from, to)
 }
 
 impl ColumnAlias {
     pub fn original_name(&self) -> String {
         match self {
             ColumnAlias::Simple(s) => s.to_owned(),
-            ColumnAlias::Alias(s) => s.from.to_owned(),
+            ColumnAlias::Alias(s, _) => s.to_owned(),
         }
     }
 
     pub fn name(&self) -> String {
         match self {
             ColumnAlias::Simple(s) => s.to_owned(),
-            ColumnAlias::Alias(s) => s.to.to_owned(),
+            ColumnAlias::Alias(_, s) => s.to_owned(),
         }
     }
 }
@@ -157,10 +136,7 @@ impl From<&str> for ColumnAlias {
 
 impl From<(&str, &str)> for ColumnAlias {
     fn from((from, to): (&str, &str)) -> Self {
-        ColumnAlias::Alias(NameAlias {
-            from: from.to_owned(),
-            to: to.to_owned(),
-        })
+        ColumnAlias::Alias(from.to_owned(), to.to_owned())
     }
 }
 
@@ -408,12 +384,8 @@ impl Select {
         self
     }
 
-    pub fn order<T>(mut self, order: &[T]) -> Self
-    where
-        Order: From<T>,
-        T: Copy,
-    {
-        self.order = Some(order.iter().map(|c| (*c).into()).collect());
+    pub fn order(mut self, order: &[Order]) -> Self {
+        self.order = Some(order.to_owned());
         self
     }
 

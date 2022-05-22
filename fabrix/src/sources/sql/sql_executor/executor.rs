@@ -505,9 +505,8 @@ mod test_executor {
 
     use super::*;
     use crate::{
-        datetime, fx, series,
-        sql_adt::ExpressionTransit,
-        xpr, {DatabaseMysql, DatabasePg, DatabaseSqlite},
+        date, datetime, fx, series, sql_adt::ExpressionTransit, xpr, DatabaseMysql, DatabasePg,
+        DatabaseSqlite,
     };
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
@@ -520,8 +519,16 @@ mod test_executor {
     #[tokio::test]
     async fn test_connection() {
         let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        let con = exc.connect().await;
+        assert!(con.is_ok());
 
-        exc.connect().await.expect("connection is ok");
+        let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        let con = exc.connect().await;
+        assert!(con.is_ok());
+
+        let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        let con = exc.connect().await;
+        assert!(con.is_ok());
     }
 
     #[tokio::test]
@@ -631,6 +638,14 @@ mod test_executor {
             "ord" => [10,11,12,20,22,31],
             "val" => [Some(10.1), None, Some(8.0), Some(9.5), Some(10.8), Some(11.2)],
             "note" => [Some("FS"), Some("OP"), Some("TEC"), None, Some("SS"), None],
+            "d" => [
+                date!(2016,1,8),
+                date!(2017,1,7),
+                date!(2018,1,6),
+                date!(2019,1,5),
+                date!(2020,1,4),
+                date!(2021,1,3),
+            ],
             "dt" => [
                 datetime!(2016,1,8,9,10,11),
                 datetime!(2017,1,7,9,10,11),
@@ -649,6 +664,7 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
+        println!("{:?}", res);
         assert!(res.is_ok());
 
         // postgres
@@ -656,6 +672,7 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
+        println!("{:?}", res);
         assert!(res.is_ok());
 
         // sqlite
@@ -663,6 +680,7 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
+        println!("{:?}", res);
         assert!(res.is_ok());
     }
 
@@ -810,10 +828,7 @@ mod test_executor {
                 sql_adt::ColumnAlias::Simple("val".to_owned()),
                 sql_adt::ColumnAlias::Simple("note".to_owned()),
                 sql_adt::ColumnAlias::Simple("dt".to_owned()),
-                sql_adt::ColumnAlias::Alias(sql_adt::NameAlias {
-                    from: "ord".to_owned(),
-                    to: "ID".to_owned(),
-                }),
+                sql_adt::ColumnAlias::Alias("ord".to_owned(), "ID".to_owned()),
             ],
             ..Default::default()
         };

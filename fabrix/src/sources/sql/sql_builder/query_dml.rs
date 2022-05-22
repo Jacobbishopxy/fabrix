@@ -38,17 +38,12 @@ impl DmlQuery for SqlBuilder {
         }
 
         if let Some(ord) = &select.order {
-            ord.iter().for_each(|o| match &o.order {
-                Some(ot) => match ot {
-                    sql_adt::OrderType::Asc => {
-                        statement.order_by(alias!(&o.name), Order::Asc);
-                    }
-                    sql_adt::OrderType::Desc => {
-                        statement.order_by(alias!(&o.name), Order::Desc);
-                    }
-                },
-                None => {
-                    statement.order_by(alias!(&o.name), Order::Asc);
+            ord.iter().for_each(|o| match o {
+                sql_adt::Order::Asc(name) => {
+                    statement.order_by(alias!(name), Order::Asc);
+                }
+                sql_adt::Order::Desc(name) => {
+                    statement.order_by(alias!(name), Order::Desc);
                 }
             })
         }
@@ -102,14 +97,8 @@ mod test_query_dml {
             ],
             filter: Some(filter),
             order: Some(vec![
-                sql_adt::Order {
-                    name: "v1".to_string(),
-                    order: Some(sql_adt::OrderType::Asc),
-                },
-                sql_adt::Order {
-                    name: "v4".to_string(),
-                    order: Some(sql_adt::OrderType::Asc),
-                },
+                sql_adt::Order::Asc("v1".to_string()),
+                sql_adt::Order::Asc("v4".to_string()),
             ]),
             limit: Some(10),
             offset: Some(20),
@@ -137,11 +126,13 @@ mod test_query_dml {
             ])
         ]);
 
-        // Note: ("v1", "a") is the same as "v1", since Order's default type is Ascending
         let select = sql_adt::Select::new("test")
             .columns(&["v1", "v2", "v3", "v4"])
             .filter(&filter)
-            .order(&["v1", "v4"])
+            .order(&[
+                sql_adt::Order::Asc("v1".to_owned()),
+                sql_adt::Order::Asc("v4".to_owned()),
+            ])
             .limit(10)
             .offset(20);
 

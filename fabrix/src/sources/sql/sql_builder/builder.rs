@@ -110,6 +110,8 @@ fn from_data_type_to_null_svalue(dtype: &ValueType) -> SValue {
     }
 }
 
+// TODO: error occurs when converting date/time/datetime
+
 /// Type conversion: from Value to `sea-query` Value
 pub(crate) fn try_from_value_to_svalue(
     value: Value,
