@@ -6,7 +6,10 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use sea_query::Value as SValue;
 
 use super::sv_2_v;
-use crate::{Decimal, SqlError, SqlResult, Uuid, Value, ValueType};
+use crate::{
+    core::{DAYS19700101, NANO10E9},
+    Decimal, SqlError, SqlResult, Uuid, Value, ValueType,
+};
 
 #[derive(Debug, Clone)]
 pub enum SqlBuilder {
@@ -58,15 +61,17 @@ impl From<Value> for SValue {
             Value::F64(v) => SValue::Double(Some(v)),
             Value::String(v) => SValue::String(Some(Box::new(v))),
             Value::Date(v) => {
+                let v = v + DAYS19700101;
                 let d = NaiveDate::from_num_days_from_ce(v);
                 SValue::ChronoDate(Some(Box::new(d)))
             }
             Value::Time(v) => {
-                let secs = v.try_into().expect("invalid time");
-                let t = NaiveTime::from_num_seconds_from_midnight(secs, 0);
+                let v = (v / NANO10E9) as u32;
+                let t = NaiveTime::from_num_seconds_from_midnight(v, 0);
                 SValue::ChronoTime(Some(Box::new(t)))
             }
             Value::DateTime(v) => {
+                let v = v / NANO10E9;
                 let dt = NaiveDateTime::from_timestamp(v, 0);
                 SValue::ChronoDateTime(Some(Box::new(dt)))
             }
@@ -110,8 +115,6 @@ fn from_data_type_to_null_svalue(dtype: &ValueType) -> SValue {
     }
 }
 
-// TODO: error occurs when converting date/time/datetime
-
 /// Type conversion: from Value to `sea-query` Value
 pub(crate) fn try_from_value_to_svalue(
     value: Value,
@@ -132,15 +135,17 @@ pub(crate) fn try_from_value_to_svalue(
         Value::F64(v) => Ok(SValue::Double(Some(v))),
         Value::String(v) => Ok(SValue::String(Some(Box::new(v)))),
         Value::Date(v) => {
+            let v = v + DAYS19700101;
             let d = NaiveDate::from_num_days_from_ce(v);
             Ok(SValue::ChronoDate(Some(Box::new(d))))
         }
         Value::Time(v) => {
-            let secs = v.try_into().expect("invalid time");
-            let t = NaiveTime::from_num_seconds_from_midnight(secs, 0);
+            let v = (v / NANO10E9) as u32;
+            let t = NaiveTime::from_num_seconds_from_midnight(v, 0);
             Ok(SValue::ChronoTime(Some(Box::new(t))))
         }
         Value::DateTime(v) => {
+            let v = v / NANO10E9;
             let dt = NaiveDateTime::from_timestamp(v, 0);
             Ok(SValue::ChronoDateTime(Some(Box::new(dt))))
         }

@@ -96,8 +96,11 @@ pub enum Value {
     I64(i64),
     F32(f32),
     F64(f64),
+    // A 32-bit date representing the elapsed time since UNIX epoch (1970-01-01) in days (32 bits).
     Date(i32),
+    // A 64-bit time representing the elapsed time since midnight in nanoseconds.
     Time(i64),
+    // A 64-bit date representing the elapsed time since UNIX epoch (1970-01-01) in nanoseconds (64 bits).
     DateTime(i64),
     String(String),
     Decimal(Decimal),
@@ -820,6 +823,12 @@ impl_try_from_value!(F64, Option<f64>, "Option<f64>");
 impl_try_from_value!(Decimal, Option<Decimal>, "Option<Decimal>");
 impl_try_from_value!(Uuid, Option<Uuid>, "Option<Uuid>");
 impl_try_from_value!(Bytes, Option<Bytes>, "Option<Bytes>");
+
+// ================================================================================================
+// Conversion of Value to NaiveDate/NaiveTime/NaiveDateTime
+// ================================================================================================
+
+// TODO:
 
 #[cfg(test)]
 mod test_value {

@@ -98,7 +98,7 @@ mod test_mutation_dml {
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{datetime, fx, series, sql_adt::ExpressionTransit, xpr};
+    use crate::{datetime, fx, sql_adt::ExpressionTransit, xpr};
 
     #[test]
     fn test_insert() {
@@ -196,31 +196,6 @@ mod test_mutation_dml {
 
         let insert = SqlBuilder::Sqlite.insert("test", df).unwrap();
         println!("{:?}", insert);
-    }
-
-    #[test]
-    fn make_sure_series_is_correct() {
-        let s = series!([
-            datetime!(2016, 1, 8, 9, 10, 11),
-            datetime!(2017, 1, 7, 9, 10, 11),
-            datetime!(2018, 1, 6, 9, 10, 11),
-            datetime!(2019, 1, 5, 9, 10, 11),
-            datetime!(2020, 1, 4, 9, 10, 11),
-            datetime!(2021, 1, 3, 9, 10, 11),
-        ]);
-
-        for i in s.into_iter() {
-            println!("{:?}", i);
-
-            if let crate::Value::I64(v) = i {
-                let foo = chrono::NaiveDateTime::from_timestamp(v, 0);
-                println!("{:?}", foo.format("%Y-%m-%d %H:%M:%S"));
-            }
-        }
-
-        // 1483780211000000000
-
-        // 1452244211000000000
     }
 
     #[test]

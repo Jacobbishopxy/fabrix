@@ -727,9 +727,33 @@ impl<'a> Iterator for SeriesIterator<'a> {
             SeriesIterator::F32(arr, s) => s_fn_next!(arr, s),
             SeriesIterator::F64(arr, s) => s_fn_next!(arr, s),
             SeriesIterator::String(arr, s) => s_fn_next!(arr, s),
-            SeriesIterator::Date(arr, s) => s_fn_next!(arr, s),
-            SeriesIterator::Time(arr, s) => s_fn_next!(arr, s),
-            SeriesIterator::DateTime(arr, s) => s_fn_next!(arr, s),
+            SeriesIterator::Date(arr, s) => {
+                if s.exhausted() {
+                    None
+                } else {
+                    let res = Value::Date(arr.get(s.step).unwrap());
+                    s.forward();
+                    Some(res)
+                }
+            }
+            SeriesIterator::Time(arr, s) => {
+                if s.exhausted() {
+                    None
+                } else {
+                    let res = Value::Time(arr.get(s.step).unwrap());
+                    s.forward();
+                    Some(res)
+                }
+            }
+            SeriesIterator::DateTime(arr, s) => {
+                if s.exhausted() {
+                    None
+                } else {
+                    let res = Value::DateTime(arr.get(s.step).unwrap());
+                    s.forward();
+                    Some(res)
+                }
+            }
             SeriesIterator::Decimal(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
             SeriesIterator::Bytes(ref arr, s) => sc_fn_next!(arr, s),
@@ -782,7 +806,7 @@ impl<'a> IntoIterator for SeriesRef<'a> {
 mod test_fabrix_series {
 
     use super::*;
-    use crate::{date, series, uuid, value};
+    use crate::{date, datetime, series, time, uuid, value};
 
     #[test]
     fn test_series_creation() {
@@ -841,6 +865,73 @@ mod test_fabrix_series {
             true,
         );
         assert!(s.is_ok());
+    }
+
+    #[test]
+    fn make_sure_series_iteration_is_correct() {
+        let s = series!([
+            date!(2016, 1, 8),
+            date!(2017, 1, 7),
+            date!(2018, 1, 6),
+            date!(2019, 1, 5),
+            date!(2020, 1, 4),
+            date!(2021, 1, 3),
+        ]);
+
+        println!("date:");
+        for i in s.into_iter() {
+            println!("{:?}", i);
+
+            if let Value::Date(v) = i {
+                let v = v + DAYS19700101;
+                let foo = chrono::NaiveDate::from_num_days_from_ce(v);
+                println!("{:?}", foo.format("%Y-%m-%d").to_string());
+            }
+        }
+
+        // ==========================
+
+        let s = series!([
+            time!(9, 10, 11),
+            time!(9, 10, 12),
+            time!(9, 10, 13),
+            time!(9, 10, 14),
+            time!(9, 10, 15),
+            time!(9, 10, 16),
+        ]);
+
+        println!("time:");
+        for i in s.into_iter() {
+            println!("{:?}", i);
+
+            if let Value::Time(v) = i {
+                let v = (v / NANO10E9) as u32;
+                let foo = chrono::NaiveTime::from_num_seconds_from_midnight(v, 0);
+                println!("{:?}", foo.format("%H:%M:%S").to_string());
+            }
+        }
+
+        // ==========================
+
+        let s = series!([
+            datetime!(2016, 1, 8, 9, 10, 11),
+            datetime!(2017, 1, 7, 9, 10, 11),
+            datetime!(2018, 1, 6, 9, 10, 11),
+            datetime!(2019, 1, 5, 9, 10, 11),
+            datetime!(2020, 1, 4, 9, 10, 11),
+            datetime!(2021, 1, 3, 9, 10, 11),
+        ]);
+
+        println!("datetime:");
+        for i in s.into_iter() {
+            println!("{:?}", i);
+
+            if let Value::DateTime(v) = i {
+                let v = v / NANO10E9;
+                let foo = chrono::NaiveDateTime::from_timestamp(v, 0);
+                println!("{:?}", foo.format("%Y-%m-%d %H:%M:%S").to_string());
+            }
+        }
     }
 
     #[test]
