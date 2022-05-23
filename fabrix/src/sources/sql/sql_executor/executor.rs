@@ -41,11 +41,6 @@ pub trait SqlEngine: SqlHelper {
     /// update data in a table, dataframe index is the primary key
     async fn update(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
 
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // ================================================================================================
-    // TODO: should know whether the primary key exists or not
-    // ================================================================================================
-
     /// save data into a table
     /// saving strategy:
     /// 1. Replace: no matter the table is exist, create a new table

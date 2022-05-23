@@ -10,7 +10,7 @@ use crate::{FieldInfo, Series, SqlError, SqlResult, Value, ValueType};
 // ================================================================================================
 
 /// Table Schema
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct TableSchema {
     pub name: String,
     pub dtype: ValueType,
@@ -22,7 +22,7 @@ pub struct TableSchema {
 // ================================================================================================
 
 /// order type
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum OrderType {
     Asc,
     Desc,
@@ -39,7 +39,7 @@ impl From<&str> for OrderType {
 }
 
 /// an order contains a column name and it's order type
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct Order {
     pub name: String,
     pub order: Option<OrderType>,
@@ -70,7 +70,7 @@ impl From<(&str, &str)> for Order {
 // ================================================================================================
 
 /// index with its' unique name, table belonged, and related index/ indices
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Index {
     pub name: String,
     pub table: String,
@@ -82,14 +82,14 @@ pub struct Index {
 // ================================================================================================
 
 /// foreign key direction
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ForeignKeyDir {
     pub table: String,
     pub column: String,
 }
 
 /// foreign key action
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ForeignKeyAction {
     Restrict,
     Cascade,
@@ -105,7 +105,7 @@ impl Default for ForeignKeyAction {
 }
 
 /// foreign key with its' unique name, from & to table relations, and actions
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ForeignKey {
     pub name: String,
     pub from: ForeignKeyDir,
@@ -118,7 +118,7 @@ pub struct ForeignKey {
 // Column
 // ================================================================================================
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 
 pub struct NameAlias {
     pub from: String,
@@ -126,7 +126,7 @@ pub struct NameAlias {
 }
 
 /// column name, can be alias. used it in `select`
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum ColumnAlias {
     Simple(String),
@@ -168,7 +168,7 @@ impl From<(&str, &str)> for ColumnAlias {
 // Expression & Expressions (filter)
 // ================================================================================================
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Conjunction {
     AND,
     OR,
@@ -444,7 +444,7 @@ impl Delete {
 /// - `Replace`: drop if exists, create new table
 /// - `Append`: ignore primary key, append to an existing table; index will be ignored
 /// - `Upsert`: if table exists: insert if id not exists, update if id exists; index will not be ignored
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum SaveStrategy {
     FailIfExists,
     Replace,
