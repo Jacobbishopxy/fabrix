@@ -11,11 +11,11 @@ use itertools::Itertools;
 use tokio::sync::Mutex;
 
 use crate::{
-    sql_adt, value, D2Value, ExcelValue, Fabrix, FabrixError, FabrixResult, Series, SqlEngine,
-    SqlExecutor, Value, XlCell, XlConsumer, XlExecutor,
+    sql_adt, value, D2Value, DatabaseType, ExcelValue, Fabrix, FabrixError, FabrixResult, Series,
+    SqlEngine, SqlExecutor, Value, XlCell, XlConsumer, XlExecutor,
 };
 
-pub type XlDbExecutor<R> = XlExecutor<SqlExecutor, XlDbConvertor, R>;
+pub type XlDbExecutor<R, T> = XlExecutor<SqlExecutor<T>, XlDbConvertor, R>;
 
 /// XlDbConvertor
 ///
@@ -191,12 +191,18 @@ impl<'a> From<()> for XlIndexSelection<'a> {
 /// XlToDbConsumer
 ///
 /// Used for consuming DataFrame and interacts with database, for instance, inserting or updating data.
-pub struct XlToDbConsumer {
-    pub executor: SqlExecutor,
+pub struct XlToDbConsumer<T>
+where
+    T: DatabaseType,
+{
+    pub executor: SqlExecutor<T>,
     pub consume_count: usize,
 }
 
-impl XlToDbConsumer {
+impl<T> XlToDbConsumer<T>
+where
+    T: DatabaseType,
+{
     pub async fn new(conn: &str) -> FabrixResult<Self> {
         let mut executor = SqlExecutor::from_str(conn)?;
         executor.connect().await?;
@@ -302,12 +308,18 @@ impl XlToDbConsumer {
 ///
 /// A XlDb is a combinator of convertor and consumer, whereas the consumer is wrapped in `Arc<Mutex<T>>`.
 /// This is to ensure the consumer is thread-safe, and can be called by an `async fn`.
-pub struct XlDbHelper {
+pub struct XlDbHelper<T>
+where
+    T: DatabaseType,
+{
     pub convertor: XlDbConvertor,
-    pub consumer: Arc<Mutex<XlToDbConsumer>>,
+    pub consumer: Arc<Mutex<XlToDbConsumer<T>>>,
 }
 
-impl XlDbHelper {
+impl<T> XlDbHelper<T>
+where
+    T: DatabaseType,
+{
     pub async fn new(conn: &str) -> FabrixResult<Self> {
         let convertor = XlDbConvertor::new();
         let consumer = Arc::new(Mutex::new(XlToDbConsumer::new(conn).await?));
@@ -323,7 +335,10 @@ impl XlDbHelper {
     }
 }
 
-impl XlConsumer<XlDbConvertor> for SqlExecutor {
+impl<T> XlConsumer<XlDbConvertor> for SqlExecutor<T>
+where
+    T: DatabaseType,
+{
     type UnitOut = Value;
     type FinalOut = Fabrix;
 
@@ -348,7 +363,7 @@ mod test_xl_reader {
     use std::fs::File;
 
     use super::*;
-    use crate::{SqlEngine, XlSource, XlWorkbook};
+    use crate::{DatabaseSqlite, SqlEngine, XlSource, XlWorkbook};
 
     const CONN3: &str = "sqlite://dev.sqlite";
 
@@ -362,7 +377,7 @@ mod test_xl_reader {
         let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let mut convertor = XlDbConvertor::new();
-        let mut xle = XlDbExecutor::new_with_source(source);
+        let mut xle = XlDbExecutor::<File, DatabaseSqlite>::new_with_source(source);
         let iter = xle.iter_sheet(None, XL_SHEET_NAME).unwrap();
 
         for (i, row) in iter.enumerate() {
@@ -378,7 +393,7 @@ mod test_xl_reader {
         let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
-        let mut xle = XlDbExecutor::new_with_source(source);
+        let mut xle = XlDbExecutor::<File, DatabaseSqlite>::new_with_source(source);
         let iter = xle.iter_sheet(None, XL_SHEET_NAME2).unwrap();
 
         for (i, row) in iter.enumerate() {
@@ -396,10 +411,10 @@ mod test_xl_reader {
 
         // converter & consumer instance
         let mut convertor = XlDbConvertor::new();
-        let mut consumer = XlToDbConsumer::new(CONN3).await.unwrap();
+        let mut consumer = XlToDbConsumer::<DatabaseSqlite>::new(CONN3).await.unwrap();
 
         // XlExecutor instance
-        let mut xle = XlDbExecutor::new_with_source(source);
+        let mut xle = XlDbExecutor::<File, DatabaseSqlite>::new_with_source(source);
 
         // xl sheet iterator
         let iter = xle.iter_sheet(Some(40), XL_SHEET_NAME).unwrap();
@@ -444,10 +459,10 @@ mod test_xl_reader {
         let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
-        let consumer = XlToDbConsumer::new(CONN3).await.unwrap();
+        let consumer = XlToDbConsumer::<DatabaseSqlite>::new(CONN3).await.unwrap();
         let am_consumer = Arc::new(Mutex::new(consumer));
 
-        let mut xle = XlDbExecutor::new_with_source(source);
+        let mut xle = XlDbExecutor::<File, DatabaseSqlite>::new_with_source(source);
 
         let foo = xle
             .async_consume_fn_mut(
@@ -478,9 +493,9 @@ mod test_xl_reader {
         // same as the above test case: `test_xl2db_async`
         // simplify the process from naming convertor and consumer separately;
         // however, by this way, we lose the flexibility of customizing the convertor and consumer
-        let xl2db = XlDbHelper::new(CONN3).await.unwrap();
+        let xl2db = XlDbHelper::<DatabaseSqlite>::new(CONN3).await.unwrap();
 
-        let mut xle = XlDbExecutor::new_with_source(source);
+        let mut xle = XlDbExecutor::<File, DatabaseSqlite>::new_with_source(source);
 
         let foo = xle
             .async_consume_fn_mut(

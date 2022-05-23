@@ -27,7 +27,7 @@
 ///     }
 /// }
 /// ```
-macro_rules! impl_custom_value {
+macro_rules! impl_custom_value_inner {
     ($dtype:ty, $name:expr) => {
         impl Debug for $dtype {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -51,7 +51,7 @@ macro_rules! impl_custom_value {
 
 /// the only difference between this and `impl_custom_value` is that this
 /// macro `Debug` & `Display` use `self` in the `write!` format string.
-macro_rules! impl_custom_value2 {
+macro_rules! impl_custom_value_outer {
     ($dtype:ty, $name:expr) => {
         impl Debug for $dtype {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -73,8 +73,8 @@ macro_rules! impl_custom_value2 {
     };
 }
 
-pub(crate) use impl_custom_value;
-pub(crate) use impl_custom_value2;
+pub(crate) use impl_custom_value_inner;
+pub(crate) use impl_custom_value_outer;
 
 /// Type conversion: standard type into Value. Used in `value.rs`.
 ///

@@ -1,6 +1,6 @@
 //! Sql Builder: ddl mutation
 
-use sea_query::{ColumnDef, Table};
+use sea_query::{ColumnDef, ForeignKey, ForeignKeyAction, Index, Table};
 
 use super::{alias, sql_adt, statement};
 use crate::{DdlMutation, FieldInfo, SqlBuilder, ValueType};
@@ -27,10 +27,105 @@ impl DdlMutation for SqlBuilder {
         statement!(self, statement)
     }
 
-    /// drop a table by its name
-    fn delete_table(&self, table_name: &str) -> String {
+    fn alter_table(&self, alter: &sql_adt::AlterTable) -> String {
+        let mut statement = Table::alter();
+        match alter {
+            sql_adt::AlterTable::Add {
+                table,
+                column,
+                dtype,
+                is_nullable: _,
+            } => {
+                statement.table(alias!(table));
+                //
+                let field = FieldInfo::new(column, dtype.clone());
+                statement.add_column(&mut gen_col(&field));
+            }
+            sql_adt::AlterTable::Delete { table, column } => {
+                statement.table(alias!(table));
+                //
+                statement.drop_column(alias!(column));
+            }
+            sql_adt::AlterTable::Modify {
+                table,
+                column,
+                dtype,
+                is_nullable: _,
+            } => {
+                statement.table(alias!(table));
+                let field = FieldInfo::new(column, dtype.clone());
+                statement.modify_column(&mut gen_col(&field));
+            }
+        };
+
+        statement!(self, statement)
+    }
+
+    fn drop_table(&self, table_name: &str) -> String {
         let mut statement = Table::drop();
         statement.table(alias!(table_name));
+
+        statement!(self, statement)
+    }
+
+    fn rename_table(&self, from: &str, to: &str) -> String {
+        let mut statement = Table::rename();
+        statement.table(alias!(from), alias!(to));
+
+        statement!(self, statement)
+    }
+
+    fn truncate_table(&self, table_name: &str) -> String {
+        let mut statement = Table::truncate();
+        statement.table(alias!(table_name));
+
+        statement!(self, statement)
+    }
+
+    fn create_index(
+        &self,
+        table_name: &str,
+        column_name: &str,
+        index_name: Option<&str>,
+    ) -> String {
+        let mut statement = Index::create();
+        let default_name = format!("idx_{column_name}");
+        statement
+            .name(index_name.unwrap_or(&default_name))
+            .table(alias!(table_name))
+            .col(alias!(column_name));
+
+        statement!(self, statement)
+    }
+
+    fn drop_index(&self, table_name: &str, index_name: &str) -> String {
+        let mut statement = Index::drop();
+        statement.name(index_name).table(alias!(table_name));
+
+        statement!(self, statement)
+    }
+
+    fn create_foreign_key(&self, foreign_key: &sql_adt::ForeignKey) -> String {
+        let mut statement = ForeignKey::create();
+        statement
+            .name(&foreign_key.name)
+            .from(
+                alias!(&foreign_key.from.table),
+                alias!(&foreign_key.from.column),
+            )
+            .to(
+                alias!(&foreign_key.to.table),
+                alias!(&foreign_key.to.column),
+            )
+            .on_delete((&foreign_key.on_delete).into())
+            .on_update((&foreign_key.on_update).into());
+
+        statement!(self, statement)
+    }
+
+    fn drop_foreign_key(&self, table_name: &str, key_name: &str) -> String {
+        let mut statement = ForeignKey::drop();
+        statement.table(alias!(table_name)).name(key_name);
 
         statement!(self, statement)
     }
@@ -50,6 +145,8 @@ fn gen_primary_col(index_option: &sql_adt::IndexOption) -> ColumnDef {
 
     cd
 }
+
+// TODO: is_nullable
 
 /// generate column by `DataframeColumn`
 fn gen_col(field: &FieldInfo) -> ColumnDef {
@@ -80,6 +177,18 @@ fn gen_col(field: &FieldInfo) -> ColumnDef {
     // }
 
     c
+}
+
+impl From<&sql_adt::ForeignKeyAction> for ForeignKeyAction {
+    fn from(v: &sql_adt::ForeignKeyAction) -> Self {
+        match v {
+            sql_adt::ForeignKeyAction::NoAction => ForeignKeyAction::NoAction,
+            sql_adt::ForeignKeyAction::Cascade => ForeignKeyAction::Cascade,
+            sql_adt::ForeignKeyAction::SetNull => ForeignKeyAction::SetNull,
+            sql_adt::ForeignKeyAction::SetDefault => ForeignKeyAction::SetDefault,
+            sql_adt::ForeignKeyAction::Restrict => ForeignKeyAction::Restrict,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -136,7 +245,7 @@ mod test_mutation_ddl {
 
     #[test]
     fn test_delete_table() {
-        let delete_table = SqlBuilder::Sqlite.delete_table("test");
+        let delete_table = SqlBuilder::Sqlite.drop_table("test");
 
         println!("{:?}", delete_table);
 

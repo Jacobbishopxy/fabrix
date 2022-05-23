@@ -6,21 +6,28 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 
-use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, SqlError, WriteOptions};
-
-use super::{sql_adt, sql_executor::SqlConnInfo, SqlEngine, SqlExecutor};
+use super::{sql_adt, SqlConnInfo, SqlEngine, SqlExecutor};
+use crate::{DatabaseType, Fabrix, FabrixError, FabrixResult, IntoSource, SqlError, WriteOptions};
 
 // ================================================================================================
 // Sql Writer
 // ================================================================================================
 
-pub struct Writer {
-    sql_writer: SqlExecutor,
+pub struct Writer<T>
+where
+    T: DatabaseType,
+{
+    sql_writer: SqlExecutor<T>,
     save_strategy: Option<sql_adt::SaveStrategy>,
 }
 
-impl Writer {
-    pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(conn: C) -> FabrixResult<Writer> {
+impl<T> Writer<T>
+where
+    T: DatabaseType,
+{
+    pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(
+        conn: C,
+    ) -> FabrixResult<Writer<T>> {
         let conn = conn.try_into()?;
         let mut sql_writer = SqlExecutor::new(conn);
         sql_writer.connect().await?;
@@ -31,7 +38,7 @@ impl Writer {
         })
     }
 
-    pub async fn new_from_str(conn_str: &str) -> FabrixResult<Writer> {
+    pub async fn new_from_str(conn_str: &str) -> FabrixResult<Writer<T>> {
         let mut sql_writer = SqlExecutor::from_str(conn_str)?;
         sql_writer.connect().await?;
 
@@ -44,7 +51,7 @@ impl Writer {
     pub async fn new_writer<C: TryInto<SqlConnInfo, Error = SqlError>>(
         &mut self,
         conn: C,
-    ) -> FabrixResult<Writer> {
+    ) -> FabrixResult<Writer<T>> {
         self.sql_writer.disconnect().await?;
         let conn = conn.try_into()?;
         let mut sql_writer = SqlExecutor::new(conn);
@@ -56,7 +63,7 @@ impl Writer {
         })
     }
 
-    pub async fn new_writer_from_str(&mut self, conn_str: &str) -> FabrixResult<Writer> {
+    pub async fn new_writer_from_str(&mut self, conn_str: &str) -> FabrixResult<Writer<T>> {
         self.sql_writer.disconnect().await?;
         let mut sql_writer = SqlExecutor::from_str(conn_str)?;
         sql_writer.connect().await?;
@@ -67,7 +74,7 @@ impl Writer {
         })
     }
 
-    pub fn writer(&self) -> &SqlExecutor {
+    pub fn writer(&self) -> &SqlExecutor<T> {
         &self.sql_writer
     }
 
@@ -108,7 +115,10 @@ impl<'a> WriteOptions for SqlWriteOptions<'a> {
 }
 
 #[async_trait]
-impl<'a> IntoSource<'a, SqlWriteOptions<'_>> for Writer {
+impl<'a, T> IntoSource<'a, SqlWriteOptions<'_>> for Writer<T>
+where
+    T: DatabaseType,
+{
     async fn async_write<'o>(
         &mut self,
         fabrix: Fabrix,
@@ -143,14 +153,14 @@ impl<'a> IntoSource<'a, SqlWriteOptions<'_>> for Writer {
 #[cfg(test)]
 mod test_sql_writer {
     use super::*;
-    use crate::{date, fx};
+    use crate::{date, fx, DatabaseSqlite};
 
     const CONN: &str = "sqlite://dev.sqlite";
     const TABLE: &str = "ds_sql_test";
 
     #[tokio::test]
     async fn test_write() {
-        let mut writer = Writer::new_from_str(CONN).await.unwrap();
+        let mut writer = Writer::<DatabaseSqlite>::new_from_str(CONN).await.unwrap();
 
         let fx = fx![
             "ord";

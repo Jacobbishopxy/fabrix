@@ -6,7 +6,7 @@ use std::io::{Cursor, Write};
 
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, Result};
-use fabrix::{sql_adt, CsvReader, SqlWriter};
+use fabrix::{sql_adt, CsvReader, DatabaseSqlite, SqlWriter};
 use futures::{StreamExt, TryStreamExt};
 
 use crate::{get_current_time, AppError, UploadedFile, DB_CONN, FILE_TYPE_CSV, MULTIPART_KEY_FILE};
@@ -41,7 +41,7 @@ pub async fn csv_to_db(mut payload: Multipart) -> Result<HttpResponse> {
             let mut reader = CsvReader::new(buff);
             let fx = reader.finish(None).map_err(AppError::Fabrix)?;
 
-            let mut writer = SqlWriter::new_from_str(DB_CONN)
+            let mut writer = SqlWriter::<DatabaseSqlite>::new_from_str(DB_CONN)
                 .await
                 .map_err(AppError::Fabrix)?;
 

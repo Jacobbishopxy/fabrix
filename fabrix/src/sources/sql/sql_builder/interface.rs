@@ -23,23 +23,22 @@ pub trait DdlMutation {
         index_option: Option<&sql_adt::IndexOption>,
     ) -> String;
 
-    fn delete_table(&self, table_name: &str) -> String;
+    fn alter_table(&self, alter: &sql_adt::AlterTable) -> String;
 
-    // fn alter_table(&self) -> Vec<String>;
+    fn drop_table(&self, table_name: &str) -> String;
 
-    // fn drop_table(&self, table_name: &str) -> String;
+    fn rename_table(&self, from: &str, to: &str) -> String;
 
-    // fn rename_table(&self, from: &str, to: &str) -> String;
+    fn truncate_table(&self, table_name: &str) -> String;
 
-    // fn truncate_table(&self, table_name: &str) -> String;
+    fn create_index(&self, table_name: &str, column_name: &str, index_name: Option<&str>)
+        -> String;
 
-    // fn create_index(&self) -> String;
+    fn drop_index(&self, table_name: &str, index_name: &str) -> String;
 
-    // fn drop_index(&self) -> String;
+    fn create_foreign_key(&self, foreign_key: &sql_adt::ForeignKey) -> String;
 
-    // fn create_foreign_key(&self) -> String;
-
-    // fn drop_foreign_key(&self) -> String;
+    fn drop_foreign_key(&self, table_name: &str, key_name: &str) -> String;
 }
 
 // DML Query

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::CoreError;
 
 use super::{
-    impl_custom_value, impl_custom_value2, impl_try_from_value, impl_value_from, BYTES,
+    impl_custom_value_inner, impl_custom_value_outer, impl_try_from_value, impl_value_from, BYTES,
     DAYS19700101, DECIMAL, NANO10E9, UUID,
 };
 
@@ -44,7 +44,7 @@ pub type ObjectTypeBytes = ObjectType<Bytes>;
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
 pub struct Decimal(pub rust_decimal::Decimal);
 
-impl_custom_value!(Decimal, DECIMAL);
+impl_custom_value_inner!(Decimal, DECIMAL);
 
 impl Decimal {
     pub fn new(num: i64, scale: u32) -> Self {
@@ -56,13 +56,13 @@ impl Decimal {
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
 pub struct Uuid(pub uuid::Uuid);
 
-impl_custom_value!(Uuid, UUID);
+impl_custom_value_inner!(Uuid, UUID);
 
 /// Custom Value: Bytes
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
 pub struct Bytes(pub Vec<u8>);
 
-impl_custom_value2!(Bytes, BYTES);
+impl_custom_value_outer!(Bytes, BYTES);
 
 impl From<&str> for Bytes {
     fn from(v: &str) -> Self {
@@ -96,8 +96,11 @@ pub enum Value {
     I64(i64),
     F32(f32),
     F64(f64),
+    // A 32-bit date representing the elapsed time since UNIX epoch (1970-01-01) in days (32 bits).
     Date(i32),
+    // A 64-bit time representing the elapsed time since midnight in nanoseconds.
     Time(i64),
+    // A 64-bit date representing the elapsed time since UNIX epoch (1970-01-01) in nanoseconds (64 bits).
     DateTime(i64),
     String(String),
     Decimal(Decimal),
@@ -820,6 +823,41 @@ impl_try_from_value!(F64, Option<f64>, "Option<f64>");
 impl_try_from_value!(Decimal, Option<Decimal>, "Option<Decimal>");
 impl_try_from_value!(Uuid, Option<Uuid>, "Option<Uuid>");
 impl_try_from_value!(Bytes, Option<Bytes>, "Option<Bytes>");
+
+// ================================================================================================
+// Conversion of Value to NaiveDate/NaiveTime/NaiveDateTime
+// ================================================================================================
+
+pub(crate) struct Value2ChronoHelper;
+
+impl Value2ChronoHelper {
+    pub fn convert_value_to_naive_date(value: Value) -> Result<NaiveDate, CoreError> {
+        if let Value::Date(v) = value {
+            NaiveDate::from_num_days_from_ce_opt(v + DAYS19700101)
+                .ok_or_else(|| CoreError::new_parse_info_error(value, "NaiveDate"))
+        } else {
+            Err(CoreError::new_parse_info_error(value, "NaiveDate"))
+        }
+    }
+
+    pub fn convert_value_to_naive_time(value: Value) -> Result<NaiveTime, CoreError> {
+        if let Value::Time(v) = value {
+            NaiveTime::from_num_seconds_from_midnight_opt((v / NANO10E9) as u32, 0)
+                .ok_or_else(|| CoreError::new_parse_info_error(value, "NaiveTime"))
+        } else {
+            Err(CoreError::new_parse_info_error(value, "NaiveTime"))
+        }
+    }
+
+    pub fn convert_value_to_naive_datetime(value: Value) -> Result<NaiveDateTime, CoreError> {
+        if let Value::DateTime(v) = value {
+            NaiveDateTime::from_timestamp_opt(v / NANO10E9, 0)
+                .ok_or_else(|| CoreError::new_parse_info_error(value, "NaiveDateTime"))
+        } else {
+            Err(CoreError::new_parse_info_error(value, "NaiveDateTime"))
+        }
+    }
+}
 
 #[cfg(test)]
 mod test_value {
