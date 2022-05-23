@@ -73,6 +73,49 @@ impl DdlQuery for SqlBuilder {
         que.replace('?', table_name)
     }
 
+    fn check_table_constraint(&self, table_name: &str) -> String {
+        let que = match self {
+            SqlBuilder::Mysql => {
+                r#"
+                SELECT
+                    tc.constraint_name,
+                    tc.constraint_type,
+                    kcu.column_name
+                FROM
+                    information_schema.table_constraints AS tc
+                INNER JOIN
+                    information_schema.key_column_usage AS kcu
+                ON
+                    tc.constraint_name = kcu.constraint_name
+                WHERE
+                    tc.table_name = '?'
+                AND
+                    kcu.table_name = '?'
+                "#
+            }
+            SqlBuilder::Postgres => {
+                r#"
+                SELECT
+                    tc.constraint_name,
+                    tc.constraint_type,
+                    ccu.column_name
+                FROM
+                    information_schema.table_constraints AS tc
+                INNER JOIN
+                    information_schema.constraint_column_usage AS ccu
+                ON
+                    tc.constraint_name = ccu.constraint_name
+                WHERE
+                    tc.table_name = '?'
+                AND
+                    ccu.table_name = '?'
+                "#
+            }
+            SqlBuilder::Sqlite => unimplemented!(),
+        };
+        que.replace('?', table_name)
+    }
+
     /// list all tables in the current database
     fn list_tables(&self) -> String {
         match self {
@@ -110,7 +153,8 @@ impl DdlQuery for SqlBuilder {
                     INFORMATION_SCHEMA.COLUMNS
                 WHERE
                     TABLE_NAME = '?'
-                    AND COLUMN_KEY = 'PRI'
+                AND
+                    COLUMN_KEY = 'PRI'
                 "#
             }
             SqlBuilder::Postgres => {
@@ -119,12 +163,14 @@ impl DdlQuery for SqlBuilder {
                     c.column_name
                 FROM
                     information_schema.key_column_usage AS c
-                LEFT JOIN information_schema.table_constraints AS t
+                LEFT JOIN
+                    information_schema.table_constraints AS t
                 ON
                     t.constraint_name = c.constraint_name
                 WHERE
                     t.table_name = '?'
-                    AND t.constraint_type = 'PRIMARY KEY'
+                AND
+                    t.constraint_type = 'PRIMARY KEY'
                 "#
             }
             SqlBuilder::Sqlite => {

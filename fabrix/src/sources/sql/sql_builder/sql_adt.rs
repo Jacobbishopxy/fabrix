@@ -1,5 +1,7 @@
 //! Fabrix SqlBuilder ADT
 
+use std::str::FromStr;
+
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -15,8 +17,6 @@ pub struct TableSchema {
     pub name: String,
     pub dtype: ValueType,
     pub is_nullable: bool,
-    // pub is_primary: bool,
-    // pub is_unique: bool,
 }
 
 impl From<FieldInfo> for TableSchema {
@@ -25,8 +25,51 @@ impl From<FieldInfo> for TableSchema {
             name: fi.name,
             dtype: fi.dtype,
             is_nullable: true,
-            // is_primary: false,
-            // is_unique: false,
+        }
+    }
+}
+
+// ================================================================================================
+// Constraint
+// ================================================================================================
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum ConstraintType {
+    Check,
+    NotNull,
+    Unique,
+    PrimaryKey,
+    ForeignKey,
+}
+
+impl FromStr for ConstraintType {
+    type Err = SqlError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "CHECK" => Ok(ConstraintType::Check),
+            "NOT NULL" => Ok(ConstraintType::NotNull),
+            "UNIQUE" => Ok(ConstraintType::Unique),
+            "PRIMARY KEY" => Ok(ConstraintType::PrimaryKey),
+            "FOREIGN KEY" => Ok(ConstraintType::ForeignKey),
+            _ => Err(SqlError::new_common_error("invalid constraint type")),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct TableConstraint {
+    pub name: String,
+    pub constraint_type: ConstraintType,
+    pub column: String,
+}
+
+impl TableConstraint {
+    pub fn new(name: String, constraint_type: ConstraintType, column: String) -> Self {
+        TableConstraint {
+            name,
+            constraint_type,
+            column,
         }
     }
 }
@@ -151,7 +194,7 @@ impl From<(&str, &str)> for ColumnAlias {
 // AlterTable
 // ================================================================================================
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum AlterTable {
     Add {
         table: String,

@@ -27,6 +27,12 @@ pub trait SqlHelper {
     /// get schema from a table
     async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<sql_adt::TableSchema>>;
 
+    /// get constraint from a table
+    async fn get_table_constraint(
+        &self,
+        table_name: &str,
+    ) -> SqlResult<Vec<sql_adt::TableConstraint>>;
+
     /// list all tables
     async fn list_tables(&self) -> SqlResult<Vec<String>>;
 
@@ -188,6 +194,41 @@ where
                 Ok(res)
             })
             .collect::<SqlResult<Vec<sql_adt::TableSchema>>>()?;
+
+        Ok(res)
+    }
+
+    async fn get_table_constraint(
+        &self,
+        table_name: &str,
+    ) -> SqlResult<Vec<sql_adt::TableConstraint>> {
+        conn_n_err!(self.pool);
+        if let SqlBuilder::Sqlite = &self.driver {
+            return Err(SqlError::new_common_error(
+                "Sqlite does not support constraints",
+            ));
+        }
+        let que = self.driver.check_table_constraint(table_name);
+        let schema = [ValueType::String, ValueType::String, ValueType::String];
+        let res = self
+            .pool
+            .as_ref()
+            .unwrap()
+            .fetch_all_with_schema(&que, &schema)
+            .await?
+            .into_iter()
+            .map(|v| {
+                let constraint_name = try_value_into_string(&v[0])?;
+                let constraint_type = try_value_into_string(&v[1])?;
+                let constraint_type = sql_adt::ConstraintType::from_str(&constraint_type)?;
+                let column_name = try_value_into_string(&v[2])?;
+                Ok(sql_adt::TableConstraint::new(
+                    constraint_name,
+                    constraint_type,
+                    column_name,
+                ))
+            })
+            .collect::<SqlResult<Vec<sql_adt::TableConstraint>>>()?;
 
         Ok(res)
     }
@@ -886,6 +927,28 @@ mod test_executor {
         let schema = exc.get_table_schema(TABLE_NAME).await.unwrap();
         println!("{:?}\n", schema);
         assert!(!schema.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_table_constraint() {
+        // mysql
+        let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        exc.connect().await.expect("connection is ok");
+
+        let schema = exc.get_table_constraint(TABLE_NAME).await.unwrap();
+        println!("{:?}\n", schema);
+        assert!(!schema.is_empty());
+
+        // pg
+        let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        exc.connect().await.expect("connection is ok");
+
+        let schema = exc.get_table_constraint(TABLE_NAME).await.unwrap();
+        println!("{:?}\n", schema);
+        assert!(!schema.is_empty());
+
+        // sqlite
+        // WARN SQLITE doesn't support check constraints
     }
 
     #[tokio::test]
