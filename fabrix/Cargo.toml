@@ -15,10 +15,9 @@ itertools = "0"
 lazy_static = "1"
 nom = "7"
 polars = { version = "0", features = [
+    "lazy",
     "bigidx",
     "strings",
-    "serde",
-    "serde-lazy",
     "parquet",
     "json",
     "dtype-full",

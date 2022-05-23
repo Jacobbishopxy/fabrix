@@ -601,6 +601,15 @@ impl Fabrix {
     }
 }
 
+impl From<DataFrame> for Fabrix {
+    fn from(df: DataFrame) -> Self {
+        Self {
+            data: df,
+            index_tag: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test_fabrix_dataframe {
 

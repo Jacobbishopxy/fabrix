@@ -1297,7 +1297,6 @@ checksum = "0f647032dfaa1f8b6dc29bd3edb7bbef4861b8b8007ebb118d6db284fd59f6ee"
 dependencies = [
  "autocfg",
  "hashbrown 0.11.2",
- "serde",
 ]
 
 [[package]]
@@ -2010,7 +2009,6 @@ dependencies = [
  "arrow2",
  "hashbrown 0.12.1",
  "num",
- "serde",
  "thiserror",
 ]
 
@@ -2035,7 +2033,6 @@ dependencies = [
  "rand_distr",
  "rayon",
  "regex",
- "serde",
  "serde_json",
  "thiserror",
 ]
@@ -2062,7 +2059,6 @@ dependencies = [
  "polars-utils",
  "rayon",
  "regex",
- "serde",
  "serde_json",
  "simdutf8",
 ]
@@ -2082,7 +2078,6 @@ dependencies = [
  "polars-time",
  "polars-utils",
  "rayon",
- "serde",
 ]
 
 [[package]]
@@ -2104,7 +2099,6 @@ dependencies = [
  "lexical",
  "polars-arrow",
  "polars-core",
- "serde",
 ]
 
 [[package]]

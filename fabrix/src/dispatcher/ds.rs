@@ -102,12 +102,20 @@ where
         }
     }
 
-    pub fn fabrix(&self) -> Option<&Fabrix> {
+    pub fn fabrix_ref(&self) -> Option<&Fabrix> {
         self.fabrix.as_ref()
     }
 
     pub fn fabrix_mut(&mut self) -> Option<&mut Fabrix> {
         self.fabrix.as_mut()
+    }
+
+    pub fn fabrix_take(&mut self) -> Option<Fabrix> {
+        self.fabrix.take()
+    }
+
+    pub fn fabrix_put<T: Into<Fabrix>>(&mut self, fx: T) {
+        self.fabrix = Some(fx.into());
     }
 
     pub fn has_data(&self) -> bool {
@@ -246,8 +254,8 @@ mod dispatcher_tests {
 
         let res = dispatcher.sync_read(&EmptyOption);
         assert!(res.is_ok());
-        assert!(dispatcher.fabrix().is_some());
-        assert_eq!(dispatcher.fabrix().unwrap().shape(), (0, 0));
+        assert!(dispatcher.fabrix_ref().is_some());
+        assert_eq!(dispatcher.fabrix_ref().unwrap().shape(), (0, 0));
     }
 
     #[tokio::test]
@@ -256,8 +264,8 @@ mod dispatcher_tests {
 
         let res = dispatcher.async_read(&EmptyOption).await;
         assert!(res.is_ok());
-        assert!(dispatcher.fabrix().is_some());
-        assert_eq!(dispatcher.fabrix().unwrap().shape(), (0, 0));
+        assert!(dispatcher.fabrix_ref().is_some());
+        assert_eq!(dispatcher.fabrix_ref().unwrap().shape(), (0, 0));
     }
 
     #[test]
@@ -287,7 +295,7 @@ mod dispatcher_tests {
         let res = dispatcher.sync_read(&ro);
         assert!(res.is_ok());
 
-        let fx = dispatcher.fabrix();
+        let fx = dispatcher.fabrix_ref();
         assert!(fx.is_some());
         println!("{:?}", fx.unwrap());
 
@@ -307,7 +315,7 @@ mod dispatcher_tests {
         let res = dispatcher.sync_read(&ro);
         assert!(res.is_ok());
 
-        let fx = dispatcher.fabrix();
+        let fx = dispatcher.fabrix_ref();
         assert!(fx.is_some());
         println!("{:?}", fx.unwrap());
 
