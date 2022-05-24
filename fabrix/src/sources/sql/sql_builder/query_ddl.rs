@@ -111,9 +111,19 @@ impl DdlQuery for SqlBuilder {
                     ccu.table_name = '?'
                 "#
             }
-            SqlBuilder::Sqlite => unimplemented!(),
+            SqlBuilder::Sqlite => {
+                // TODO:
+                // pragma_table_info
+                // pragma_index_list -> pragma_index_info
+                // pragma_foreign_key_list
+                unimplemented!()
+            }
         };
         que.replace('?', table_name)
+    }
+
+    fn check_column_constraint(&self, _table_name: &str) -> String {
+        todo!()
     }
 
     /// list all tables in the current database

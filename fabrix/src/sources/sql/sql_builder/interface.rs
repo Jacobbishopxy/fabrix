@@ -11,6 +11,8 @@ pub trait DdlQuery {
 
     fn check_table_constraint(&self, table_name: &str) -> String;
 
+    fn check_column_constraint(&self, table_name: &str) -> String;
+
     fn list_tables(&self) -> String;
 
     fn get_primary_key(&self, table_name: &str) -> String;

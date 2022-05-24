@@ -308,7 +308,6 @@ impl Series {
     }
 
     /// check if contains null value
-    /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
     pub fn has_null(&self) -> bool {
         !self.0.is_not_null().all()
     }
@@ -967,6 +966,26 @@ mod test_fabrix_series {
             Some(date!(2019, 1, 3)),
             Some(date!(2019, 1, 4)),
         ]);
+        assert!(s.has_null());
+
+        let s = series!("yes" => [
+            Some(datetime!(2019, 1, 1, 0, 0, 0)),
+            None,
+            Some(datetime!(2019, 1, 3, 0, 0, 0)),
+            Some(datetime!(2019, 1, 4, 0, 0, 0)),
+        ]);
+
+        assert!(s.has_null());
+
+        let s = series!("yes" => [
+            Some(uuid!()),
+            Some(uuid!()),
+            Some(uuid!()),
+            Some(uuid!()),
+            None,
+            Some(uuid!()),
+        ]);
+
         assert!(s.has_null());
     }
 

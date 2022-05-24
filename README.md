@@ -94,6 +94,7 @@ There are three main parts in this crate:
 
 ## Todo
 
+- sql_adt: table & column constraints
 - sql_adt: Select & Delete from Json
 - sql_adt: enhance TableSchema
 - sql_adt: Join, Group by

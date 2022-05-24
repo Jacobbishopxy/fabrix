@@ -106,6 +106,7 @@ impl DdlMutation for SqlBuilder {
     }
 
     fn create_foreign_key(&self, foreign_key: &sql_adt::ForeignKey) -> String {
+        // Sqlite does not support modification of foreign key constraints to existing tables
         let mut statement = ForeignKey::create();
         statement
             .name(&foreign_key.name)
@@ -124,6 +125,7 @@ impl DdlMutation for SqlBuilder {
     }
 
     fn drop_foreign_key(&self, table_name: &str, key_name: &str) -> String {
+        // Sqlite does not support modification of foreign key constraints to existing tables
         let mut statement = ForeignKey::drop();
         statement.table(alias!(table_name)).name(key_name);
 

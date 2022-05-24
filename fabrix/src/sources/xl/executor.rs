@@ -506,14 +506,12 @@ mod test_xl_executor {
 
         fn transform(cell: XlCell) -> Self::UnitOut {
             // here to show what information a cell contains
-            dbg!(
-                &cell.value,
-                &cell.formula,
-                &cell.reference,
-                &cell.style,
-                &cell.cell_type,
-                &cell.raw_value
-            );
+            println!("{:?}", &cell.value);
+            println!("{:?}", &cell.formula);
+            println!("{:?}", &cell.reference);
+            println!("{:?}", &cell.style);
+            println!("{:?}", &cell.cell_type);
+            println!("{:?}", &cell.raw_value);
             println!("========================================================");
             cell.value.to_string()
         }
