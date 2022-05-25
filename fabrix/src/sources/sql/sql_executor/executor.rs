@@ -27,11 +27,20 @@ pub trait SqlHelper {
     /// get schema from a table
     async fn get_table_schema(&self, table_name: &str) -> SqlResult<Vec<sql_adt::TableSchema>>;
 
-    /// get constraint from a table
+    /// get table constraint from a table
     async fn get_table_constraint(
         &self,
         table_name: &str,
     ) -> SqlResult<Vec<sql_adt::TableConstraint>>;
+
+    /// get column constraint from a table
+    async fn get_column_constraint(
+        &self,
+        table_name: &str,
+    ) -> SqlResult<Vec<sql_adt::ColumnConstraint>>;
+
+    /// get column index from a table
+    async fn get_column_index(&self, table_name: &str) -> SqlResult<Vec<sql_adt::ColumnIndex>>;
 
     /// list all tables
     async fn list_tables(&self) -> SqlResult<Vec<String>>;
@@ -209,7 +218,7 @@ where
             ));
         }
         let que = self.driver.check_table_constraint(table_name);
-        let schema = [ValueType::String, ValueType::String, ValueType::String];
+        let schema = [ValueType::String, ValueType::String];
         let res = self
             .pool
             .as_ref()
@@ -221,14 +230,67 @@ where
                 let constraint_name = try_value_into_string(&v[0])?;
                 let constraint_type = try_value_into_string(&v[1])?;
                 let constraint_type = sql_adt::ConstraintType::from_str(&constraint_type)?;
-                let column_name = try_value_into_string(&v[2])?;
                 Ok(sql_adt::TableConstraint::new(
                     constraint_name,
                     constraint_type,
-                    column_name,
                 ))
             })
             .collect::<SqlResult<Vec<sql_adt::TableConstraint>>>()?;
+
+        Ok(res)
+    }
+
+    async fn get_column_constraint(
+        &self,
+        table_name: &str,
+    ) -> SqlResult<Vec<sql_adt::ColumnConstraint>> {
+        conn_n_err!(self.pool);
+        if let SqlBuilder::Sqlite = &self.driver {
+            return Err(SqlError::new_common_error(
+                "Sqlite does not support constraints",
+            ));
+        }
+        let que = self.driver.check_column_constraint(table_name);
+        let schema = [ValueType::String, ValueType::String];
+        let res = self
+            .pool
+            .as_ref()
+            .unwrap()
+            .fetch_all_with_schema(&que, &schema)
+            .await?
+            .into_iter()
+            .map(|v| {
+                let constraint_name = try_value_into_string(&v[0])?;
+                let column_name = try_value_into_string(&v[1])?;
+                Ok(sql_adt::ColumnConstraint::new(constraint_name, column_name))
+            })
+            .collect::<SqlResult<Vec<sql_adt::ColumnConstraint>>>()?;
+
+        Ok(res)
+    }
+
+    async fn get_column_index(&self, table_name: &str) -> SqlResult<Vec<sql_adt::ColumnIndex>> {
+        conn_n_err!(self.pool);
+        if let SqlBuilder::Sqlite = &self.driver {
+            return Err(SqlError::new_common_error(
+                "Sqlite does not support indexes",
+            ));
+        }
+        let que = self.driver.check_column_index(table_name);
+        let schema = [ValueType::String, ValueType::String];
+        let res = self
+            .pool
+            .as_ref()
+            .unwrap()
+            .fetch_all_with_schema(&que, &schema)
+            .await?
+            .into_iter()
+            .map(|v| {
+                let index_name = try_value_into_string(&v[0])?;
+                let column_name = try_value_into_string(&v[1])?;
+                Ok(sql_adt::ColumnIndex::new(index_name, column_name))
+            })
+            .collect::<SqlResult<Vec<sql_adt::ColumnIndex>>>()?;
 
         Ok(res)
     }

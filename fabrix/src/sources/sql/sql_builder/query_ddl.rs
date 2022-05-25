@@ -78,52 +78,97 @@ impl DdlQuery for SqlBuilder {
             SqlBuilder::Mysql => {
                 r#"
                 SELECT
-                    tc.constraint_name,
-                    tc.constraint_type,
-                    kcu.column_name
+                    constraint_name,
+                    constraint_type,
                 FROM
-                    information_schema.table_constraints AS tc
-                INNER JOIN
-                    information_schema.key_column_usage AS kcu
-                ON
-                    tc.constraint_name = kcu.constraint_name
+                    information_schema.table_constraints
                 WHERE
-                    tc.table_name = '?'
-                AND
-                    kcu.table_name = '?'
+                    table_name = '?'
                 "#
             }
             SqlBuilder::Postgres => {
                 r#"
                 SELECT
-                    tc.constraint_name,
-                    tc.constraint_type,
-                    ccu.column_name
+                    constraint_name,
+                    constraint_type,
                 FROM
-                    information_schema.table_constraints AS tc
-                INNER JOIN
-                    information_schema.constraint_column_usage AS ccu
-                ON
-                    tc.constraint_name = ccu.constraint_name
+                    information_schema.table_constraints
                 WHERE
-                    tc.table_name = '?'
-                AND
-                    ccu.table_name = '?'
+                    table_name = '?'
                 "#
             }
-            SqlBuilder::Sqlite => {
-                // TODO:
-                // pragma_table_info
-                // pragma_index_list -> pragma_index_info
-                // pragma_foreign_key_list
-                unimplemented!()
-            }
+            SqlBuilder::Sqlite => unimplemented!(),
         };
         que.replace('?', table_name)
     }
 
-    fn check_column_constraint(&self, _table_name: &str) -> String {
-        todo!()
+    fn check_column_constraint(&self, table_name: &str) -> String {
+        let que = match self {
+            SqlBuilder::Mysql => {
+                r#"
+                SELECT
+                    constraint_name,
+                    column_name,
+                FROM
+                    information_schema.key_column_usage
+                WHERE
+                    table_name = '?'
+                "#
+            }
+            SqlBuilder::Postgres => {
+                r#"
+                SELECT
+                    constraint_name,
+                    column_name,
+                FROM
+                    information_schema.constraint_column_usage
+                WHERE
+                    table_name = '?'
+                "#
+            }
+            SqlBuilder::Sqlite => unimplemented!(),
+        };
+        que.replace('?', table_name)
+    }
+
+    /// list all indexes and their columns of a table
+    fn check_column_index(&self, table_name: &str) -> String {
+        let que = match self {
+            SqlBuilder::Mysql => {
+                r#"
+                select
+                    index_name, column_name
+                from
+                    information_schema.statistics
+                where
+                    table_name = '?';
+                "#
+            }
+            SqlBuilder::Postgres => {
+                r#"
+                select
+                    i.relname as index_name,
+                    a.attname as column_name
+                from
+                    pg_class t,
+                    pg_class i,
+                    pg_index ix,
+                    pg_attribute a
+                where
+                    t.oid = ix.indrelid
+                    and i.oid = ix.indexrelid
+                    and a.attrelid = t.oid
+                    and a.attnum = ANY(ix.indkey)
+                    and t.relkind = 'r'
+                    and t.relname = '?'
+                order by
+                    t.relname,
+                    i.relname;
+                "#
+            }
+            SqlBuilder::Sqlite => unimplemented!(),
+        };
+        que.replace('?', table_name)
     }
 
     /// list all tables in the current database

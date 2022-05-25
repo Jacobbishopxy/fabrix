@@ -59,17 +59,45 @@ impl FromStr for ConstraintType {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct TableConstraint {
-    pub name: String,
+    pub constraint_name: String,
     pub constraint_type: ConstraintType,
-    pub column: String,
 }
 
 impl TableConstraint {
-    pub fn new(name: String, constraint_type: ConstraintType, column: String) -> Self {
+    pub fn new(constraint_name: String, constraint_type: ConstraintType) -> Self {
         TableConstraint {
-            name,
+            constraint_name,
             constraint_type,
-            column,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ColumnConstraint {
+    pub constraint_name: String,
+    pub column_name: String,
+}
+
+impl ColumnConstraint {
+    pub fn new(name: String, column: String) -> Self {
+        ColumnConstraint {
+            constraint_name: name,
+            column_name: column,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ColumnIndex {
+    pub index_name: String,
+    pub column_name: String,
+}
+
+impl ColumnIndex {
+    pub fn new(name: String, column: String) -> Self {
+        ColumnIndex {
+            index_name: name,
+            column_name: column,
         }
     }
 }
