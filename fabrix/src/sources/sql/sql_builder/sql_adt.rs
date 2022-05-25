@@ -427,7 +427,6 @@ pub struct Select {
     pub include_primary_key: Option<bool>,
 }
 
-// TODO: methods required: from_json, from_json_string
 impl Select {
     pub fn new<T: Into<String>>(table: T) -> Self {
         Select {
@@ -493,7 +492,6 @@ pub struct Delete {
     pub filter: Expressions,
 }
 
-// TODO: methods required: from_json, from_json_string
 impl Delete {
     pub fn new(table: String) -> Self {
         Delete {
@@ -532,7 +530,6 @@ pub enum SaveStrategy {
 // IndexType & IndexOption
 // ================================================================================================
 
-// TODO: maybe we need more index type?
 /// index type is used for defining Sql column type
 #[derive(Debug, Clone)]
 pub enum IndexType {

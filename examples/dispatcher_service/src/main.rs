@@ -3,7 +3,7 @@
 //! A simple service that accepts multiple sources of data and dispatches them to different places.
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
-use dispatcher_service::{csv2db::csv_to_db, csv2json::csv_to_json};
+use dispatcher_service::{csv_to_db, csv_to_json, xl_to_db, xl_to_json};
 
 // TODO: log4rs
 
@@ -32,7 +32,11 @@ async fn main() -> std::io::Result<()> {
                             .route("/to_json", web::post().to(csv_to_json))
                             .route("/to_db", web::post().to(csv_to_db)),
                     )
-                    .service(web::scope("/xl"))
+                    .service(
+                        web::scope("/xl")
+                            .route("/to_json", web::post().to(xl_to_json))
+                            .route("/to_db", web::post().to(xl_to_db)),
+                    )
                     .service(web::scope("/db")),
             )
     })
