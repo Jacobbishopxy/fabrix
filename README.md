@@ -90,10 +90,17 @@ There are three main parts in this crate:
 ## Examples
 
 1. [File process service](./examples/file_process_service/src/main.rs): a simple web server who accepts multiple types of file and turn their data into json format.
-1. [Dispatcher service](./examples/dispatcher_service/src/main.rs)
+1. [Dispatcher service](./examples/dispatcher_service/src/main.rs):
+   - upload csv file, read data and save into database
+   - upload csv file, read data and response by json format
+   - upload excel file, read data and save into database
+   - upload excel file, read data and response by json format
+   - select data from database and download a csv file
+   - select data from database and download a csv file
 
 ## Todo
 
+- sql_adt: Condition custom serialization/deserialization
 - sql_adt: Join, Group by
 - sources: from remote (use `reqwest` crate)
 - BSON support

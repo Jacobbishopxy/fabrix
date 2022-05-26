@@ -127,11 +127,6 @@ async fn xl_to_json(
     Ok(HttpResponse::Ok().body(serde_json::json!(data).to_string()))
 }
 
-// convert csv to json
-async fn csv_to_json(mut _payload: Multipart) -> Result<HttpResponse, Error> {
-    todo!()
-}
-
 async fn index() -> HttpResponse {
     let html = include_str!("index.html");
 
@@ -169,7 +164,6 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/save").route(web::post().to(save_file)))
             .service(web::resource("/xl").route(web::post().to(xl_to_json)))
-            .service(web::resource("/csv").route(web::post().to(csv_to_json)))
     })
     .bind(sock_addr)?
     .run()

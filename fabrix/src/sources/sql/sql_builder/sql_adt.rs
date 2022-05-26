@@ -252,6 +252,8 @@ pub enum Conjunction {
     OR,
 }
 
+// TODO: custom serialize/deserialize
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Equation {
     Not,
@@ -299,6 +301,7 @@ impl From<Condition> for Expression {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(transparent)]
 pub struct Expressions(pub(crate) Vec<Expression>);
 
 // ================================================================================================
@@ -714,5 +717,22 @@ mod test_sql_adt {
         .finish();
 
         println!("{:?}", b);
+    }
+
+    #[test]
+    fn expression_serialize() {
+        let e = Expressions(vec![
+            Expression::Simple(Condition {
+                column: "a".to_owned(),
+                equation: Equation::Equal(Value::I16(1)),
+            }),
+            Expression::Conjunction(Conjunction::OR),
+            Expression::Simple(Condition {
+                column: "b".to_owned(),
+                equation: Equation::Equal(Value::U32(2)),
+            }),
+        ]);
+        let foo = serde_json::to_string(&e).unwrap();
+        println!("{:?}", foo);
     }
 }
