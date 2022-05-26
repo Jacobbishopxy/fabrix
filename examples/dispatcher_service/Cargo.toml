@@ -9,14 +9,14 @@ fabrix = { path = "../../fabrix" }
 
 actix-multipart = "0"
 actix-web = { version = "4", default-features = false, features = ["cookies", "macros"]}
-env_logger = "0"
 futures = "0"
 log = "0"
-log4rs = { version = "1", features = ["console_appender", "file_appender", "rolling_file_appender", "compound_policy", "size_trigger"] }
+log4rs = { version = "1", features = ["gzip", "console_appender", "file_appender", "rolling_file_appender", "compound_policy", "size_trigger"] }
 sanitize-filename = "0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
+serde_yaml = "0"
 
 [dev-dependencies]
 anyhow = "1"

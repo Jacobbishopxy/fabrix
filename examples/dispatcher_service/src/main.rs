@@ -8,16 +8,11 @@ use dispatcher_service::{
     xl_to_json,
 };
 
-// TODO: log4rs
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var(
-        "RUST_LOG",
-        "actix_server=info,actix_web=info,dispatcher_service=info",
-    );
-    std::env::set_var("RUST_BACKTRACE", "1");
-    env_logger::init();
+    let config_str = include_str!("../log4rs.yml");
+    let config = serde_yaml::from_str(config_str).unwrap();
+    log4rs::init_raw_config(config).unwrap();
 
     let bind = ("127.0.0.1", 8080);
     log::info!("Starting server on: http://{}:{}", bind.0, bind.1);
