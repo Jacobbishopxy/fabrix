@@ -190,6 +190,19 @@ impl<'a> ReadOptions for SqlReadOptions<'a> {
     }
 }
 
+impl<'a> SqlReadOptions<'a> {
+    pub fn from_sql_select(select: &'a sql_adt::Select) -> Self {
+        Self {
+            table: Some(&select.table),
+            columns: Some(&select.columns),
+            filter: select.filter.as_ref(),
+            order: select.order.as_deref(),
+            limit: select.limit,
+            offset: select.offset,
+        }
+    }
+}
+
 #[async_trait]
 impl<'a, T> FromSource<'a, SqlReadOptions<'_>> for Reader<'a, T>
 where

@@ -2,12 +2,13 @@
 //!
 //! XlReader + JsonWriter
 
-use std::{collections::HashMap, io::Cursor};
+use std::collections::HashMap;
+use std::io::{Cursor, Write};
 
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, Result};
 use fabrix::{JsonWriter, XlReader};
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use serde_json::Value;
 
 use crate::{AppError, FILE_TYPE_XL, MULTIPART_KEY_FILE};
@@ -38,7 +39,7 @@ pub async fn xl_to_json(mut payload: Multipart) -> Result<HttpResponse> {
             }
 
             // turn buffer into fabrix
-            let mut reader = XlReader::new(buff)?;
+            let mut reader = XlReader::new(buff).map_err(AppError::Fabrix)?;
             let fx = reader.finish(None).map_err(AppError::Fabrix)?;
 
             // turn fabrix into json

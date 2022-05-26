@@ -2,14 +2,14 @@
 //!
 //! XlReader + SqlWriter
 
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, Result};
-use fabrix::{sql_adt, SqlWriter, XlReader};
+use fabrix::{sql_adt, DatabaseSqlite, SqlWriter, XlReader};
 use futures::{StreamExt, TryStreamExt};
 
-use crate::{responses::UploadedFile, MULTIPART_KEY_FILE};
+use crate::{get_current_time, AppError, UploadedFile, DB_CONN, FILE_TYPE_XL, MULTIPART_KEY_FILE};
 
 pub async fn xl_to_db(mut payload: Multipart) -> Result<HttpResponse> {
     let mut result = Vec::<UploadedFile>::new();
@@ -38,7 +38,7 @@ pub async fn xl_to_db(mut payload: Multipart) -> Result<HttpResponse> {
             }
 
             // turn buffer into fabrix
-            let mut reader = XlReader::new(buff)?;
+            let mut reader = XlReader::new(buff).map_err(AppError::Fabrix)?;
             let fx = reader.finish(None).map_err(AppError::Fabrix)?;
 
             let mut writer = SqlWriter::<DatabaseSqlite>::new_from_str(DB_CONN)

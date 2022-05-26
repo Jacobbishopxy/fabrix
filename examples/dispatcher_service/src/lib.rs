@@ -8,6 +8,7 @@ pub mod db2csv;
 pub mod db2parquet;
 pub mod error;
 pub mod responses;
+pub mod utils;
 pub mod xl2db;
 pub mod xl2json;
 
@@ -16,6 +17,7 @@ pub use csv2json::csv_to_json;
 pub use db2csv::db_to_csv;
 pub use db2parquet::db_to_parquet;
 pub use error::*;
+pub use utils::{show_table_schema, show_tables};
 pub use xl2db::xl_to_db;
 pub use xl2json::xl_to_json;
 

@@ -2,7 +2,7 @@
 
 use actix_web::http::{header::ContentType, StatusCode};
 use actix_web::{HttpResponse, ResponseError};
-use fabrix::FabrixError;
+use fabrix::{FabrixError, SqlError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -12,6 +12,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Fabrix(#[from] FabrixError),
+
+    #[error(transparent)]
+    Sql(#[from] SqlError),
 
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
@@ -25,6 +28,7 @@ impl ResponseError for AppError {
         match self {
             AppError::InvalidFileType(_) => StatusCode::UNSUPPORTED_MEDIA_TYPE,
             AppError::Fabrix(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Sql(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Serde(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Uncategorized(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }

@@ -440,6 +440,34 @@ impl Select {
         }
     }
 
+    pub fn get_table(&self) -> &str {
+        &self.table
+    }
+
+    pub fn get_columns(&self) -> &[ColumnAlias] {
+        &self.columns
+    }
+
+    pub fn get_filter(&self) -> Option<&Expressions> {
+        self.filter.as_ref()
+    }
+
+    pub fn get_order(&self) -> Option<&[Order]> {
+        self.order.as_deref()
+    }
+
+    pub fn get_limit(&self) -> Option<usize> {
+        self.limit
+    }
+
+    pub fn get_offset(&self) -> Option<usize> {
+        self.offset
+    }
+
+    pub fn get_include_primary_key(&self) -> Option<bool> {
+        self.include_primary_key
+    }
+
     pub fn columns_name(&self, alias: bool) -> Vec<String> {
         self.columns
             .iter()
