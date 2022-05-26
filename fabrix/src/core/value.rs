@@ -84,6 +84,7 @@ impl From<String> for Bytes {
 /// Value is the fundamental element in Fabrix.
 /// Providing type conversion between Rust/external type and polars `AnyValue`.
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
 pub enum Value {
     Bool(bool),
     U8(u8),
