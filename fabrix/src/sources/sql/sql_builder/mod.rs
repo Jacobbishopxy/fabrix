@@ -11,5 +11,5 @@ pub mod sql_adt;
 pub mod util;
 
 pub(crate) use builder::*;
-pub(crate) use macros::{alias, statement, sv_2_v};
+pub(crate) use macros::{alias, statement, sv_2_v, xpr_transit};
 pub(crate) use util::*;

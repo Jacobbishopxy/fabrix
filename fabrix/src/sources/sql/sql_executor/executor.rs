@@ -608,8 +608,8 @@ mod test_executor {
 
     use super::*;
     use crate::{
-        date, datetime, fx, series, sql_adt::ExpressionTransit, xpr, DatabaseMysql, DatabasePg,
-        DatabaseSqlite,
+        date, datetime, fx, series, sql_adt::ExpressionTransit, xpr, xpr_and, xpr_or,
+        DatabaseMysql, DatabasePg, DatabaseSqlite,
     };
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
@@ -865,10 +865,10 @@ mod test_executor {
     #[tokio::test]
     async fn test_delete() {
         let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", "=", 15))
-            .append(xpr!("or"))
+            .append(xpr_or!())
             .append(
                 sql_adt::ExpressionsBuilder::from_condition(xpr!("names", "=", "Livia"))
-                    .append(xpr!("and"))
+                    .append(xpr_and!())
                     .append(xpr!("val", ">=", 10.0))
                     .finish(),
             )

@@ -26,6 +26,8 @@ pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions)
     });
 }
 
+// TODO: since `NOT` has been added to Conjunction, we should reconsider the construction of `Cond`
+
 /// condition builder
 fn cond_builder(vec_cond: &mut Vec<Cond>, flt: &[sql_adt::Expression]) {
     let mut iter = flt.iter().enumerate().peekable();
@@ -51,7 +53,6 @@ fn cond_builder(vec_cond: &mut Vec<Cond>, flt: &[sql_adt::Expression]) {
                 sql_adt::Expression::Simple(c) => {
                     let tmp_expr = Expr::col(alias!(&c.column));
                     let tmp_expr = match &c.equation {
-                        sql_adt::Equation::Not => tmp_expr.not(),
                         sql_adt::Equation::Equal(d) => tmp_expr.eq(d),
                         sql_adt::Equation::NotEqual(d) => tmp_expr.ne(d),
                         sql_adt::Equation::Greater(d) => tmp_expr.gt(d),

@@ -254,7 +254,7 @@ where
 #[cfg(test)]
 mod test_sql_reader {
     use super::*;
-    use crate::{sql_adt, sql_adt::ExpressionTransit, xpr, DatabaseSqlite};
+    use crate::{sql_adt, sql_adt::ExpressionTransit, xpr, xpr_and, xpr_or, DatabaseSqlite};
 
     const CONN: &str = "sqlite://dev.sqlite";
     const TABLE: &str = "ds_sql_test";
@@ -266,14 +266,14 @@ mod test_sql_reader {
         let columns = vec!["ord".into(), "name".into()];
 
         let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", ">=", 10))
-            .append(xpr!("or"))
+            .append(xpr_or!())
             .append(
                 sql_adt::ExpressionsBuilder::from_condition(xpr!(
                     "names",
                     "in",
                     ["John", "Lily", "Mike"]
                 ))
-                .append(xpr!("and"))
+                .append(xpr_and!())
                 .append(xpr!("age", ">", 15))
                 .finish(),
             )

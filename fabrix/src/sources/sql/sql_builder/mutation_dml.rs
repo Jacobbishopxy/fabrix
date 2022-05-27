@@ -98,7 +98,7 @@ mod test_mutation_dml {
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{datetime, fx, sql_adt::ExpressionTransit, xpr};
+    use crate::{datetime, fx, sql_adt::ExpressionTransit, xpr, xpr_and, xpr_or};
 
     #[test]
     fn test_insert() {
@@ -228,10 +228,10 @@ mod test_mutation_dml {
     #[test]
     fn test_delete() {
         let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", "=", 15))
-            .append(xpr!("or"))
+            .append(xpr_or!())
             .append(
                 sql_adt::ExpressionsBuilder::from_condition(xpr!("names", "=", "X"))
-                    .append(xpr!("and"))
+                    .append(xpr_and!())
                     .append(xpr!("val", ">=", 10.0))
                     .finish(),
             )

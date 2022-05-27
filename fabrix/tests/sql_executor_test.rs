@@ -12,7 +12,7 @@
 use std::str::FromStr;
 
 use fabrix::sql_adt::ExpressionTransit;
-use fabrix::{datetime, fx, xpr};
+use fabrix::{datetime, fx, xpr, xpr_and, xpr_or};
 use fabrix::{sql_adt, SqlEngine, SqlExecutor};
 use fabrix::{DatabaseMysql, DatabasePg, DatabaseSqlite};
 
@@ -242,10 +242,10 @@ cargo test --package fabrix --test sql_executor_test -- test_delete --exact --no
 #[tokio::test]
 async fn test_delete() {
     let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", "=", 15))
-        .append(xpr!("or"))
+        .append(xpr_or!())
         .append(
             sql_adt::ExpressionsBuilder::from_condition(xpr!("names", "=", "Livia"))
-                .append(xpr!("and"))
+                .append(xpr_and!())
                 .append(xpr!("val", ">=", 10.0))
                 .finish(),
         )
