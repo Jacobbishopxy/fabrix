@@ -64,7 +64,7 @@ impl DmlQuery for SqlBuilder {
 mod test_query_dml {
 
     use super::*;
-    use crate::{series, sql_adt::ExpressionTransit, xpr, xpr_and, xpr_or};
+    use crate::{series, xpr, xpr_and, xpr_or};
 
     #[test]
     fn test_select_exist_ids() {
@@ -77,15 +77,11 @@ mod test_query_dml {
 
     #[test]
     fn test_select() {
-        let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", "=", 15))
-            .append(xpr_or!())
-            .append(
-                sql_adt::ExpressionsBuilder::from_condition(xpr!("names", "=", "X"))
-                    .append(xpr_and!())
-                    .append(xpr!("val", ">=", 10.0))
-                    .finish(),
-            )
-            .finish();
+        let filter = xpr!([
+            xpr!("ord", "=", 15),
+            xpr_or!(),
+            xpr!([xpr!("names", "=", "X"), xpr_and!(), xpr!("val", ">=", 10.0),])
+        ]);
 
         let select = SqlBuilder::Postgres.select(&sql_adt::Select {
             table: "test".to_string(),

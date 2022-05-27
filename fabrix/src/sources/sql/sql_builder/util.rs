@@ -76,3 +76,32 @@ fn cond_builder(vec_cond: &mut Vec<Cond>, flt: &[sql_adt::Expression]) {
         }
     }
 }
+
+fn cond_builder2(vec_cond: &mut Vec<Cond>, flt: &[sql_adt::Expression]) {
+    let mut previous_expression = None::<sql_adt::ExpressionType>;
+
+    for e in flt.iter() {
+        match e {
+            sql_adt::Expression::Conjunction(c) => {
+                if let Some(pe) = previous_expression.take() {
+                    if pe == sql_adt::ExpressionType::Simple || pe == sql_adt::ExpressionType::Nest
+                    {
+                        match c {
+                            sql_adt::Conjunction::AND => {
+                                vec_cond.push(Cond::all());
+                                previous_expression = Some(c.into());
+                            }
+                            sql_adt::Conjunction::OR => {
+                                vec_cond.push(Cond::any());
+                                previous_expression = Some(c.into());
+                            }
+                        }
+                    }
+                }
+            }
+            sql_adt::Expression::Opposition(o) => todo!(),
+            sql_adt::Expression::Simple(s) => todo!(),
+            sql_adt::Expression::Nest(n) => todo!(),
+        }
+    }
+}

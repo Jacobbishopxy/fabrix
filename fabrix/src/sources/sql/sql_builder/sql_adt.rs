@@ -312,6 +312,38 @@ impl From<Condition> for Expression {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub(crate) enum ExpressionType {
+    Conjunction,
+    Opposition,
+    Simple,
+    Nest,
+}
+
+impl From<&Conjunction> for ExpressionType {
+    fn from(_: &Conjunction) -> Self {
+        ExpressionType::Conjunction
+    }
+}
+
+impl From<&Opposition> for ExpressionType {
+    fn from(_: &Opposition) -> Self {
+        ExpressionType::Opposition
+    }
+}
+
+impl From<&Condition> for ExpressionType {
+    fn from(_: &Condition) -> Self {
+        ExpressionType::Simple
+    }
+}
+
+impl From<&Vec<Expression>> for ExpressionType {
+    fn from(_: &Vec<Expression>) -> Self {
+        ExpressionType::Nest
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(transparent)]
 pub struct Expressions(pub(crate) Vec<Expression>);
@@ -321,6 +353,7 @@ pub struct Expressions(pub(crate) Vec<Expression>);
 // A finite state machine used for building expressions
 // ================================================================================================
 
+pub struct InitState;
 // AND/OR
 pub struct ConjunctionState {
     stack: Vec<Expression>,
@@ -362,11 +395,33 @@ pub trait ExpressionTransit<T, S> {
     fn finish(self) -> Expressions;
 }
 
+impl ExpressionTransit<Condition, SimpleState> for InitState {
+    fn append(self, state: Condition) -> SimpleState {
+        SimpleState {
+            stack: vec![Expression::Simple(state)],
+        }
+    }
+
+    fn finish(self) -> Expressions {
+        Expressions::default()
+    }
+}
+
+impl ExpressionTransit<Expressions, NestState> for InitState {
+    fn append(self, state: Expressions) -> NestState {
+        NestState { stack: state.0 }
+    }
+
+    fn finish(self) -> Expressions {
+        Expressions::default()
+    }
+}
+
 // Simple -> Conjunction
 xpr_transit!(Conjunction, SimpleState => ConjunctionState);
 
 // Nest -> Conjunction
-xpr_transit!(Condition, NestState => ConjunctionState);
+xpr_transit!(Conjunction, NestState => ConjunctionState);
 
 // Opposite -> Simple
 xpr_transit!(Condition, OppositeState => SimpleState);
@@ -383,23 +438,17 @@ xpr_transit!(Condition, ConjunctionState => SimpleState);
 // Conjunction -> Nest
 xpr_transit!(Expressions, ConjunctionState => NestState);
 
-#[derive(Default)]
 pub struct ExpressionsBuilder;
 
 impl ExpressionsBuilder {
-    pub fn new() -> Self {
-        ExpressionsBuilder
+    pub fn init() -> InitState {
+        InitState
     }
 
-    pub fn from_condition(value: Condition) -> SimpleState {
-        value.into()
-    }
-
-    pub fn from_expressions(value: Expressions) -> NestState {
-        value.into()
-    }
-
-    pub fn append(self, value: Condition) -> SimpleState {
+    pub fn append<T, S>(self, value: T) -> S
+    where
+        T: Into<S>,
+    {
         value.into()
     }
 }
@@ -682,37 +731,34 @@ mod test_sql_adt {
 
     #[test]
     fn build_filter() {
-        let a = ExpressionsBuilder::from_condition(Condition {
-            column: String::from("name"),
-            equation: Equation::Equal("foo".into()),
-        })
-        .append(Conjunction::AND)
-        .append(Opposition)
-        .append(Condition {
-            column: String::from("age"),
-            equation: Equation::Equal(10.into()),
-        })
-        .append(Conjunction::OR)
-        .append(Condition {
-            column: String::from("age"),
-            equation: Equation::Equal(20.into()),
-        })
-        .finish();
+        let e = ExpressionsBuilder::init()
+            .append(
+                ExpressionsBuilder::init()
+                    .append(Condition {
+                        column: String::from("name"),
+                        equation: Equation::Equal("foo".into()),
+                    })
+                    .append(Conjunction::AND)
+                    .append(Opposition)
+                    .append(Condition {
+                        column: String::from("age"),
+                        equation: Equation::Equal(10.into()),
+                    })
+                    .append(Conjunction::OR)
+                    .append(Condition {
+                        column: String::from("age"),
+                        equation: Equation::Equal(20.into()),
+                    })
+                    .finish(),
+            )
+            .append(Conjunction::OR)
+            .append(Condition {
+                column: String::from("name"),
+                equation: Equation::Equal("bar".into()),
+            })
+            .finish();
 
-        let b = ExpressionsBuilder::from_condition(Condition {
-            column: String::from("name"),
-            equation: Equation::Equal("bar".into()),
-        })
-        .append(Conjunction::OR)
-        .append(a)
-        .finish();
-
-        println!("{:?}", b);
-
-        // let c = ExpressionsBuilder::from(Condition {
-        //     column: String::from("name"),
-        //     equation: Equation::Equal("foo".into()),
-        // });
+        println!("{:?}", e);
     }
 
     #[test]

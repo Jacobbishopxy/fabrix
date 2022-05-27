@@ -11,7 +11,6 @@
 
 use std::str::FromStr;
 
-use fabrix::sql_adt::ExpressionTransit;
 use fabrix::{datetime, fx, xpr, xpr_and, xpr_or};
 use fabrix::{sql_adt, SqlEngine, SqlExecutor};
 use fabrix::{DatabaseMysql, DatabasePg, DatabaseSqlite};
@@ -241,15 +240,15 @@ cargo test --package fabrix --test sql_executor_test -- test_delete --exact --no
 */
 #[tokio::test]
 async fn test_delete() {
-    let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", "=", 15))
-        .append(xpr_or!())
-        .append(
-            sql_adt::ExpressionsBuilder::from_condition(xpr!("names", "=", "Livia"))
-                .append(xpr_and!())
-                .append(xpr!("val", ">=", 10.0))
-                .finish(),
-        )
-        .finish();
+    let filter = xpr!([
+        xpr!("ord", "=", 15),
+        xpr_or!(),
+        xpr!([
+            xpr!("names", "=", "Livia"),
+            xpr_and!(),
+            xpr!("val", ">=", 10.0)
+        ])
+    ]);
 
     let delete = sql_adt::Delete {
         table: TABLE_NAME.to_owned(),

@@ -96,7 +96,7 @@ macro_rules! xpr {
     ([$($xpr:expr),* $(,)*]) => {{
         use $crate::sql_adt::ExpressionTransit;
 
-        let expr = $crate::sql_adt::ExpressionsBuilder::new();
+        let expr = $crate::sql_adt::ExpressionsBuilder::init();
 
         $(
             let expr = expr.append($xpr);
@@ -204,18 +204,45 @@ pub(crate) use xpr_transit;
 
 #[cfg(test)]
 mod sql_adt_macros {
+    use crate::{sql_adt, sql_adt::ExpressionTransit, value};
+
     use super::*;
 
     #[test]
     fn test_xpr_nest() {
-        let a = xpr!([
-            xpr!("name", "=", "Jacob"),
-            xpr_and!(),
-            xpr!("age", "in", [10, 30, 50]),
+        let e1 = xpr!([
+            xpr!([
+                xpr!("name", "=", "Jacob"),
+                xpr_and!(),
+                xpr!("age", "in", [10, 30, 50]),
+            ]),
+            xpr_or!(),
+            xpr_not!(),
+            xpr!("ord", "between", [1, 100])
         ]);
 
-        let b = xpr!([a, xpr_or!(), xpr_not!(), xpr!("ord", "between", [1, 100])]);
+        let e2 = sql_adt::ExpressionsBuilder::init()
+            .append(
+                sql_adt::ExpressionsBuilder::init()
+                    .append(sql_adt::Condition {
+                        column: "name".to_string(),
+                        equation: sql_adt::Equation::Equal(value!("Jacob")),
+                    })
+                    .append(sql_adt::Conjunction::AND)
+                    .append(sql_adt::Condition {
+                        column: "age".to_string(),
+                        equation: sql_adt::Equation::In(vec![value!(10), value!(30), value!(50)]),
+                    })
+                    .finish(),
+            )
+            .append(sql_adt::Conjunction::OR)
+            .append(sql_adt::Opposition)
+            .append(sql_adt::Condition {
+                column: "ord".to_string(),
+                equation: sql_adt::Equation::Between((value!(1), value!(100))),
+            })
+            .finish();
 
-        println!("{:?}", b);
+        assert_eq!(e1, e2);
     }
 }
