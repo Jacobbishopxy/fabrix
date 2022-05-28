@@ -228,9 +228,9 @@ mod test_mutation_dml {
     #[test]
     fn test_delete() {
         let filter = xpr!([
-            xpr!("ord", "=", 15),
+            xpr!([xpr!("names", "=", "X"), xpr_and!(), xpr!("val", ">=", 10.0)]),
             xpr_or!(),
-            xpr!([xpr!("names", "=", "X"), xpr_and!(), xpr!("val", ">=", 10.0)])
+            xpr!("ord", "=", 15),
         ]);
 
         let delete = sql_adt::Delete {
@@ -238,13 +238,9 @@ mod test_mutation_dml {
             filter,
         };
 
-        let foo = SqlBuilder::Mysql.delete(&delete);
-
-        println!("{:?}", foo);
-
         assert_eq!(
-            "DELETE FROM `test` WHERE `ord` = 15 OR (`names` = 'X' AND `val` >= 10)",
-            foo
+            "DELETE FROM `test` WHERE (`names` = 'X' AND `val` >= 10) OR `ord` = 15",
+            SqlBuilder::Mysql.delete(&delete)
         );
     }
 }

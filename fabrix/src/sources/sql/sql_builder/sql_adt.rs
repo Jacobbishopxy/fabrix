@@ -279,6 +279,16 @@ pub struct Condition {
     pub equation: Equation,
 }
 
+impl Condition {
+    pub fn column(&self) -> &str {
+        &self.column
+    }
+
+    pub fn equation(&self) -> &Equation {
+        &self.equation
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub(crate) enum Expression {
@@ -312,38 +322,6 @@ impl From<Condition> for Expression {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub(crate) enum ExpressionType {
-    Conjunction,
-    Opposition,
-    Simple,
-    Nest,
-}
-
-impl From<&Conjunction> for ExpressionType {
-    fn from(_: &Conjunction) -> Self {
-        ExpressionType::Conjunction
-    }
-}
-
-impl From<&Opposition> for ExpressionType {
-    fn from(_: &Opposition) -> Self {
-        ExpressionType::Opposition
-    }
-}
-
-impl From<&Condition> for ExpressionType {
-    fn from(_: &Condition) -> Self {
-        ExpressionType::Simple
-    }
-}
-
-impl From<&Vec<Expression>> for ExpressionType {
-    fn from(_: &Vec<Expression>) -> Self {
-        ExpressionType::Nest
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(transparent)]
 pub struct Expressions(pub(crate) Vec<Expression>);
@@ -360,7 +338,7 @@ pub struct ConjunctionState {
 }
 
 // NOT
-pub struct OppositeState {
+pub struct OppositionState {
     stack: Vec<Expression>,
 }
 
@@ -384,7 +362,9 @@ impl From<Condition> for SimpleState {
 
 impl From<Expressions> for NestState {
     fn from(val: Expressions) -> Self {
-        NestState { stack: val.0 }
+        NestState {
+            stack: vec![Expression::Nest(val.0)],
+        }
     }
 }
 
@@ -409,7 +389,21 @@ impl ExpressionTransit<Condition, SimpleState> for InitState {
 
 impl ExpressionTransit<Expressions, NestState> for InitState {
     fn append(self, state: Expressions) -> NestState {
-        NestState { stack: state.0 }
+        NestState {
+            stack: vec![Expression::Nest(state.0)],
+        }
+    }
+
+    fn finish(self) -> Expressions {
+        Expressions::default()
+    }
+}
+
+impl ExpressionTransit<Opposition, OppositionState> for InitState {
+    fn append(self, state: Opposition) -> OppositionState {
+        OppositionState {
+            stack: vec![Expression::Opposition(state)],
+        }
     }
 
     fn finish(self) -> Expressions {
@@ -424,13 +418,13 @@ xpr_transit!(Conjunction, SimpleState => ConjunctionState);
 xpr_transit!(Conjunction, NestState => ConjunctionState);
 
 // Opposite -> Simple
-xpr_transit!(Condition, OppositeState => SimpleState);
+xpr_transit!(Condition, OppositionState => SimpleState);
 
 // Opposite -> Nest
-xpr_transit!(Expressions, OppositeState => NestState);
+xpr_transit!(Expressions, OppositionState => NestState);
 
 // Conjunction -> Opposition
-xpr_transit!(Opposition, ConjunctionState => OppositeState);
+xpr_transit!(Opposition, ConjunctionState => OppositionState);
 
 // Conjunction -> Simple
 xpr_transit!(Condition, ConjunctionState => SimpleState);
