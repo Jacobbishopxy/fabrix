@@ -27,8 +27,12 @@ impl RecursiveState {
         }
     }
 
-    fn set_negate(&mut self, negate: bool) {
-        self.negate = negate;
+    fn set_negate(&mut self) {
+        self.negate = true;
+    }
+
+    fn reset_negate(&mut self) {
+        self.negate = false;
     }
 
     fn add<C: Into<ConditionExpression>>(&mut self, cond: C) {
@@ -36,13 +40,6 @@ impl RecursiveState {
             Some(c) => c.add(cond),
             None => Cond::all().add(cond),
         });
-    }
-
-    fn negate_cond(&mut self) {
-        self.cond = Some(match self.cond.take() {
-            Some(c) => c.not(),
-            None => Cond::all().not(),
-        })
     }
 }
 
@@ -61,22 +58,19 @@ pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions)
     }
 }
 
-// TODO: remove negate
-
 fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
     let mut iter = flt.iter().peekable();
 
     while let Some(e) = iter.next() {
         // move forward and get the next expr
-        let peek = iter.peek();
-
-        if let Some(ne) = peek {
+        if let Some(ne) = iter.peek() {
             // if same type of expression in a row, skip the former one
             if &e == ne {
                 continue;
             }
 
             match ne {
+                // Simple/Nest -> Conjunction
                 sql_adt::Expression::Conjunction(c) => {
                     let permit = matches!(
                         e,
@@ -84,28 +78,21 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
                     );
                     if permit {
                         match c {
-                            sql_adt::Conjunction::AND => {
-                                if state.negate {
-                                    state.set_cond_if_empty(Cond::all().not());
-                                } else {
-                                    state.set_cond_if_empty(Cond::all());
-                                }
-                                state.set_negate(false);
-                            }
-                            sql_adt::Conjunction::OR => {
-                                if state.negate {
-                                    state.set_cond_if_empty(Cond::any().not())
-                                } else {
-                                    state.set_cond_if_empty(Cond::any())
-                                }
-                                state.set_negate(false);
-                            }
+                            sql_adt::Conjunction::AND => state.set_cond_if_empty(Cond::all()),
+                            sql_adt::Conjunction::OR => state.set_cond_if_empty(Cond::any()),
                         }
                     }
                 }
-                sql_adt::Expression::Opposition(_) => {
-                    if matches!(e, sql_adt::Expression::Conjunction(_)) {
-                        state.set_negate(true)
+                // Opposition -> Simple
+                sql_adt::Expression::Simple(_) => {
+                    if matches!(e, sql_adt::Expression::Opposition(_)) {
+                        state.set_negate()
+                    }
+                }
+                // Opposition -> Nest
+                sql_adt::Expression::Nest(_) => {
+                    if matches!(e, sql_adt::Expression::Opposition(_)) {
+                        state.set_negate()
                     }
                 }
                 _ => {}
@@ -126,21 +113,24 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
                     sql_adt::Equation::Between(v) => expr.between(&v.0, &v.1),
                     sql_adt::Equation::Like(v) => expr.like(v),
                 };
-
                 if state.negate {
-                    state.negate_cond();
+                    state.add(Cond::all().not().add(expr));
+                } else {
+                    state.add(expr);
                 }
-                state.add(expr);
-                state.set_negate(false);
+                state.reset_negate();
             }
             sql_adt::Expression::Nest(n) => {
                 let mut ns = RecursiveState::new();
-                ns.set_negate(state.negate);
                 cond_builder(n, &mut ns);
                 if let Some(c) = ns.cond.take() {
-                    state.add(c);
-                    state.set_negate(false);
+                    if state.negate {
+                        state.add(c.not());
+                    } else {
+                        state.add(c);
+                    }
                 }
+                state.reset_negate();
             }
             _ => {}
         }

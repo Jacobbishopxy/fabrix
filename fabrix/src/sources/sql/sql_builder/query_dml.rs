@@ -139,8 +139,6 @@ mod test_query_dml {
 
     #[test]
     fn test_complex_select() {
-        // TODO:
-
         let filter = xpr!([
             xpr!([xpr!("names", "=", "X"), xpr_and!(), xpr!("val", ">=", 10.0)]),
             xpr_and!(),
@@ -162,6 +160,32 @@ mod test_query_dml {
         assert_eq!(
             select,
             r#"SELECT "v1", "v2", "v3", "v4" FROM "test" WHERE ("names" = 'X' AND "val" >= 10) AND (NOT ("names" IN ('Z', 'A') OR "spec" <> 'cat'))"#
+        );
+    }
+
+    #[test]
+    fn test_complex_select2() {
+        let filter = xpr!([
+            xpr_not!(),
+            xpr!("name", "=", "X"),
+            xpr_or!(),
+            xpr!([
+                xpr!("names", "in", ["Z", "A"]),
+                xpr_or!(),
+                xpr!("spec", "!=", "cat")
+            ])
+        ]);
+
+        let select = sql_adt::Select::new("test")
+            .columns(&["v1", "v2", "v3", "v4"])
+            .filter(&filter);
+
+        let select = SqlBuilder::Postgres.select(&select);
+        println!("{:?}", select);
+
+        assert_eq!(
+            select,
+            r#"SELECT "v1", "v2", "v3", "v4" FROM "test" WHERE (NOT ("name" = 'X')) OR ("names" IN ('Z', 'A') OR "spec" <> 'cat')"#
         );
     }
 }

@@ -255,6 +255,8 @@ pub enum Conjunction {
     OR,
 }
 
+// TODO:
+// rename and turn into enum; include Max, Min, Sum, Count
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "not")]
 pub struct Opposition;
