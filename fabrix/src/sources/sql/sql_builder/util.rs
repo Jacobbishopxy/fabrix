@@ -1,6 +1,6 @@
 //! Sql Builder: Util
 
-use sea_query::{Cond, DeleteStatement, Expr, SelectStatement};
+use sea_query::{Cond, ConditionExpression, DeleteStatement, Expr, SelectStatement};
 
 use super::{alias, sql_adt};
 
@@ -10,17 +10,39 @@ pub(crate) enum DeleteOrSelect<'a> {
     Select(&'a mut SelectStatement),
 }
 
+#[derive(Default)]
 struct RecursiveState {
-    conds: Vec<Cond>,
-    opposite: bool,
+    cond: Option<Cond>,
+    negate: bool,
 }
 
 impl RecursiveState {
     fn new() -> Self {
-        Self {
-            conds: Vec::new(),
-            opposite: false,
+        RecursiveState::default()
+    }
+
+    fn set_cond_if_empty(&mut self, cond: Cond) {
+        if self.cond.is_none() {
+            self.cond = Some(cond)
         }
+    }
+
+    fn set_negate(&mut self, negate: bool) {
+        self.negate = negate;
+    }
+
+    fn add<C: Into<ConditionExpression>>(&mut self, cond: C) {
+        self.cond = Some(match self.cond.take() {
+            Some(c) => c.add(cond),
+            None => Cond::all().add(cond),
+        });
+    }
+
+    fn negate_cond(&mut self) {
+        self.cond = Some(match self.cond.take() {
+            Some(c) => c.not(),
+            None => Cond::all().not(),
+        })
     }
 }
 
@@ -29,21 +51,23 @@ pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions)
     let mut state = RecursiveState::new();
     cond_builder(&flt.0, &mut state);
 
-    state.conds.iter().for_each(|c| match s {
-        DeleteOrSelect::Delete(qs) => {
-            qs.cond_where(c.clone());
+    match s {
+        DeleteOrSelect::Delete(d) => {
+            state.cond.take().map(|c| d.cond_where(c));
         }
-        DeleteOrSelect::Select(qs) => {
-            qs.cond_where(c.clone());
+        DeleteOrSelect::Select(s) => {
+            state.cond.take().map(|c| s.cond_where(c));
         }
-    });
+    }
 }
 
-/// condition builder
+// TODO: remove negate
+
 fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
     let mut iter = flt.iter().peekable();
 
     while let Some(e) = iter.next() {
+        // move forward and get the next expr
         let peek = iter.peek();
 
         if let Some(ne) = peek {
@@ -58,35 +82,30 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
                         e,
                         sql_adt::Expression::Simple(_) | sql_adt::Expression::Nest(_)
                     );
-                    // TODO: opposite dysfunctional
                     if permit {
                         match c {
                             sql_adt::Conjunction::AND => {
-                                let cond = if state.opposite {
-                                    // println!("{:?}", 66);
-                                    state.opposite = false;
-                                    Cond::all().not()
+                                if state.negate {
+                                    state.set_cond_if_empty(Cond::all().not());
                                 } else {
-                                    Cond::all()
-                                };
-                                state.conds.push(cond);
+                                    state.set_cond_if_empty(Cond::all());
+                                }
+                                state.set_negate(false);
                             }
                             sql_adt::Conjunction::OR => {
-                                let cond = if state.opposite {
-                                    // println!("{:?}", 76);
-                                    state.opposite = false;
-                                    Cond::any().not()
+                                if state.negate {
+                                    state.set_cond_if_empty(Cond::any().not())
                                 } else {
-                                    Cond::any()
-                                };
-                                state.conds.push(cond);
+                                    state.set_cond_if_empty(Cond::any())
+                                }
+                                state.set_negate(false);
                             }
                         }
                     }
                 }
                 sql_adt::Expression::Opposition(_) => {
                     if matches!(e, sql_adt::Expression::Conjunction(_)) {
-                        state.opposite = true;
+                        state.set_negate(true)
                     }
                 }
                 _ => {}
@@ -95,24 +114,33 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
 
         match e {
             sql_adt::Expression::Simple(s) => {
-                let tmp_expr = Expr::col(alias!(s.column()));
-                let tmp_expr = match s.equation() {
-                    sql_adt::Equation::Equal(v) => tmp_expr.eq(v),
-                    sql_adt::Equation::NotEqual(v) => tmp_expr.ne(v),
-                    sql_adt::Equation::Greater(v) => tmp_expr.gt(v),
-                    sql_adt::Equation::GreaterEqual(v) => tmp_expr.gte(v),
-                    sql_adt::Equation::Less(v) => tmp_expr.lt(v),
-                    sql_adt::Equation::LessEqual(v) => tmp_expr.lte(v),
-                    sql_adt::Equation::In(v) => tmp_expr.is_in(v),
-                    sql_adt::Equation::Between(v) => tmp_expr.between(&v.0, &v.1),
-                    sql_adt::Equation::Like(v) => tmp_expr.like(v),
+                let expr = Expr::col(alias!(s.column()));
+                let expr = match s.equation() {
+                    sql_adt::Equation::Equal(v) => expr.eq(v),
+                    sql_adt::Equation::NotEqual(v) => expr.ne(v),
+                    sql_adt::Equation::Greater(v) => expr.gt(v),
+                    sql_adt::Equation::GreaterEqual(v) => expr.gte(v),
+                    sql_adt::Equation::Less(v) => expr.lt(v),
+                    sql_adt::Equation::LessEqual(v) => expr.lte(v),
+                    sql_adt::Equation::In(v) => expr.is_in(v),
+                    sql_adt::Equation::Between(v) => expr.between(&v.0, &v.1),
+                    sql_adt::Equation::Like(v) => expr.like(v),
                 };
 
-                let last = state.conds.pop().unwrap_or_else(Cond::all);
-                state.conds.push(last.add(tmp_expr));
+                if state.negate {
+                    state.negate_cond();
+                }
+                state.add(expr);
+                state.set_negate(false);
             }
             sql_adt::Expression::Nest(n) => {
-                cond_builder(n, state);
+                let mut ns = RecursiveState::new();
+                ns.set_negate(state.negate);
+                cond_builder(n, &mut ns);
+                if let Some(c) = ns.cond.take() {
+                    state.add(c);
+                    state.set_negate(false);
+                }
             }
             _ => {}
         }

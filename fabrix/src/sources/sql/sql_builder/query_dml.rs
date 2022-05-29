@@ -139,8 +139,7 @@ mod test_query_dml {
 
     #[test]
     fn test_complex_select() {
-
-        // TODO: 
+        // TODO:
 
         let filter = xpr!([
             xpr!([xpr!("names", "=", "X"), xpr_and!(), xpr!("val", ">=", 10.0)]),
@@ -162,7 +161,7 @@ mod test_query_dml {
 
         assert_eq!(
             select,
-            r#"SELECT "v1", "v2", "v3", "v4" FROM "test" WHERE ("names" = 'X' AND "val" >= 10) AND NOT ("names" IN ('Z', 'A') OR "spec" <> 'cat')"#
+            r#"SELECT "v1", "v2", "v3", "v4" FROM "test" WHERE ("names" = 'X' AND "val" >= 10) AND (NOT ("names" IN ('Z', 'A') OR "spec" <> 'cat'))"#
         );
     }
 }
