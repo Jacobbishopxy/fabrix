@@ -5,6 +5,7 @@ use std::str::FromStr;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+use super::xpr_transit;
 use crate::{FieldInfo, Series, SqlError, SqlResult, Value, ValueType};
 
 // ================================================================================================
@@ -248,15 +249,20 @@ pub enum AlterTable {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Conjunction {
+    #[serde(rename = "and")]
     AND,
+    #[serde(rename = "or")]
     OR,
 }
 
-// TODO: custom serialize/deserialize
+// TODO:
+// rename and turn into enum; include Max, Min, Sum, Count
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename = "not")]
+pub struct Opposition;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Equation {
-    Not,
     Equal(Value),
     NotEqual(Value),
     Greater(Value),
@@ -271,13 +277,25 @@ pub enum Equation {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Condition {
     pub column: String,
+    #[serde(flatten)]
     pub equation: Equation,
+}
+
+impl Condition {
+    pub fn column(&self) -> &str {
+        &self.column
+    }
+
+    pub fn equation(&self) -> &Equation {
+        &self.equation
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub(crate) enum Expression {
     Conjunction(Conjunction),
+    Opposition(Opposition),
     Simple(Condition),
     Nest(Vec<Expression>),
 }
@@ -285,6 +303,12 @@ pub(crate) enum Expression {
 impl From<Expressions> for Expression {
     fn from(v: Expressions) -> Self {
         Expression::Nest(v.0)
+    }
+}
+
+impl From<Opposition> for Expression {
+    fn from(v: Opposition) -> Self {
+        Expression::Opposition(v)
     }
 }
 
@@ -309,8 +333,14 @@ pub struct Expressions(pub(crate) Vec<Expression>);
 // A finite state machine used for building expressions
 // ================================================================================================
 
+pub struct InitState;
 // AND/OR
 pub struct ConjunctionState {
+    stack: Vec<Expression>,
+}
+
+// NOT
+pub struct OppositionState {
     stack: Vec<Expression>,
 }
 
@@ -334,7 +364,9 @@ impl From<Condition> for SimpleState {
 
 impl From<Expressions> for NestState {
     fn from(val: Expressions) -> Self {
-        NestState { stack: val.0 }
+        NestState {
+            stack: vec![Expression::Nest(val.0)],
+        }
     }
 }
 
@@ -345,71 +377,74 @@ pub trait ExpressionTransit<T, S> {
     fn finish(self) -> Expressions;
 }
 
-// Simple -> Conjunction
-impl ExpressionTransit<Conjunction, ConjunctionState> for SimpleState {
-    fn append(mut self, state: Conjunction) -> ConjunctionState {
-        self.stack.push(Expression::from(state));
-        ConjunctionState { stack: self.stack }
+impl ExpressionTransit<Condition, SimpleState> for InitState {
+    fn append(self, state: Condition) -> SimpleState {
+        SimpleState {
+            stack: vec![Expression::Simple(state)],
+        }
     }
 
     fn finish(self) -> Expressions {
-        Expressions(self.stack)
+        Expressions::default()
     }
 }
+
+impl ExpressionTransit<Expressions, NestState> for InitState {
+    fn append(self, state: Expressions) -> NestState {
+        NestState {
+            stack: vec![Expression::Nest(state.0)],
+        }
+    }
+
+    fn finish(self) -> Expressions {
+        Expressions::default()
+    }
+}
+
+impl ExpressionTransit<Opposition, OppositionState> for InitState {
+    fn append(self, state: Opposition) -> OppositionState {
+        OppositionState {
+            stack: vec![Expression::Opposition(state)],
+        }
+    }
+
+    fn finish(self) -> Expressions {
+        Expressions::default()
+    }
+}
+
+// Simple -> Conjunction
+xpr_transit!(Conjunction, SimpleState => ConjunctionState);
 
 // Nest -> Conjunction
-impl ExpressionTransit<Conjunction, ConjunctionState> for NestState {
-    fn append(mut self, state: Conjunction) -> ConjunctionState {
-        self.stack.push(Expression::from(state));
-        ConjunctionState { stack: self.stack }
-    }
+xpr_transit!(Conjunction, NestState => ConjunctionState);
 
-    fn finish(self) -> Expressions {
-        Expressions(self.stack)
-    }
-}
+// Opposite -> Simple
+xpr_transit!(Condition, OppositionState => SimpleState);
+
+// Opposite -> Nest
+xpr_transit!(Expressions, OppositionState => NestState);
+
+// Conjunction -> Opposition
+xpr_transit!(Opposition, ConjunctionState => OppositionState);
 
 // Conjunction -> Simple
-impl ExpressionTransit<Condition, SimpleState> for ConjunctionState {
-    fn append(mut self, state: Condition) -> SimpleState {
-        self.stack.push(Expression::from(state));
-        SimpleState { stack: self.stack }
-    }
-
-    fn finish(self) -> Expressions {
-        Expressions(self.stack)
-    }
-}
+xpr_transit!(Condition, ConjunctionState => SimpleState);
 
 // Conjunction -> Nest
-impl ExpressionTransit<Expressions, NestState> for ConjunctionState {
-    fn append(mut self, state: Expressions) -> NestState {
-        self.stack.push(Expression::from(state));
-        NestState { stack: self.stack }
-    }
+xpr_transit!(Expressions, ConjunctionState => NestState);
 
-    fn finish(self) -> Expressions {
-        Expressions(self.stack)
-    }
-}
-
-#[derive(Default)]
 pub struct ExpressionsBuilder;
 
 impl ExpressionsBuilder {
-    pub fn new() -> Self {
-        ExpressionsBuilder
+    pub fn init() -> InitState {
+        InitState
     }
 
-    pub fn from_condition(value: Condition) -> SimpleState {
-        value.into()
-    }
-
-    pub fn from_expressions(value: Expressions) -> NestState {
-        value.into()
-    }
-
-    pub fn append(self, value: Condition) -> SimpleState {
+    pub fn append<T, S>(self, value: T) -> S
+    where
+        T: Into<S>,
+    {
         value.into()
     }
 }
@@ -692,31 +727,34 @@ mod test_sql_adt {
 
     #[test]
     fn build_filter() {
-        let a = ExpressionsBuilder::from_condition(Condition {
-            column: String::from("name"),
-            equation: Equation::Equal("foo".into()),
-        })
-        .append(Conjunction::AND)
-        .append(Condition {
-            column: String::from("age"),
-            equation: Equation::Equal(10.into()),
-        })
-        .append(Conjunction::OR)
-        .append(Condition {
-            column: String::from("age"),
-            equation: Equation::Equal(20.into()),
-        })
-        .finish();
+        let e = ExpressionsBuilder::init()
+            .append(
+                ExpressionsBuilder::init()
+                    .append(Condition {
+                        column: String::from("name"),
+                        equation: Equation::Equal("foo".into()),
+                    })
+                    .append(Conjunction::AND)
+                    .append(Opposition)
+                    .append(Condition {
+                        column: String::from("age"),
+                        equation: Equation::Equal(10.into()),
+                    })
+                    .append(Conjunction::OR)
+                    .append(Condition {
+                        column: String::from("age"),
+                        equation: Equation::Equal(20.into()),
+                    })
+                    .finish(),
+            )
+            .append(Conjunction::OR)
+            .append(Condition {
+                column: String::from("name"),
+                equation: Equation::Equal("bar".into()),
+            })
+            .finish();
 
-        let b = ExpressionsBuilder::from_condition(Condition {
-            column: String::from("name"),
-            equation: Equation::Equal("bar".into()),
-        })
-        .append(Conjunction::OR)
-        .append(a)
-        .finish();
-
-        println!("{:?}", b);
+        println!("{:?}", e);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 //! Sql Builder: Util
 
-use sea_query::{Cond, DeleteStatement, Expr, SelectStatement};
+use sea_query::{Cond, ConditionExpression, DeleteStatement, Expr, SelectStatement};
 
 use super::{alias, sql_adt};
 
@@ -10,68 +10,129 @@ pub(crate) enum DeleteOrSelect<'a> {
     Select(&'a mut SelectStatement),
 }
 
-/// A general function to build Sql conditions for Delete and Select statements
-pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions) {
-    let mut vec_cond = vec![];
-
-    cond_builder(&mut vec_cond, &flt.0);
-
-    vec_cond.iter().for_each(|c| match s {
-        DeleteOrSelect::Delete(qs) => {
-            qs.cond_where(c.clone());
-        }
-        DeleteOrSelect::Select(qs) => {
-            qs.cond_where(c.clone());
-        }
-    });
+#[derive(Default)]
+struct RecursiveState {
+    cond: Option<Cond>,
+    negate: bool,
 }
 
-/// condition builder
-fn cond_builder(vec_cond: &mut Vec<Cond>, flt: &[sql_adt::Expression]) {
-    let mut iter = flt.iter().enumerate().peekable();
+impl RecursiveState {
+    fn new() -> Self {
+        RecursiveState::default()
+    }
 
-    while let Some((i, e)) = iter.next() {
-        if let Some((i, e)) = iter.peek() {
-            // odd index
-            if i % 2 == 1 {
-                match e {
-                    sql_adt::Expression::Conjunction(c) => match c {
-                        sql_adt::Conjunction::AND => vec_cond.push(Cond::all()),
-                        sql_adt::Conjunction::OR => vec_cond.push(Cond::any()),
-                    },
-                    // make sure odd index is conjunction
-                    _ => panic!("wrong expression {:?}, needs a conjunction", e),
+    fn set_cond_if_empty(&mut self, cond: Cond) {
+        if self.cond.is_none() {
+            self.cond = Some(cond)
+        }
+    }
+
+    fn set_negate(&mut self) {
+        self.negate = true;
+    }
+
+    fn reset_negate(&mut self) {
+        self.negate = false;
+    }
+
+    fn add<C: Into<ConditionExpression>>(&mut self, cond: C) {
+        self.cond = Some(match self.cond.take() {
+            Some(c) => c.add(cond),
+            None => Cond::all().add(cond),
+        });
+    }
+}
+
+/// A general function to build Sql conditions for Delete and Select statements
+pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions) {
+    let mut state = RecursiveState::new();
+    cond_builder(&flt.0, &mut state);
+
+    match s {
+        DeleteOrSelect::Delete(d) => {
+            state.cond.take().map(|c| d.cond_where(c));
+        }
+        DeleteOrSelect::Select(s) => {
+            state.cond.take().map(|c| s.cond_where(c));
+        }
+    }
+}
+
+fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
+    let mut iter = flt.iter().peekable();
+
+    while let Some(e) = iter.next() {
+        // move forward and get the next expr
+        if let Some(ne) = iter.peek() {
+            // if same type of expression in a row, skip the former one
+            if &e == ne {
+                continue;
+            }
+
+            match ne {
+                // Simple/Nest -> Conjunction
+                sql_adt::Expression::Conjunction(c) => {
+                    let permit = matches!(
+                        e,
+                        sql_adt::Expression::Simple(_) | sql_adt::Expression::Nest(_)
+                    );
+                    if permit {
+                        match c {
+                            sql_adt::Conjunction::AND => state.set_cond_if_empty(Cond::all()),
+                            sql_adt::Conjunction::OR => state.set_cond_if_empty(Cond::any()),
+                        }
+                    }
                 }
+                // Opposition -> Simple
+                sql_adt::Expression::Simple(_) => {
+                    if matches!(e, sql_adt::Expression::Opposition(_)) {
+                        state.set_negate()
+                    }
+                }
+                // Opposition -> Nest
+                sql_adt::Expression::Nest(_) => {
+                    if matches!(e, sql_adt::Expression::Opposition(_)) {
+                        state.set_negate()
+                    }
+                }
+                _ => {}
             }
         }
 
-        // even index is simple/nest expression
-        if i % 2 == 0 {
-            match e {
-                sql_adt::Expression::Simple(c) => {
-                    let tmp_expr = Expr::col(alias!(&c.column));
-                    let tmp_expr = match &c.equation {
-                        sql_adt::Equation::Not => tmp_expr.not(),
-                        sql_adt::Equation::Equal(d) => tmp_expr.eq(d),
-                        sql_adt::Equation::NotEqual(d) => tmp_expr.ne(d),
-                        sql_adt::Equation::Greater(d) => tmp_expr.gt(d),
-                        sql_adt::Equation::GreaterEqual(d) => tmp_expr.gte(d),
-                        sql_adt::Equation::Less(d) => tmp_expr.lt(d),
-                        sql_adt::Equation::LessEqual(d) => tmp_expr.lte(d),
-                        sql_adt::Equation::In(d) => tmp_expr.is_in(d),
-                        sql_adt::Equation::Between(d) => tmp_expr.between(&d.0, &d.1),
-                        sql_adt::Equation::Like(d) => tmp_expr.like(d),
-                    };
-                    let last = vec_cond.last().unwrap().clone();
-                    let mut_last = vec_cond.last_mut().unwrap();
-                    *mut_last = last.add(tmp_expr);
+        match e {
+            sql_adt::Expression::Simple(s) => {
+                let expr = Expr::col(alias!(s.column()));
+                let expr = match s.equation() {
+                    sql_adt::Equation::Equal(v) => expr.eq(v),
+                    sql_adt::Equation::NotEqual(v) => expr.ne(v),
+                    sql_adt::Equation::Greater(v) => expr.gt(v),
+                    sql_adt::Equation::GreaterEqual(v) => expr.gte(v),
+                    sql_adt::Equation::Less(v) => expr.lt(v),
+                    sql_adt::Equation::LessEqual(v) => expr.lte(v),
+                    sql_adt::Equation::In(v) => expr.is_in(v),
+                    sql_adt::Equation::Between(v) => expr.between(&v.0, &v.1),
+                    sql_adt::Equation::Like(v) => expr.like(v),
+                };
+                if state.negate {
+                    state.add(Cond::all().not().add(expr));
+                } else {
+                    state.add(expr);
                 }
-                sql_adt::Expression::Nest(ve) => {
-                    cond_builder(vec_cond, ve);
-                }
-                // make sure even index is simple/nest expression
-                _ => panic!("wrong expression {:?}, needs a simple or nested variant", e),
+                state.reset_negate();
             }
+            sql_adt::Expression::Nest(n) => {
+                let mut ns = RecursiveState::new();
+                cond_builder(n, &mut ns);
+                if let Some(c) = ns.cond.take() {
+                    if state.negate {
+                        state.add(c.not());
+                    } else {
+                        state.add(c);
+                    }
+                }
+                state.reset_negate();
+            }
+            _ => {}
         }
     }
 }

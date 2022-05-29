@@ -98,7 +98,7 @@ mod test_mutation_dml {
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{datetime, fx, sql_adt::ExpressionTransit, xpr};
+    use crate::{datetime, fx, xpr, xpr_and, xpr_or};
 
     #[test]
     fn test_insert() {
@@ -227,28 +227,20 @@ mod test_mutation_dml {
 
     #[test]
     fn test_delete() {
-        let filter = sql_adt::ExpressionsBuilder::from_condition(xpr!("ord", "=", 15))
-            .append(xpr!("or"))
-            .append(
-                sql_adt::ExpressionsBuilder::from_condition(xpr!("names", "=", "X"))
-                    .append(xpr!("and"))
-                    .append(xpr!("val", ">=", 10.0))
-                    .finish(),
-            )
-            .finish();
+        let filter = xpr!([
+            xpr!([xpr!("names", "=", "X"), xpr_and!(), xpr!("val", ">=", 10.0)]),
+            xpr_or!(),
+            xpr!("ord", "=", 15),
+        ]);
 
         let delete = sql_adt::Delete {
             table: "test".to_string(),
             filter,
         };
 
-        let foo = SqlBuilder::Mysql.delete(&delete);
-
-        println!("{:?}", foo);
-
         assert_eq!(
-            "DELETE FROM `test` WHERE `ord` = 15 OR (`names` = 'X' AND `val` >= 10)",
-            foo
+            "DELETE FROM `test` WHERE (`names` = 'X' AND `val` >= 10) OR `ord` = 15",
+            SqlBuilder::Mysql.delete(&delete)
         );
     }
 }
