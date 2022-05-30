@@ -114,6 +114,8 @@ macro_rules! xpr {
         expr.finish()
     }};
 
+    // Case:
+
     // Case: Between
     ($column:expr, $equation:expr, [$value1:expr, $value2:expr]) => {
         $crate::sql_adt::Condition {

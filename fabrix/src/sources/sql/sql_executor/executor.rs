@@ -229,7 +229,7 @@ where
             .map(|v| {
                 let constraint_name = try_value_into_string(&v[0])?;
                 let constraint_type = try_value_into_string(&v[1])?;
-                let constraint_type = sql_adt::ConstraintType::from_str(&constraint_type)?;
+                let constraint_type = sql_adt::TableConstraintType::from_str(&constraint_type)?;
                 Ok(sql_adt::TableConstraint::new(
                     constraint_name,
                     constraint_type,

@@ -34,8 +34,9 @@ impl From<FieldInfo> for TableSchema {
 // Constraint
 // ================================================================================================
 
+/// Table constraint type
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub enum ConstraintType {
+pub enum TableConstraintType {
     Check,
     NotNull,
     Unique,
@@ -43,29 +44,30 @@ pub enum ConstraintType {
     ForeignKey,
 }
 
-impl FromStr for ConstraintType {
+impl FromStr for TableConstraintType {
     type Err = SqlError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "CHECK" => Ok(ConstraintType::Check),
-            "NOT NULL" => Ok(ConstraintType::NotNull),
-            "UNIQUE" => Ok(ConstraintType::Unique),
-            "PRIMARY KEY" => Ok(ConstraintType::PrimaryKey),
-            "FOREIGN KEY" => Ok(ConstraintType::ForeignKey),
+            "CHECK" => Ok(TableConstraintType::Check),
+            "NOT NULL" => Ok(TableConstraintType::NotNull),
+            "UNIQUE" => Ok(TableConstraintType::Unique),
+            "PRIMARY KEY" => Ok(TableConstraintType::PrimaryKey),
+            "FOREIGN KEY" => Ok(TableConstraintType::ForeignKey),
             _ => Err(SqlError::new_common_error("invalid constraint type")),
         }
     }
 }
 
+/// Table constraint
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct TableConstraint {
     pub constraint_name: String,
-    pub constraint_type: ConstraintType,
+    pub constraint_type: TableConstraintType,
 }
 
 impl TableConstraint {
-    pub fn new(constraint_name: String, constraint_type: ConstraintType) -> Self {
+    pub fn new(constraint_name: String, constraint_type: TableConstraintType) -> Self {
         TableConstraint {
             constraint_name,
             constraint_type,
@@ -73,6 +75,7 @@ impl TableConstraint {
     }
 }
 
+/// Column constraint
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ColumnConstraint {
     pub constraint_name: String,
@@ -88,6 +91,7 @@ impl ColumnConstraint {
     }
 }
 
+/// Column index
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ColumnIndex {
     pub index_name: String,
@@ -247,6 +251,7 @@ pub enum AlterTable {
 // Expression & Expressions (filter)
 // ================================================================================================
 
+/// Conjunction: And/Or
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Conjunction {
     #[serde(rename = "and")]
@@ -255,12 +260,14 @@ pub enum Conjunction {
     OR,
 }
 
+/// Opposition: Not
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Opposition {
     #[serde(rename = "not")]
     NOT,
 }
 
+/// Equation
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Equation {
     #[serde(rename = "=")]
@@ -283,6 +290,39 @@ pub enum Equation {
     Like(String),
 }
 
+/// Function
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum Function {
+    #[serde(rename = "max")]
+    Max,
+    #[serde(rename = "min")]
+    Min,
+    #[serde(rename = "sum")]
+    Sum,
+    #[serde(rename = "avg")]
+    Avg,
+    #[serde(rename = "abs")]
+    Abs,
+    #[serde(rename = "count")]
+    Count,
+    #[serde(rename = "ifnull")]
+    IfNull,
+    #[serde(rename = "charlen")]
+    CharLength,
+    #[serde(rename = "lower")]
+    Lower,
+    #[serde(rename = "upper")]
+    Upper,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum EF {
+    Equation(Equation),
+    Function(Function),
+}
+
+// TODO: replace equation by EF
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Condition {
     pub column: String,
@@ -300,6 +340,7 @@ impl Condition {
     }
 }
 
+/// Expression
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub(crate) enum Expression {
@@ -333,6 +374,7 @@ impl From<Condition> for Expression {
     }
 }
 
+/// Expressions
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(transparent)]
 pub struct Expressions(pub(crate) Vec<Expression>);
@@ -342,7 +384,9 @@ pub struct Expressions(pub(crate) Vec<Expression>);
 // A finite state machine used for building expressions
 // ================================================================================================
 
+// Init
 pub struct InitState;
+
 // AND/OR
 pub struct ConjunctionState {
     stack: Vec<Expression>,
@@ -443,6 +487,9 @@ xpr_transit!(Condition, ConjunctionState => SimpleState);
 // Conjunction -> Nest
 xpr_transit!(Expressions, ConjunctionState => NestState);
 
+/// Expressions builder
+///
+/// Build a legal expression
 pub struct ExpressionsBuilder;
 
 impl ExpressionsBuilder {
@@ -561,6 +608,7 @@ impl Select {
 // Delete
 // ================================================================================================
 
+/// Delete statement
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Delete {
     pub table: String,

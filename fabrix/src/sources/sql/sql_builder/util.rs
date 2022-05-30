@@ -10,6 +10,9 @@ pub(crate) enum DeleteOrSelect<'a> {
     Select(&'a mut SelectStatement),
 }
 
+/// RecursiveState
+///
+/// Used in `cond_builder` to build `ConditionExpression`
 #[derive(Default)]
 struct RecursiveState {
     cond: Option<Cond>,
@@ -58,6 +61,7 @@ pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions)
     }
 }
 
+/// condition builder
 fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
     let mut iter = flt.iter().peekable();
 
