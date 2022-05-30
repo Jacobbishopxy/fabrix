@@ -255,22 +255,31 @@ pub enum Conjunction {
     OR,
 }
 
-// TODO:
-// rename and turn into enum; include Max, Min, Sum, Count
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "not")]
-pub struct Opposition;
+pub enum Opposition {
+    #[serde(rename = "not")]
+    NOT,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Equation {
+    #[serde(rename = "=")]
     Equal(Value),
+    #[serde(rename = "!=")]
     NotEqual(Value),
+    #[serde(rename = ">")]
     Greater(Value),
+    #[serde(rename = ">=")]
     GreaterEqual(Value),
+    #[serde(rename = "<")]
     Less(Value),
+    #[serde(rename = "<=")]
     LessEqual(Value),
+    #[serde(rename = "in")]
     In(Vec<Value>),
+    #[serde(rename = "between")]
     Between((Value, Value)),
+    #[serde(rename = "%")]
     Like(String),
 }
 
@@ -723,6 +732,7 @@ impl From<u64> for ExecutionResult {
 
 #[cfg(test)]
 mod test_sql_adt {
+
     use super::*;
 
     #[test]
@@ -735,7 +745,7 @@ mod test_sql_adt {
                         equation: Equation::Equal("foo".into()),
                     })
                     .append(Conjunction::AND)
-                    .append(Opposition)
+                    .append(Opposition::NOT)
                     .append(Condition {
                         column: String::from("age"),
                         equation: Equation::Equal(10.into()),
@@ -760,17 +770,61 @@ mod test_sql_adt {
     #[test]
     fn expression_serialize() {
         let e = Expressions(vec![
+            Expression::Opposition(Opposition::NOT),
             Expression::Simple(Condition {
                 column: "a".to_owned(),
                 equation: Equation::Equal(Value::I16(1)),
             }),
             Expression::Conjunction(Conjunction::OR),
-            Expression::Simple(Condition {
-                column: "b".to_owned(),
-                equation: Equation::Equal(Value::U32(2)),
-            }),
+            Expression::Nest(vec![
+                Expression::Simple(Condition {
+                    column: "b".to_owned(),
+                    equation: Equation::Equal(Value::U32(2)),
+                }),
+                Expression::Conjunction(Conjunction::AND),
+                Expression::Simple(Condition {
+                    column: "c".to_owned(),
+                    equation: Equation::Like("%foo%".into()),
+                }),
+            ]),
         ]);
         let foo = serde_json::to_string(&e).unwrap();
         println!("{:?}", foo);
+
+        assert_eq!(
+            foo,
+            "[\"not\",{\"column\":\"a\",\"=\":1},\"or\",[{\"column\":\"b\",\"=\":2},\"and\",{\"column\":\"c\",\"%\":\"%foo%\"}]]"
+        );
+    }
+
+    #[test]
+    fn select_serialize() {
+        let e = Expressions(vec![
+            Expression::Opposition(Opposition::NOT),
+            Expression::Simple(Condition {
+                column: "a".to_owned(),
+                equation: Equation::Equal(Value::I16(1)),
+            }),
+            Expression::Conjunction(Conjunction::OR),
+            Expression::Nest(vec![
+                Expression::Simple(Condition {
+                    column: "b".to_owned(),
+                    equation: Equation::Equal(Value::U32(2)),
+                }),
+                Expression::Conjunction(Conjunction::AND),
+                Expression::Simple(Condition {
+                    column: "c".to_owned(),
+                    equation: Equation::Like("%foo%".into()),
+                }),
+            ]),
+        ]);
+
+        let select = Select::new("test")
+            .columns(&["v1", "v2"])
+            .filter(&e)
+            .limit(10);
+
+        let s = serde_json::to_string(&select).unwrap();
+        println!("{:?}", s);
     }
 }

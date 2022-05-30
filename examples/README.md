@@ -24,16 +24,35 @@ check [main.rs](./dispatch_service/src/main.rs)
 
   ```json
   {
-  	"table": "test",
-  	"columns": [
-  		["id", "index_id"],
-  		"first_name",
-  		"last_name",
-  		"ip_address",
-  		"issued_date",
-  		"issued_times"
-  	],
-  	"limit": 10
+   "table": "test",
+   "columns": [
+    "id",
+    "first_name",
+    "last_name",
+    "ip_address",
+    "issued_date",
+    "issued_times"
+   ],
+   "filter": [
+    "not",
+    {
+     "column": "id",
+     "<": "10"
+    },
+    "and",
+    [
+     {
+      "column": "issued_times",
+      "between": ["2", "6"]
+     },
+     "or",
+     {
+      "column": "last_name",
+      "%": "Mayzes%"
+     }
+    ]
+   ],
+   "limit": 10
   }
   ```
 

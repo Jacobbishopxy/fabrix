@@ -81,7 +81,7 @@ pub use xpr_or;
 macro_rules! xpr_not {
     // Case: Not
     () => {
-        $crate::sql_adt::Opposition
+        $crate::sql_adt::Opposition::NOT
     };
 }
 
@@ -160,7 +160,7 @@ macro_rules! xpr {
                 ">=" => $crate::sql_adt::Equation::GreaterEqual($crate::value!($value)),
                 "<" => $crate::sql_adt::Equation::Less($crate::value!($value)),
                 "<=" => $crate::sql_adt::Equation::LessEqual($crate::value!($value)),
-                "%" => $crate::sql_adt::Equation::Like(String::from(stringify!($value))),
+                "%" => $crate::sql_adt::Equation::Like($value.to_string()),
                 _ => unimplemented!(),
             },
         }
@@ -236,7 +236,7 @@ mod sql_adt_macros {
                     .finish(),
             )
             .append(sql_adt::Conjunction::OR)
-            .append(sql_adt::Opposition)
+            .append(sql_adt::Opposition::NOT)
             .append(sql_adt::Condition {
                 column: "ord".to_string(),
                 equation: sql_adt::Equation::Between((value!(1), value!(100))),
