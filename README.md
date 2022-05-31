@@ -25,7 +25,7 @@ There are three main parts in this crate:
 │   │
 │   ├── sql                             // Sql data source
 │   │   ├── sql_builder                 // SQL builder
-│   │   │   ├── adt.rs                  // algebraic data type
+│   │   │   ├── sql_adt.rs              // algebraic data type
 │   │   │   ├── query_ddl.rs            // ddl query: check table or schema
 │   │   │   ├── query_dml.rs            // dml query: select and etc
 │   │   │   ├── mutation_ddl.rs         // ddl mutation: create/alter/drop table

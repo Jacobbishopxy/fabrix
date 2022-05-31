@@ -20,7 +20,7 @@ where
 {
     sql_reader: SqlExecutor<T>,
     table: Option<&'a str>,
-    columns: Option<&'a [sql_adt::ColumnAlias]>,
+    columns: Option<&'a [sql_adt::Column]>,
     filter: Option<&'a sql_adt::Expressions>,
     order: Option<&'a [sql_adt::Order]>,
     limit: Option<usize>,
@@ -114,7 +114,7 @@ where
         self
     }
 
-    pub fn with_columns(&mut self, columns: &'a [sql_adt::ColumnAlias]) -> &mut Self {
+    pub fn with_columns(&mut self, columns: &'a [sql_adt::Column]) -> &mut Self {
         self.columns = Some(columns);
         self
     }
@@ -177,7 +177,7 @@ where
 #[derive(Default)]
 pub struct SqlReadOptions<'a> {
     pub table: Option<&'a str>,
-    pub columns: Option<&'a [sql_adt::ColumnAlias]>,
+    pub columns: Option<&'a [sql_adt::Column]>,
     pub filter: Option<&'a sql_adt::Expressions>,
     pub order: Option<&'a [sql_adt::Order]>,
     pub limit: Option<usize>,
