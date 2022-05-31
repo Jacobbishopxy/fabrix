@@ -536,7 +536,7 @@ where
             }
         };
 
-        df.set_column_names(&select.columns_name(true))?;
+        df.set_column_names(&select.columns_name())?;
 
         Ok(df)
     }
@@ -546,7 +546,7 @@ where
 fn add_primary_key_to_select<T: Into<String>>(primary_key: T, select: &mut sql_adt::Select) {
     select
         .columns
-        .insert(0, sql_adt::ColumnAlias::Simple(primary_key.into()));
+        .insert(0, sql_adt::Column::new(primary_key, None));
 }
 
 /// `Value` -> String
@@ -926,11 +926,11 @@ mod test_executor {
         let select = sql_adt::Select {
             table: "dev".to_owned(),
             columns: vec![
-                sql_adt::ColumnAlias::Simple("names".to_owned()),
-                sql_adt::ColumnAlias::Simple("val".to_owned()),
-                sql_adt::ColumnAlias::Simple("note".to_owned()),
-                sql_adt::ColumnAlias::Simple("dt".to_owned()),
-                sql_adt::ColumnAlias::Alias("ord".to_owned(), "ID".to_owned()),
+                sql_adt::Column::new("names", None),
+                sql_adt::Column::new("val", None),
+                sql_adt::Column::new("note", None),
+                sql_adt::Column::new("dt", None),
+                sql_adt::Column::new("ord", None),
             ],
             ..Default::default()
         };

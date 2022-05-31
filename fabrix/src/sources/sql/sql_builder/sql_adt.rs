@@ -2,7 +2,6 @@
 
 use std::str::FromStr;
 
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use super::xpr_transit;
@@ -177,49 +176,78 @@ pub struct ForeignKey {
 }
 
 // ================================================================================================
+// Function
+// ================================================================================================
+
+/// Function
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum Function {
+    #[serde(rename = "alias")]
+    Alias(String),
+    #[serde(rename = "max")]
+    Max,
+    #[serde(rename = "min")]
+    Min,
+    #[serde(rename = "sum")]
+    Sum,
+    #[serde(rename = "avg")]
+    Avg,
+    #[serde(rename = "abs")]
+    Abs,
+    #[serde(rename = "count")]
+    Count,
+    #[serde(rename = "ifnull")]
+    IfNull(String),
+    #[serde(rename = "cast")]
+    Cast(String),
+    #[serde(rename = "coalesce")]
+    Coalesce(Vec<String>),
+    #[serde(rename = "charlen")]
+    CharLength,
+    #[serde(rename = "lower")]
+    Lower,
+    #[serde(rename = "upper")]
+    Upper,
+}
+
+// ================================================================================================
 // Column
 // ================================================================================================
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 
-pub struct NameAlias {
-    pub from: String,
-    pub to: String,
+pub struct Column {
+    pub name: String,
+    pub function: Option<Function>,
 }
 
-/// column name, can be alias. used it in `select`
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(untagged)]
-pub enum ColumnAlias {
-    Simple(String),
-    Alias(String, String), // (from, to)
-}
-
-impl ColumnAlias {
-    pub fn original_name(&self) -> String {
-        match self {
-            ColumnAlias::Simple(s) => s.to_owned(),
-            ColumnAlias::Alias(s, _) => s.to_owned(),
+impl Column {
+    pub fn new<C: Into<String>>(column: C, function: Option<Function>) -> Self {
+        Column {
+            name: column.into(),
+            function,
         }
     }
 
-    pub fn name(&self) -> String {
-        match self {
-            ColumnAlias::Simple(s) => s.to_owned(),
-            ColumnAlias::Alias(_, s) => s.to_owned(),
-        }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn function(&self) -> Option<&Function> {
+        self.function.as_ref()
+    }
+
+    pub fn has_func(&self) -> bool {
+        self.function.is_some()
     }
 }
 
-impl From<&str> for ColumnAlias {
+impl From<&str> for Column {
     fn from(s: &str) -> Self {
-        ColumnAlias::Simple(s.to_owned())
-    }
-}
-
-impl From<(&str, &str)> for ColumnAlias {
-    fn from((from, to): (&str, &str)) -> Self {
-        ColumnAlias::Alias(from.to_owned(), to.to_owned())
+        Column {
+            name: s.to_string(),
+            function: None,
+        }
     }
 }
 
@@ -290,49 +318,27 @@ pub enum Equation {
     Like(String),
 }
 
-/// Function
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub enum Function {
-    #[serde(rename = "max")]
-    Max,
-    #[serde(rename = "min")]
-    Min,
-    #[serde(rename = "sum")]
-    Sum,
-    #[serde(rename = "avg")]
-    Avg,
-    #[serde(rename = "abs")]
-    Abs,
-    #[serde(rename = "count")]
-    Count,
-    #[serde(rename = "ifnull")]
-    IfNull,
-    #[serde(rename = "charlen")]
-    CharLength,
-    #[serde(rename = "lower")]
-    Lower,
-    #[serde(rename = "upper")]
-    Upper,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(untagged)]
-pub enum EF {
-    Equation(Equation),
-    Function(Function),
-}
-
-// TODO: replace equation by EF
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Condition {
-    pub column: String,
+    pub column: Column,
     #[serde(flatten)]
     pub equation: Equation,
 }
 
 impl Condition {
-    pub fn column(&self) -> &str {
+    pub fn new<C: Into<Column>>(column: C, equation: Equation) -> Self {
+        Condition {
+            column: column.into(),
+            equation,
+        }
+    }
+
+    pub fn column(&self) -> &Column {
         &self.column
+    }
+
+    pub fn column_name(&self) -> &str {
+        self.column.name.as_str()
     }
 
     pub fn equation(&self) -> &Equation {
@@ -513,7 +519,7 @@ impl ExpressionsBuilder {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Select {
     pub table: String,
-    pub columns: Vec<ColumnAlias>,
+    pub columns: Vec<Column>,
     pub filter: Option<Expressions>,
     pub order: Option<Vec<Order>>,
     pub limit: Option<usize>,
@@ -538,7 +544,7 @@ impl Select {
         &self.table
     }
 
-    pub fn get_columns(&self) -> &[ColumnAlias] {
+    pub fn get_columns(&self) -> &[Column] {
         &self.columns
     }
 
@@ -562,16 +568,13 @@ impl Select {
         self.include_primary_key
     }
 
-    pub fn columns_name(&self, alias: bool) -> Vec<String> {
-        self.columns
-            .iter()
-            .map(|c| if alias { c.name() } else { c.original_name() })
-            .collect_vec()
+    pub fn columns_name(&self) -> Vec<String> {
+        self.columns.iter().map(|c| c.name().to_owned()).collect()
     }
 
     pub fn columns<T>(mut self, columns: &[T]) -> Self
     where
-        ColumnAlias: From<T>,
+        Column: From<T>,
         T: Copy,
     {
         self.columns.extend(columns.iter().map(|c| (*c).into()));
@@ -788,28 +791,16 @@ mod test_sql_adt {
         let e = ExpressionsBuilder::init()
             .append(
                 ExpressionsBuilder::init()
-                    .append(Condition {
-                        column: String::from("name"),
-                        equation: Equation::Equal("foo".into()),
-                    })
+                    .append(Condition::new("name", Equation::Equal("foo".into())))
                     .append(Conjunction::AND)
                     .append(Opposition::NOT)
-                    .append(Condition {
-                        column: String::from("age"),
-                        equation: Equation::Equal(10.into()),
-                    })
+                    .append(Condition::new("age", Equation::Equal(10.into())))
                     .append(Conjunction::OR)
-                    .append(Condition {
-                        column: String::from("age"),
-                        equation: Equation::Equal(20.into()),
-                    })
+                    .append(Condition::new("age", Equation::Equal(20.into())))
                     .finish(),
             )
             .append(Conjunction::OR)
-            .append(Condition {
-                column: String::from("name"),
-                equation: Equation::Equal("bar".into()),
-            })
+            .append(Condition::new("name", Equation::Equal("bar".into())))
             .finish();
 
         println!("{:?}", e);
@@ -819,21 +810,12 @@ mod test_sql_adt {
     fn expression_serialize() {
         let e = Expressions(vec![
             Expression::Opposition(Opposition::NOT),
-            Expression::Simple(Condition {
-                column: "a".to_owned(),
-                equation: Equation::Equal(Value::I16(1)),
-            }),
+            Expression::Simple(Condition::new("a", Equation::Equal(Value::I16(1)))),
             Expression::Conjunction(Conjunction::OR),
             Expression::Nest(vec![
-                Expression::Simple(Condition {
-                    column: "b".to_owned(),
-                    equation: Equation::Equal(Value::U32(2)),
-                }),
+                Expression::Simple(Condition::new("b", Equation::Equal(Value::U32(2)))),
                 Expression::Conjunction(Conjunction::AND),
-                Expression::Simple(Condition {
-                    column: "c".to_owned(),
-                    equation: Equation::Like("%foo%".into()),
-                }),
+                Expression::Simple(Condition::new("c", Equation::Like("%foo%".into()))),
             ]),
         ]);
         let foo = serde_json::to_string(&e).unwrap();
@@ -849,21 +831,12 @@ mod test_sql_adt {
     fn select_serialize() {
         let e = Expressions(vec![
             Expression::Opposition(Opposition::NOT),
-            Expression::Simple(Condition {
-                column: "a".to_owned(),
-                equation: Equation::Equal(Value::I16(1)),
-            }),
+            Expression::Simple(Condition::new("a", Equation::Equal(Value::I16(1)))),
             Expression::Conjunction(Conjunction::OR),
             Expression::Nest(vec![
-                Expression::Simple(Condition {
-                    column: "b".to_owned(),
-                    equation: Equation::Equal(Value::U32(2)),
-                }),
+                Expression::Simple(Condition::new("b", Equation::Equal(Value::U32(2)))),
                 Expression::Conjunction(Conjunction::AND),
-                Expression::Simple(Condition {
-                    column: "c".to_owned(),
-                    equation: Equation::Like("%foo%".into()),
-                }),
+                Expression::Simple(Condition::new("c", Equation::Like("%foo%".into()))),
             ]),
         ]);
 

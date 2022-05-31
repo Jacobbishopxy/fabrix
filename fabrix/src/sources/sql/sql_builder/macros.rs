@@ -87,6 +87,57 @@ macro_rules! xpr_not {
 
 pub use xpr_not;
 
+#[macro_export]
+macro_rules! xpr_fn {
+    // Case: Function
+    ($column:expr, $function:expr) => {
+        $crate::sql_adt::Condition {
+            column: String::from($column),
+            equation: match $function {
+                "max" => $crate::sql_adt::Function::Max,
+                "min" => $crate::sql_adt::Function::Min,
+                "sum" => $crate::sql_adt::Function::Sum,
+                "avg" => $crate::sql_adt::Function::Avg,
+                "abs" => $crate::sql_adt::Function::Abs,
+                "count" => $crate::sql_adt::Function::Count,
+                "charlen" => $crate::sql_adt::Function::CharLength,
+                "lower" => $crate::sql_adt::Function::Lower,
+                "upper" => $crate::sql_adt::Function::Upper,
+                _ => unimplemented!(),
+            },
+        }
+    };
+
+    ($column:expr, $function:expr, $value:expr) => {
+        $crate::sql_adt::Condition {
+            column: String::from($column),
+            equation: match $function {
+                "alias" => $crate::sql_adt::Function::Alias($value),
+                "ifnull" => $crate::sql_adt::Function::IfNull($value),
+                "cast" => $crate::sql_adt::Function::Cast($value),
+                _ => unimplemented!(),
+            },
+        }
+    };
+
+    ($column:expr, $function:expr, [$($value:expr),* $(,)*]) => {
+        $crate::sql_adt::Condition {
+            column: String::from($column),
+            equation: match $function {
+                "coalesce" => {
+                    let mut values = Vec::<String>::new();
+                    $(
+                        values.push($value);
+                    )*
+
+                    $crate::sql_adt::Function::Coalesce($values)
+                },
+                _ => unimplemented!(),
+            },
+        }
+    };
+}
+
 /// expression macro
 /// `sql_adt::Expression::Nest(...)`
 /// `sql_adt::Expression::Simple(...)`
@@ -114,12 +165,10 @@ macro_rules! xpr {
         expr.finish()
     }};
 
-    // Case:
-
     // Case: Between
     ($column:expr, $equation:expr, [$value1:expr, $value2:expr]) => {
         $crate::sql_adt::Condition {
-            column: String::from($column),
+            column: $column.into(),
             equation: match $equation {
                 "between" => $crate::sql_adt::Equation::Between((
                     $crate::value!($value1),
@@ -137,7 +186,7 @@ macro_rules! xpr {
     // Case: In
     ($column:expr, $equation:expr, [$($value:expr),* $(,)*]) => {
         $crate::sql_adt::Condition {
-            column: String::from($column),
+            column: $column.into(),
             equation: match $equation {
                 "in" => {
                     let mut values = Vec::<$crate::Value>::new();
@@ -154,7 +203,7 @@ macro_rules! xpr {
     // Case: other equations
     ($column:expr, $equation:expr, $value:expr) => {
         $crate::sql_adt::Condition {
-            column: String::from($column),
+            column: $column.into(),
             equation: match $equation {
                 "=" => $crate::sql_adt::Equation::Equal($crate::value!($value)),
                 "!=" => $crate::sql_adt::Equation::NotEqual($crate::value!($value)),
@@ -226,23 +275,23 @@ mod sql_adt_macros {
         let e2 = sql_adt::ExpressionsBuilder::init()
             .append(
                 sql_adt::ExpressionsBuilder::init()
-                    .append(sql_adt::Condition {
-                        column: "name".to_string(),
-                        equation: sql_adt::Equation::Equal(value!("Jacob")),
-                    })
+                    .append(sql_adt::Condition::new(
+                        "name",
+                        sql_adt::Equation::Equal(value!("Jacob")),
+                    ))
                     .append(sql_adt::Conjunction::AND)
-                    .append(sql_adt::Condition {
-                        column: "age".to_string(),
-                        equation: sql_adt::Equation::In(vec![value!(10), value!(30), value!(50)]),
-                    })
+                    .append(sql_adt::Condition::new(
+                        "age",
+                        sql_adt::Equation::In(vec![value!(10), value!(30), value!(50)]),
+                    ))
                     .finish(),
             )
             .append(sql_adt::Conjunction::OR)
             .append(sql_adt::Opposition::NOT)
-            .append(sql_adt::Condition {
-                column: "ord".to_string(),
-                equation: sql_adt::Equation::Between((value!(1), value!(100))),
-            })
+            .append(sql_adt::Condition::new(
+                "ord",
+                sql_adt::Equation::Between((value!(1), value!(100))),
+            ))
             .finish();
 
         assert_eq!(e1, e2);

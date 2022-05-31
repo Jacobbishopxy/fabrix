@@ -2,7 +2,10 @@
 
 use sea_query::{Expr, Order, Query};
 
-use super::{alias, filter_builder, sql_adt, statement, try_from_value_to_svalue, DeleteOrSelect};
+use super::{
+    alias, column_builder, filter_builder, sql_adt, statement, try_from_value_to_svalue,
+    DeleteOrSelect,
+};
 use crate::{DmlQuery, Series, SqlBuilder, SqlResult};
 
 impl DmlQuery for SqlBuilder {
@@ -27,9 +30,10 @@ impl DmlQuery for SqlBuilder {
     fn select(&self, select: &sql_adt::Select) -> String {
         let mut statement = Query::select();
 
-        for c in &select.columns {
-            statement.column(alias!(&c.original_name()));
-        }
+        select
+            .columns
+            .iter()
+            .for_each(|c| column_builder(&mut statement, c));
 
         statement.from(alias!(&select.table));
 
@@ -86,10 +90,10 @@ mod test_query_dml {
         let select = SqlBuilder::Postgres.select(&sql_adt::Select {
             table: "test".to_string(),
             columns: vec![
-                sql_adt::ColumnAlias::Simple("v1".to_string()),
-                sql_adt::ColumnAlias::Simple("v2".to_string()),
-                sql_adt::ColumnAlias::Simple("v3".to_string()),
-                sql_adt::ColumnAlias::Simple("v4".to_string()),
+                sql_adt::Column::new("v1", None),
+                sql_adt::Column::new("v2", None),
+                sql_adt::Column::new("v3", None),
+                sql_adt::Column::new("v4", None),
             ],
             filter: Some(filter),
             order: Some(vec![

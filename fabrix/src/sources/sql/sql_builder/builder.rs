@@ -3,12 +3,21 @@
 use std::str::FromStr;
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
-use sea_query::Value as SValue;
+use sea_query::{
+    Cond, ConditionExpression, DeleteStatement, Expr, Func, SelectStatement, Value as SValue,
+};
 
-use super::sv_2_v;
+use super::{alias, sql_adt, sv_2_v};
 use crate::core::Value2ChronoHelper;
 use crate::{Decimal, SqlError, SqlResult, Uuid, Value, ValueType};
 
+// ================================================================================================
+// SqlBuilder
+// ================================================================================================
+
+/// SqlBuilder
+///
+/// Used to categorize database types
 #[derive(Debug, Clone)]
 pub enum SqlBuilder {
     Mysql,
@@ -173,5 +182,206 @@ pub(crate) fn from_svalue_to_value(svalue: SValue, nullable: bool) -> SqlResult<
         SValue::Decimal(ov) => sv_2_v!(ov, Decimal, nullable),
         SValue::Uuid(ov) => sv_2_v!(ov, Uuid, nullable),
         _ => Err(SqlError::new_common_error("unsupported type")),
+    }
+}
+
+// ================================================================================================
+// FilterBuilder
+// Delete, Select
+// ================================================================================================
+
+/// delete or select statement, since their `where` clause are the same
+pub(crate) enum DeleteOrSelect<'a> {
+    Delete(&'a mut DeleteStatement),
+    Select(&'a mut SelectStatement),
+}
+
+/// RecursiveState
+///
+/// Used in `cond_builder` to build `ConditionExpression`
+#[derive(Default)]
+struct RecursiveState {
+    cond: Option<Cond>,
+    negate: bool,
+}
+
+impl RecursiveState {
+    fn new() -> Self {
+        RecursiveState::default()
+    }
+
+    fn set_cond_if_empty(&mut self, cond: Cond) {
+        if self.cond.is_none() {
+            self.cond = Some(cond)
+        }
+    }
+
+    fn set_negate(&mut self) {
+        self.negate = true;
+    }
+
+    fn reset_negate(&mut self) {
+        self.negate = false;
+    }
+
+    fn add<C: Into<ConditionExpression>>(&mut self, cond: C) {
+        self.cond = Some(match self.cond.take() {
+            Some(c) => c.add(cond),
+            None => Cond::all().add(cond),
+        });
+    }
+}
+
+/// A general function to build Sql conditions for Delete and Select statements
+pub(crate) fn filter_builder(s: &mut DeleteOrSelect, flt: &sql_adt::Expressions) {
+    let mut state = RecursiveState::new();
+    cond_builder(&flt.0, &mut state);
+
+    match s {
+        DeleteOrSelect::Delete(d) => {
+            state.cond.take().map(|c| d.cond_where(c));
+        }
+        DeleteOrSelect::Select(s) => {
+            state.cond.take().map(|c| s.cond_where(c));
+        }
+    }
+}
+
+/// condition builder
+fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
+    let mut iter = flt.iter().peekable();
+
+    while let Some(e) = iter.next() {
+        // move forward and get the next expr
+        if let Some(ne) = iter.peek() {
+            // if same type of expression in a row, skip the former one
+            if &e == ne {
+                continue;
+            }
+
+            match ne {
+                // Simple/Nest -> Conjunction
+                sql_adt::Expression::Conjunction(c) => {
+                    let permit = matches!(
+                        e,
+                        sql_adt::Expression::Simple(_) | sql_adt::Expression::Nest(_)
+                    );
+                    if permit {
+                        match c {
+                            sql_adt::Conjunction::AND => state.set_cond_if_empty(Cond::all()),
+                            sql_adt::Conjunction::OR => state.set_cond_if_empty(Cond::any()),
+                        }
+                    }
+                }
+                // Opposition -> Simple
+                sql_adt::Expression::Simple(_) => {
+                    if matches!(e, sql_adt::Expression::Opposition(_)) {
+                        state.set_negate()
+                    }
+                }
+                // Opposition -> Nest
+                sql_adt::Expression::Nest(_) => {
+                    if matches!(e, sql_adt::Expression::Opposition(_)) {
+                        state.set_negate()
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        match e {
+            sql_adt::Expression::Simple(s) => {
+                let expr = Expr::col(alias!(s.column_name()));
+                let expr = match s.equation() {
+                    sql_adt::Equation::Equal(v) => expr.eq(v),
+                    sql_adt::Equation::NotEqual(v) => expr.ne(v),
+                    sql_adt::Equation::Greater(v) => expr.gt(v),
+                    sql_adt::Equation::GreaterEqual(v) => expr.gte(v),
+                    sql_adt::Equation::Less(v) => expr.lt(v),
+                    sql_adt::Equation::LessEqual(v) => expr.lte(v),
+                    sql_adt::Equation::In(v) => expr.is_in(v),
+                    sql_adt::Equation::Between(v) => expr.between(&v.0, &v.1),
+                    sql_adt::Equation::Like(v) => expr.like(v),
+                };
+                if state.negate {
+                    state.add(Cond::all().not().add(expr));
+                } else {
+                    state.add(expr);
+                }
+                state.reset_negate();
+            }
+            sql_adt::Expression::Nest(n) => {
+                let mut ns = RecursiveState::new();
+                cond_builder(n, &mut ns);
+                if let Some(c) = ns.cond.take() {
+                    if state.negate {
+                        state.add(c.not());
+                    } else {
+                        state.add(c);
+                    }
+                }
+                state.reset_negate();
+            }
+            _ => {}
+        }
+    }
+}
+
+// ================================================================================================
+// ColumnBuilder
+// ================================================================================================
+
+/// column_builder
+pub(crate) fn column_builder(statement: &mut SelectStatement, column: &sql_adt::Column) {
+    match column.function() {
+        Some(f) => match f {
+            sql_adt::Function::Alias(a) => {
+                statement.expr_as(Expr::col(alias!(column.name())), alias!(a));
+            }
+            sql_adt::Function::Max => {
+                statement.expr(Func::max(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::Min => {
+                statement.expr(Func::min(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::Sum => {
+                statement.expr(Func::sum(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::Avg => {
+                statement.expr(Func::avg(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::Abs => {
+                statement.expr(Func::avg(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::Count => {
+                statement.expr(Func::count(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::IfNull(n) => {
+                statement.expr(Func::if_null(
+                    Expr::col(alias!(column.name())),
+                    Expr::col(alias!(n)),
+                ));
+            }
+            sql_adt::Function::Cast(c) => {
+                statement.expr(Func::cast_as(column.name(), alias!(c)));
+            }
+            sql_adt::Function::Coalesce(co) => {
+                statement.expr(Func::coalesce(
+                    co.iter().map(|c| Expr::col(alias!(c))).collect::<Vec<_>>(),
+                ));
+            }
+            sql_adt::Function::CharLength => {
+                statement.expr(Func::char_length(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::Lower => {
+                statement.expr(Func::lower(Expr::col(alias!(column.name()))));
+            }
+            sql_adt::Function::Upper => {
+                statement.expr(Func::upper(Expr::col(alias!(column.name()))));
+            }
+        },
+        None => {
+            statement.column(alias!(column.name()));
+        }
     }
 }
