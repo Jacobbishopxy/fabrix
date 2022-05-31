@@ -106,16 +106,30 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
         match e {
             sql_adt::Expression::Simple(s) => {
                 let expr = Expr::col(alias!(s.column()));
-                let expr = match s.equation() {
-                    sql_adt::Equation::Equal(v) => expr.eq(v),
-                    sql_adt::Equation::NotEqual(v) => expr.ne(v),
-                    sql_adt::Equation::Greater(v) => expr.gt(v),
-                    sql_adt::Equation::GreaterEqual(v) => expr.gte(v),
-                    sql_adt::Equation::Less(v) => expr.lt(v),
-                    sql_adt::Equation::LessEqual(v) => expr.lte(v),
-                    sql_adt::Equation::In(v) => expr.is_in(v),
-                    sql_adt::Equation::Between(v) => expr.between(&v.0, &v.1),
-                    sql_adt::Equation::Like(v) => expr.like(v),
+                let expr = match s.ef() {
+                    sql_adt::EF::Equation(e) => match e {
+                        sql_adt::Equation::Equal(v) => expr.eq(v),
+                        sql_adt::Equation::NotEqual(v) => expr.ne(v),
+                        sql_adt::Equation::Greater(v) => expr.gt(v),
+                        sql_adt::Equation::GreaterEqual(v) => expr.gte(v),
+                        sql_adt::Equation::Less(v) => expr.lt(v),
+                        sql_adt::Equation::LessEqual(v) => expr.lte(v),
+                        sql_adt::Equation::In(v) => expr.is_in(v),
+                        sql_adt::Equation::Between(v) => expr.between(&v.0, &v.1),
+                        sql_adt::Equation::Like(v) => expr.like(v),
+                    },
+                    sql_adt::EF::Function(f) => match f {
+                        sql_adt::Function::Max => expr.max(),
+                        sql_adt::Function::Min => expr.min(),
+                        sql_adt::Function::Sum => expr.sum(),
+                        sql_adt::Function::Avg => todo!(),
+                        sql_adt::Function::Abs => todo!(),
+                        sql_adt::Function::Count => expr.count(),
+                        sql_adt::Function::IfNull => todo!(),
+                        sql_adt::Function::CharLength => todo!(),
+                        sql_adt::Function::Lower => todo!(),
+                        sql_adt::Function::Upper => todo!(),
+                    },
                 };
                 if state.negate {
                     state.add(Cond::all().not().add(expr));

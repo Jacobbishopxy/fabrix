@@ -96,11 +96,10 @@ There are three main parts in this crate:
    - upload excel file, read data and save into database
    - upload excel file, read data and response by json format
    - select data from database and download a csv file
-   - select data from database and download a csv file
+   - select data from database and download a parquet file
 
 ## Todo
 
-- sql_adt: Function
 - sql_adt: Join, Group by
 - sources: from remote (use `reqwest` crate)
 - BSON support

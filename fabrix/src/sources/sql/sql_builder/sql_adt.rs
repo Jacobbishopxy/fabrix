@@ -322,12 +322,11 @@ pub enum EF {
     Function(Function),
 }
 
-// TODO: replace equation by EF
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Condition {
     pub column: String,
     #[serde(flatten)]
-    pub equation: Equation,
+    pub ef: EF,
 }
 
 impl Condition {
@@ -335,8 +334,8 @@ impl Condition {
         &self.column
     }
 
-    pub fn equation(&self) -> &Equation {
-        &self.equation
+    pub fn ef(&self) -> &EF {
+        &self.ef
     }
 }
 
@@ -790,25 +789,25 @@ mod test_sql_adt {
                 ExpressionsBuilder::init()
                     .append(Condition {
                         column: String::from("name"),
-                        equation: Equation::Equal("foo".into()),
+                        ef: EF::Equation(Equation::Equal("foo".into())),
                     })
                     .append(Conjunction::AND)
                     .append(Opposition::NOT)
                     .append(Condition {
                         column: String::from("age"),
-                        equation: Equation::Equal(10.into()),
+                        ef: EF::Equation(Equation::Equal(10.into())),
                     })
                     .append(Conjunction::OR)
                     .append(Condition {
                         column: String::from("age"),
-                        equation: Equation::Equal(20.into()),
+                        ef: EF::Equation(Equation::Equal(20.into())),
                     })
                     .finish(),
             )
             .append(Conjunction::OR)
             .append(Condition {
                 column: String::from("name"),
-                equation: Equation::Equal("bar".into()),
+                ef: EF::Equation(Equation::Equal("bar".into())),
             })
             .finish();
 
@@ -821,18 +820,18 @@ mod test_sql_adt {
             Expression::Opposition(Opposition::NOT),
             Expression::Simple(Condition {
                 column: "a".to_owned(),
-                equation: Equation::Equal(Value::I16(1)),
+                ef: EF::Equation(Equation::Equal(Value::I16(1))),
             }),
             Expression::Conjunction(Conjunction::OR),
             Expression::Nest(vec![
                 Expression::Simple(Condition {
                     column: "b".to_owned(),
-                    equation: Equation::Equal(Value::U32(2)),
+                    ef: EF::Equation(Equation::Equal(Value::U32(2))),
                 }),
                 Expression::Conjunction(Conjunction::AND),
                 Expression::Simple(Condition {
                     column: "c".to_owned(),
-                    equation: Equation::Like("%foo%".into()),
+                    ef: EF::Equation(Equation::Like("%foo%".into())),
                 }),
             ]),
         ]);
@@ -851,18 +850,18 @@ mod test_sql_adt {
             Expression::Opposition(Opposition::NOT),
             Expression::Simple(Condition {
                 column: "a".to_owned(),
-                equation: Equation::Equal(Value::I16(1)),
+                ef: EF::Equation(Equation::Equal(Value::I16(1))),
             }),
             Expression::Conjunction(Conjunction::OR),
             Expression::Nest(vec![
                 Expression::Simple(Condition {
                     column: "b".to_owned(),
-                    equation: Equation::Equal(Value::U32(2)),
+                    ef: EF::Equation(Equation::Equal(Value::U32(2))),
                 }),
                 Expression::Conjunction(Conjunction::AND),
                 Expression::Simple(Condition {
                     column: "c".to_owned(),
-                    equation: Equation::Like("%foo%".into()),
+                    ef: EF::Equation(Equation::Like("%foo%".into())),
                 }),
             ]),
         ]);
