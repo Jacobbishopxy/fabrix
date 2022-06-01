@@ -544,9 +544,7 @@ where
 
 /// select primary key and other columns from a table
 fn add_primary_key_to_select<T: Into<String>>(primary_key: T, select: &mut sql_adt::Select) {
-    select
-        .columns
-        .insert(0, sql_adt::Column::new(primary_key, None));
+    select.columns.insert(0, sql_adt::Column::new(primary_key));
 }
 
 /// `Value` -> String
@@ -926,11 +924,11 @@ mod test_executor {
         let select = sql_adt::Select {
             table: "dev".to_owned(),
             columns: vec![
-                sql_adt::Column::new("names", None),
-                sql_adt::Column::new("val", None),
-                sql_adt::Column::new("note", None),
-                sql_adt::Column::new("dt", None),
-                sql_adt::Column::new("ord", None),
+                sql_adt::Column::new("names"),
+                sql_adt::Column::new("val"),
+                sql_adt::Column::new("note"),
+                sql_adt::Column::new("dt"),
+                sql_adt::Column::new("ord"),
             ],
             ..Default::default()
         };

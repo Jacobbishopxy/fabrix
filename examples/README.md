@@ -26,12 +26,24 @@ check [main.rs](./dispatch_service/src/main.rs)
   {
    "table": "test",
    "columns": [
-    "id",
-    "first_name",
-    "last_name",
-    "ip_address",
-    "issued_date",
-    "issued_times"
+    {
+     "name": "id"
+    },
+    {
+     "name": "first_name"
+    },
+    {
+     "name": "last_name"
+    },
+    {
+     "name": "ip_address"
+    },
+    {
+     "name": "issued_date"
+    },
+    {
+     "name": "issued_times"
+    }
    ],
    "filter": [
     "not",

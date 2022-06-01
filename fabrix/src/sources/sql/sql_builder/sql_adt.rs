@@ -215,17 +215,23 @@ pub enum Function {
 // ================================================================================================
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-
 pub struct Column {
     pub name: String,
     pub function: Option<Function>,
 }
 
 impl Column {
-    pub fn new<C: Into<String>>(column: C, function: Option<Function>) -> Self {
+    pub fn new<C: Into<String>>(column: C) -> Self {
         Column {
             name: column.into(),
-            function,
+            function: None,
+        }
+    }
+
+    pub fn new_with_fn<C: Into<String>>(column: C, function: Function) -> Self {
+        Column {
+            name: column.into(),
+            function: Some(function),
         }
     }
 
@@ -247,6 +253,15 @@ impl From<&str> for Column {
         Column {
             name: s.to_string(),
             function: None,
+        }
+    }
+}
+
+impl From<(&str, Function)> for Column {
+    fn from((s, f): (&str, Function)) -> Self {
+        Column {
+            name: s.to_string(),
+            function: Some(f),
         }
     }
 }
@@ -320,25 +335,21 @@ pub enum Equation {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Condition {
-    pub column: Column,
+    pub column: String,
     #[serde(flatten)]
     pub equation: Equation,
 }
 
 impl Condition {
-    pub fn new<C: Into<Column>>(column: C, equation: Equation) -> Self {
+    pub fn new<C: Into<String>>(column: C, equation: Equation) -> Self {
         Condition {
             column: column.into(),
             equation,
         }
     }
 
-    pub fn column(&self) -> &Column {
+    pub fn column(&self) -> &str {
         &self.column
-    }
-
-    pub fn column_name(&self) -> &str {
-        self.column.name.as_str()
     }
 
     pub fn equation(&self) -> &Equation {
@@ -572,12 +583,13 @@ impl Select {
         self.columns.iter().map(|c| c.name().to_owned()).collect()
     }
 
-    pub fn columns<T>(mut self, columns: &[T]) -> Self
+    pub fn columns<C>(mut self, columns: &[C]) -> Self
     where
-        Column: From<T>,
-        T: Copy,
+        Column: From<C>,
+        C: Clone,
     {
-        self.columns.extend(columns.iter().map(|c| (*c).into()));
+        self.columns
+            .extend(columns.iter().map(|c| (c.clone()).into()));
         self
     }
 
@@ -818,7 +830,9 @@ mod test_sql_adt {
                 Expression::Simple(Condition::new("c", Equation::Like("%foo%".into()))),
             ]),
         ]);
-        let foo = serde_json::to_string(&e).unwrap();
+        let foo = serde_json::to_string(&e);
+        assert!(foo.is_ok());
+        let foo = foo.unwrap();
         println!("{:?}", foo);
 
         assert_eq!(
@@ -841,11 +855,15 @@ mod test_sql_adt {
         ]);
 
         let select = Select::new("test")
-            .columns(&["v1", "v2"])
+            .columns(&[
+                Column::new("v1"),
+                Column::new_with_fn("v2", Function::Alias("v2_ext".to_owned())),
+            ])
             .filter(&e)
             .limit(10);
 
-        let s = serde_json::to_string(&select).unwrap();
-        println!("{:?}", s);
+        let s = serde_json::to_string(&select);
+        assert!(s.is_ok());
+        println!("{:?}", s.unwrap());
     }
 }

@@ -291,7 +291,7 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
 
         match e {
             sql_adt::Expression::Simple(s) => {
-                let expr = Expr::col(alias!(s.column_name()));
+                let expr = Expr::col(alias!(s.column()));
                 let expr = match s.equation() {
                     sql_adt::Equation::Equal(v) => expr.eq(v),
                     sql_adt::Equation::NotEqual(v) => expr.ne(v),
@@ -351,7 +351,7 @@ pub(crate) fn column_builder(statement: &mut SelectStatement, column: &sql_adt::
                 statement.expr(Func::avg(Expr::col(alias!(column.name()))));
             }
             sql_adt::Function::Abs => {
-                statement.expr(Func::avg(Expr::col(alias!(column.name()))));
+                statement.expr(Func::abs(Expr::col(alias!(column.name()))));
             }
             sql_adt::Function::Count => {
                 statement.expr(Func::count(Expr::col(alias!(column.name()))));

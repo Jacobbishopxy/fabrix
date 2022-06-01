@@ -90,10 +90,10 @@ mod test_query_dml {
         let select = SqlBuilder::Postgres.select(&sql_adt::Select {
             table: "test".to_string(),
             columns: vec![
-                sql_adt::Column::new("v1", None),
-                sql_adt::Column::new("v2", None),
-                sql_adt::Column::new("v3", None),
-                sql_adt::Column::new("v4", None),
+                sql_adt::Column::new("v1"),
+                sql_adt::Column::new("v2"),
+                sql_adt::Column::new("v3"),
+                sql_adt::Column::new("v4"),
             ],
             filter: Some(filter),
             order: Some(vec![
