@@ -536,6 +536,8 @@ where
             }
         };
 
+        // TODO:
+        // columns_name should also contain function
         df.set_column_names(&select.columns_name())?;
 
         Ok(df)

@@ -580,7 +580,13 @@ impl Select {
     }
 
     pub fn columns_name(&self) -> Vec<String> {
-        self.columns.iter().map(|c| c.name().to_owned()).collect()
+        self.columns
+            .iter()
+            .map(|c| match &c.function {
+                Some(f) => format!("{}[{:?}]", c.name(), f),
+                None => c.name().to_owned(),
+            })
+            .collect()
     }
 
     pub fn columns<C>(mut self, columns: &[C]) -> Self
