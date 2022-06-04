@@ -537,7 +537,7 @@ where
         };
 
         // TODO:
-        // columns_name should also contain function
+        // if `join` has been included, we need to do some more work
         df.set_column_names(&select.columns_name())?;
 
         Ok(df)
@@ -546,7 +546,7 @@ where
 
 /// select primary key and other columns from a table
 fn add_primary_key_to_select<T: Into<String>>(primary_key: T, select: &mut sql_adt::Select) {
-    select.columns.insert(0, sql_adt::Column::new(primary_key));
+    select.columns.insert(0, sql_adt::Column::col(primary_key));
 }
 
 /// `Value` -> String
@@ -926,11 +926,11 @@ mod test_executor {
         let select = sql_adt::Select {
             table: "dev".to_owned(),
             columns: vec![
-                sql_adt::Column::new("names"),
-                sql_adt::Column::new("val"),
-                sql_adt::Column::new("note"),
-                sql_adt::Column::new("dt"),
-                sql_adt::Column::new("ord"),
+                sql_adt::Column::col("names"),
+                sql_adt::Column::col("val"),
+                sql_adt::Column::col("note"),
+                sql_adt::Column::col("dt"),
+                sql_adt::Column::col("ord"),
             ],
             ..Default::default()
         };
