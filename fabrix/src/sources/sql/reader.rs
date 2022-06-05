@@ -161,6 +161,8 @@ where
             order: self.order.map(|o| o.to_vec()),
             limit: self.limit,
             offset: self.offset,
+            // TODO:
+            join: None,
             include_primary_key: self.include_primary_key,
         };
 

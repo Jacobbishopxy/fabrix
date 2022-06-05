@@ -403,20 +403,21 @@ impl From<&sql_adt::JoinType> for SJoinType {
 }
 
 /// join_builder
-#[allow(dead_code)]
 pub(crate) fn join_builder(statement: &mut SelectStatement, join: &sql_adt::Join) {
-    let mut conditions = Cond::all();
+    if join.is_valid() {
+        let mut conditions = Cond::all();
 
-    for c in join.conditions() {
-        conditions = conditions.add(
-            Expr::tbl(alias!(join.left_table()), alias!(&c.0))
-                .equals(alias!(join.right_table()), alias!(&c.1)),
+        for c in join.on() {
+            conditions = conditions.add(
+                Expr::tbl(alias!(&c.0 .0), alias!(&c.0 .1))
+                    .equals(alias!(&c.1 .0), alias!(&c.1 .1)),
+            );
+        }
+
+        statement.join(
+            join.join_type().into(),
+            alias!(join.right_table()),
+            conditions,
         );
     }
-
-    statement.join(
-        join.join_type().into(),
-        alias!(join.right_table()),
-        conditions,
-    );
 }

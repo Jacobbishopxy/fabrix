@@ -3,8 +3,8 @@
 use sea_query::{Expr, Order, Query};
 
 use super::{
-    alias, column_builder, filter_builder, sql_adt, statement, try_from_value_to_svalue,
-    DeleteOrSelect,
+    alias, column_builder, filter_builder, join_builder, sql_adt, statement,
+    try_from_value_to_svalue, DeleteOrSelect,
 };
 use crate::{DmlQuery, Series, SqlBuilder, SqlResult};
 
@@ -35,13 +35,13 @@ impl DmlQuery for SqlBuilder {
             .iter()
             .for_each(|c| column_builder(&mut statement, c));
 
-        statement.from(alias!(&select.table));
+        statement.from(alias!(select.get_table()));
 
-        if let Some(flt) = &select.filter {
+        if let Some(flt) = select.get_filter() {
             filter_builder(&mut DeleteOrSelect::Select(&mut statement), flt);
         }
 
-        if let Some(ord) = &select.order {
+        if let Some(ord) = select.get_order() {
             ord.iter().for_each(|o| match o {
                 sql_adt::Order::Asc(name) => {
                     statement.order_by(alias!(name), Order::Asc);
@@ -52,12 +52,16 @@ impl DmlQuery for SqlBuilder {
             })
         }
 
-        if let Some(l) = &select.limit {
-            statement.limit(*l as u64);
+        if let Some(l) = select.get_limit() {
+            statement.limit(l as u64);
         }
 
-        if let Some(o) = &select.offset {
-            statement.offset(*o as u64);
+        if let Some(o) = select.get_offset() {
+            statement.offset(o as u64);
+        }
+
+        if let Some(j) = select.get_join() {
+            join_builder(&mut statement, j);
         }
 
         statement!(self, statement)
@@ -102,6 +106,7 @@ mod test_query_dml {
             ]),
             limit: Some(10),
             offset: Some(20),
+            join: None,
             include_primary_key: None,
         });
         println!("{:?}", select);

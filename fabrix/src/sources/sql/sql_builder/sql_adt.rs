@@ -1,4 +1,39 @@
 //! Fabrix SqlBuilder ADT
+//!
+//! 1. TableSchema
+//! 1. TableConstraint
+//! 1. ColumnConstraint
+//! 1. ColumnIndex
+//! 1. Order
+//! 1. Index
+//! 1. ForeignKeyDir
+//! 1. ForeignKeyAction
+//! 1. ForeignKey
+//! 1. Function
+//! 1. Column
+//! 1. AlterTable
+//! 1. Conjunction
+//! 1. Opposition
+//! 1. Equation
+//! 1. Condition
+//! 1. Expression
+//! 1. Expressions
+//! 1. InitState
+//! 1. ConjunctionState
+//! 1. OppositionState
+//! 1. SimpleState
+//! 1. NestState
+//! 1. ExpressionTransit
+//! 1. ExpressionsBuilder
+//! 1. JoinType
+//! 1. ColumnTbl
+//! 1. Join
+//! 1. Select
+//! 1. Delete
+//! 1. SaveStrategy
+//! 1. IndexType
+//! 1. IndexOption
+//! 1. ExecutionResult
 
 use std::str::FromStr;
 
@@ -549,6 +584,57 @@ impl ExpressionsBuilder {
 }
 
 // ================================================================================================
+// Join
+// ================================================================================================
+
+/// JoinType
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum JoinType {
+    Join,
+    Inner,
+    Left,
+    Right,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ColumnTbl(pub String, pub String);
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Join {
+    pub join_type: JoinType,
+    pub on: Vec<(ColumnTbl, ColumnTbl)>,
+}
+
+impl Join {
+    pub fn new(join_type: JoinType, on: Vec<(ColumnTbl, ColumnTbl)>) -> SqlResult<Self> {
+        if on.is_empty() {
+            return Err(SqlError::new_common_error("on cannot be empty"));
+        }
+        Ok(Join { join_type, on })
+    }
+
+    pub fn join_type(&self) -> &JoinType {
+        &self.join_type
+    }
+
+    pub fn left_table(&self) -> &str {
+        &self.on[0].0 .0
+    }
+
+    pub fn right_table(&self) -> &str {
+        &self.on[0].0 .1
+    }
+
+    pub fn on(&self) -> &[(ColumnTbl, ColumnTbl)] {
+        &self.on
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.on.is_empty()
+    }
+}
+
+// ================================================================================================
 // Select
 // ================================================================================================
 
@@ -561,6 +647,7 @@ pub struct Select {
     pub order: Option<Vec<Order>>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+    pub join: Option<Join>,
     pub include_primary_key: Option<bool>,
 }
 
@@ -573,6 +660,7 @@ impl Select {
             order: None,
             limit: None,
             offset: None,
+            join: None,
             include_primary_key: None,
         }
     }
@@ -599,6 +687,10 @@ impl Select {
 
     pub fn get_offset(&self) -> Option<usize> {
         self.offset
+    }
+
+    pub fn get_join(&self) -> Option<&Join> {
+        self.join.as_ref()
     }
 
     pub fn get_include_primary_key(&self) -> Option<bool> {
@@ -636,6 +728,11 @@ impl Select {
 
     pub fn offset(mut self, offset: usize) -> Self {
         self.offset = Some(offset);
+        self
+    }
+
+    pub fn join(mut self, join: Join) -> Self {
+        self.join = Some(join);
         self
     }
 
@@ -802,63 +899,6 @@ impl TryFrom<FieldInfo> for IndexOption {
             name: value.name().to_owned(),
             index_type,
         })
-    }
-}
-
-// ================================================================================================
-// Join
-// ================================================================================================
-
-/// JoinType
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-pub enum JoinType {
-    Join,
-    Inner,
-    Left,
-    Right,
-}
-
-// TODO: simplify this
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Join {
-    pub join_type: JoinType,
-    pub left_table: String,
-    pub right_table: String,
-    pub conditions: Vec<(String, String)>,
-}
-
-impl Join {
-    pub fn new(
-        join_type: JoinType,
-        left_table: &str,
-        right_table: &str,
-        conditions: Vec<(&str, &str)>,
-    ) -> Self {
-        Join {
-            join_type,
-            left_table: left_table.to_owned(),
-            right_table: right_table.to_owned(),
-            conditions: conditions
-                .into_iter()
-                .map(|(left, right)| (left.to_owned(), right.to_owned()))
-                .collect(),
-        }
-    }
-
-    pub fn join_type(&self) -> &JoinType {
-        &self.join_type
-    }
-
-    pub fn left_table(&self) -> &str {
-        &self.left_table
-    }
-
-    pub fn right_table(&self) -> &str {
-        &self.right_table
-    }
-
-    pub fn conditions(&self) -> &[(String, String)] {
-        &self.conditions
     }
 }
 

@@ -138,6 +138,15 @@ macro_rules! xpr_fn {
     };
 }
 
+#[macro_export]
+macro_rules! xpr_join {
+    () => {
+        // TODO:
+    };
+}
+
+pub use xpr_join;
+
 /// expression macro
 /// `sql_adt::Expression::Nest(...)`
 /// `sql_adt::Expression::Simple(...)`
