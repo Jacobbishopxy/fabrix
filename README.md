@@ -26,12 +26,12 @@ There are three main parts in this crate:
 │   ├── sql                             // Sql data source
 │   │   ├── sql_builder                 // SQL builder
 │   │   │   ├── sql_adt.rs              // algebraic data type
+│   │   │   ├── builder.rs              // builder functions
+│   │   │   ├── interface.rs            // SQL builder & ddl/dml logic interface
 │   │   │   ├── query_ddl.rs            // ddl query: check table or schema
 │   │   │   ├── query_dml.rs            // dml query: select and etc
 │   │   │   ├── mutation_ddl.rs         // ddl mutation: create/alter/drop table
 │   │   │   ├── mutation_dml.rs         // dml mutation: insert/update/delete data
-│   │   │   ├── interface.rs            // SQL builder & ddl/dml logic interface
-│   │   │   ├── builder.rs              // SQL builder & ddl/dml logic implement
 │   │   │   └── macros.rs               // Macros for SQL builder
 │   │   │
 │   │   ├── sql_executor                // SQL executor
@@ -89,14 +89,23 @@ There are three main parts in this crate:
 
 ## Examples
 
-1. [File process service](./examples/file_process_service/src/main.rs): a simple web server who accepts multiple types of file and turn their data into json format.
+1. [File process service](./examples/file_process_service/src/main.rs):
+
+   - a simple web server who accepts multiple types of file and turn their data into json format.
+
 1. [Dispatcher service](./examples/dispatcher_service/src/main.rs):
-   - upload csv file, read data and save into database
-   - upload csv file, read data and response by json format
-   - upload excel file, read data and save into database
-   - upload excel file, read data and response by json format
-   - select data from database and download a csv file
-   - select data from database and download a parquet file
+
+   - upload csv file, read data and save into database. [code](./examples/dispatcher_service/src/csv2db.rs)
+
+   - upload csv file, read data and response by json format. [code](./examples/dispatcher_service/src/csv2json.rs)
+
+   - upload excel file, read data and save into database. [code](./examples/dispatcher_service/src/xl2db.rs)
+
+   - upload excel file, read data and response by json format. [code](./examples/dispatcher_service/src/xl2json.rs)
+
+   - select data from database and download a csv file. [code](./examples/dispatcher_service/src/db2csv.rs)
+
+   - select data from database and download a parquet file. [code](./examples/dispatcher_service/src/db2parquet.rs)
 
 ## Todo
 
