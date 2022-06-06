@@ -334,55 +334,56 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
 
 /// column_builder
 pub(crate) fn column_builder(statement: &mut SelectStatement, column: &sql_adt::Column) {
-    match column.function() {
-        Some(f) => match f {
+    match column {
+        sql_adt::Column::Col { name } => {
+            statement.expr(Expr::col(alias!(name)));
+        }
+        sql_adt::Column::FnCol { function, name } => match function {
             sql_adt::Function::Alias(a) => {
-                statement.expr_as(Expr::col(alias!(column.name())), alias!(a));
+                statement.expr_as(Expr::col(alias!(name)), alias!(a));
             }
             sql_adt::Function::Max => {
-                statement.expr(Func::max(Expr::col(alias!(column.name()))));
+                statement.expr(Func::max(Expr::col(alias!(name))));
             }
             sql_adt::Function::Min => {
-                statement.expr(Func::min(Expr::col(alias!(column.name()))));
+                statement.expr(Func::min(Expr::col(alias!(name))));
             }
             sql_adt::Function::Sum => {
-                statement.expr(Func::sum(Expr::col(alias!(column.name()))));
+                statement.expr(Func::sum(Expr::col(alias!(name))));
             }
             sql_adt::Function::Avg => {
-                statement.expr(Func::avg(Expr::col(alias!(column.name()))));
+                statement.expr(Func::avg(Expr::col(alias!(name))));
             }
             sql_adt::Function::Abs => {
-                statement.expr(Func::abs(Expr::col(alias!(column.name()))));
+                statement.expr(Func::abs(Expr::col(alias!(name))));
             }
             sql_adt::Function::Count => {
-                statement.expr(Func::count(Expr::col(alias!(column.name()))));
+                statement.expr(Func::count(Expr::col(alias!(name))));
             }
             sql_adt::Function::IfNull(n) => {
-                statement.expr(Func::if_null(
-                    Expr::col(alias!(column.name())),
-                    Expr::col(alias!(n)),
-                ));
+                statement.expr(Func::if_null(Expr::col(alias!(name)), Expr::col(alias!(n))));
             }
             sql_adt::Function::Cast(c) => {
-                statement.expr(Func::cast_as(column.name(), alias!(c)));
+                statement.expr(Func::cast_as(name.to_owned(), alias!(c)));
             }
             sql_adt::Function::Coalesce(co) => {
-                statement.expr(Func::coalesce(
-                    co.iter().map(|c| Expr::col(alias!(c))).collect::<Vec<_>>(),
-                ));
+                let se =
+                    Func::coalesce(co.iter().map(|c| Expr::col(alias!(c))).collect::<Vec<_>>());
+                statement.expr(se);
             }
             sql_adt::Function::CharLength => {
-                statement.expr(Func::char_length(Expr::col(alias!(column.name()))));
+                statement.expr(Func::char_length(Expr::col(alias!(name))));
             }
             sql_adt::Function::Lower => {
-                statement.expr(Func::lower(Expr::col(alias!(column.name()))));
+                statement.expr(Func::lower(Expr::col(alias!(name))));
             }
             sql_adt::Function::Upper => {
-                statement.expr(Func::upper(Expr::col(alias!(column.name()))));
+                statement.expr(Func::upper(Expr::col(alias!(name))));
             }
         },
-        None => {
-            statement.column(alias!(column.name()));
+        sql_adt::Column::Tbl { table, name } => {
+            let col = format!("{}.{}", table, name);
+            statement.expr(Expr::col(alias!(&col)));
         }
     }
 }

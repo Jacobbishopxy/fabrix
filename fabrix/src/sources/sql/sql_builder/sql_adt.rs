@@ -1041,7 +1041,12 @@ mod test_sql_adt {
 
     #[test]
     fn join_serialize() {
-        // TODO:
+        let join = Join::new(JoinType::Inner, "left", "right", &[("id", "id")]);
+        assert!(join.is_ok());
+
+        let join = serde_json::to_string(&join.unwrap());
+        assert!(join.is_ok());
+        println!("{:?}", join.unwrap());
     }
 
     #[test]

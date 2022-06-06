@@ -536,8 +536,6 @@ where
             }
         };
 
-        // TODO:
-        // if `join` has been included, we need to do some more work
         df.set_column_names(&select.columns_name())?;
 
         Ok(df)
@@ -606,9 +604,12 @@ async fn txn_create_and_insert<'a>(
 #[cfg(test)]
 mod test_executor {
 
+    use sqlx::{Row, ValueRef};
+
     use super::*;
     use crate::{
-        date, datetime, fx, series, xpr, xpr_and, xpr_or, xpr_col, DatabaseMysql, DatabasePg, DatabaseSqlite,
+        date, datetime, fx, series, xpr, xpr_and, xpr_col, xpr_join, xpr_or, DatabaseMysql,
+        DatabasePg, DatabaseSqlite,
     };
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
@@ -1039,5 +1040,82 @@ mod test_executor {
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
         println!("{:?}", res.unwrap());
+    }
+
+    #[tokio::test]
+    async fn save_tables_with_join_relation() {
+        let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        exc.connect().await.expect("connection is ok");
+
+        let company = fx!(
+            "id";
+            "id" => [1, 2, 3, 4, 5],
+            "name" => ["Google", "Microsoft", "Apple", "Facebook", "Amazon"],
+            "val" => [100, 200, 300, 400, 500],
+            "addr" => ["1600 Amphitheatre Parkway", "One Microsoft Way", "1 Infinite Loop", "1 Microsoft Way", "1 Infinite Loop"],
+        ).unwrap();
+
+        let employee = fx!(
+            "id";
+            "id" => [1, 2, 3, 4, 5, 6],
+            "name" => ["John", "Mike", "Mary", "Jane", "Tom", "Jerry"],
+            "age" => [20, 30, 22, 24, 28, 31],
+            "company_id" => [4, 2, 2, 3, 4, 1],
+        )
+        .unwrap();
+
+        let save_strategy = sql_adt::SaveStrategy::Replace;
+
+        let res = exc
+            .save("company", company, &save_strategy)
+            .await
+            .expect("save is ok");
+        println!("effected rows: {:?}", res);
+
+        let res = exc
+            .save("employee", employee, &save_strategy)
+            .await
+            .expect("save is ok");
+        println!("effected rows: {:?}", res);
+    }
+
+    #[tokio::test]
+    async fn select_with_join() {
+        // let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        // exc.connect().await.expect("connection is ok");
+
+        let cols = vec![
+            xpr_col!("employee", "id"),
+            xpr_col!("employee", "name"),
+            xpr_col!("employee", "age"),
+            xpr_col!("company", "id"),
+            xpr_col!("company", "name"),
+            xpr_col!("company", "val"),
+            xpr_col!("company", "addr"),
+        ];
+        let join = xpr_join!("left", "employee", "company", [("company_id", "id")]).unwrap();
+        let select = sql_adt::Select::new("employee").columns(&cols).join(&join);
+
+        let s = crate::SqlBuilder::Sqlite.select(&select);
+        println!("{:?}", s);
+
+        // TODO:
+        // BUG: select with join is not working, return all null values
+
+        // let fx = exc.select(&select).await.expect("select is ok");
+        // println!("{:?}", fx);
+    }
+
+    #[tokio::test]
+    async fn sqlx_with_join_select() {
+        let pool = sqlx::sqlite::SqlitePool::connect(CONN3).await.unwrap();
+
+        // TODO:
+        // BUG: their type_info are all Int, which is incorrect
+        let mut rows = sqlx::query(
+                "SELECT employee.id, employee.name, employee.age, company.id, company.name, company.val, company.addr FROM employee LEFT JOIN company ON employee.company_id = company.id",
+            ).map(|row: sqlx::sqlite::SqliteRow| {
+                row.try_get_raw(0).map(|v| println!("{:?}",  v.type_info())).unwrap();
+            }).fetch_all(&pool).await.unwrap();
     }
 }
