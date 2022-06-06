@@ -608,7 +608,7 @@ mod test_executor {
 
     use super::*;
     use crate::{
-        date, datetime, fx, series, xpr, xpr_and, xpr_or, DatabaseMysql, DatabasePg, DatabaseSqlite,
+        date, datetime, fx, series, xpr, xpr_and, xpr_or, xpr_col, DatabaseMysql, DatabasePg, DatabaseSqlite,
     };
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
@@ -926,11 +926,11 @@ mod test_executor {
         let select = sql_adt::Select {
             table: "dev".to_owned(),
             columns: vec![
-                sql_adt::Column::col("names"),
-                sql_adt::Column::col("val"),
-                sql_adt::Column::col("note"),
-                sql_adt::Column::col("dt"),
-                sql_adt::Column::col("ord"),
+                xpr_col!("names"),
+                xpr_col!("val"),
+                xpr_col!("note"),
+                xpr_col!("dt"),
+                xpr_col!("ord"),
             ],
             ..Default::default()
         };

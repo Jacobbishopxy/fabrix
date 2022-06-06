@@ -26,7 +26,6 @@
 //! 1. ExpressionTransit
 //! 1. ExpressionsBuilder
 //! 1. JoinType
-//! 1. ColumnTbl
 //! 1. Join
 //! 1. Select
 //! 1. Delete
@@ -245,6 +244,27 @@ pub enum Function {
     Upper,
 }
 
+impl Function {
+    pub fn alias<T: Into<String>>(name: T) -> Self {
+        Function::Alias(name.into())
+    }
+
+    pub fn ifnull<T: Into<String>>(value: T) -> Self {
+        Function::IfNull(value.into())
+    }
+
+    pub fn cast<T: Into<String>>(value: T) -> Self {
+        Function::Cast(value.into())
+    }
+
+    pub fn coalesce<T>(c: Vec<T>) -> Self
+    where
+        String: From<T>,
+    {
+        Function::Coalesce(c.into_iter().map(String::from).collect())
+    }
+}
+
 // ================================================================================================
 // Column
 // ================================================================================================
@@ -252,51 +272,72 @@ pub enum Function {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum Column {
-    Col(String),
-    ColFn(String, Function),
-    Tbl(String, String),
+    Col { name: String },
+    FnCol { function: Function, name: String },
+    Tbl { table: String, name: String },
 }
 
 impl Column {
     pub fn col<C: Into<String>>(column: C) -> Self {
-        Column::Col(column.into())
+        Column::Col {
+            name: column.into(),
+        }
     }
 
-    pub fn col_fn<C: Into<String>>(column: C, function: Function) -> Self {
-        Column::ColFn(column.into(), function)
+    pub fn fn_col<C: Into<String>>(function: Function, column: C) -> Self {
+        Column::FnCol {
+            function,
+            name: column.into(),
+        }
     }
 
     pub fn tbl<C: Into<String>>(table: C, column: C) -> Self {
-        Column::Tbl(table.into(), column.into())
+        Column::Tbl {
+            table: table.into(),
+            name: column.into(),
+        }
     }
 
     pub fn name(&self) -> &str {
         match self {
-            Column::Col(name) => name,
-            Column::ColFn(name, _) => name,
-            Column::Tbl(_, column) => column,
+            Column::Col { name } => name,
+            Column::FnCol { name, .. } => name,
+            Column::Tbl { name, .. } => name,
         }
     }
 
     pub fn name_display(&self) -> String {
         match self {
-            Column::Col(name) => name.to_string(),
-            // TODO: better display, e.g. `max(col)`
-            Column::ColFn(name, function) => format!("{}({:?})", name, function),
-            Column::Tbl(table, column) => format!("{}.{}", table, column),
+            Column::Col { name } => name.to_string(),
+            Column::FnCol { function, name } => match function {
+                Function::Alias(a) => a.to_string(),
+                Function::Max => format!("max({:?})", name),
+                Function::Min => format!("min({:?})", name),
+                Function::Sum => format!("sum({:?})", name),
+                Function::Avg => format!("avg({:?})", name),
+                Function::Abs => format!("abs({:?})", name),
+                Function::Count => format!("count({:?})", name),
+                Function::IfNull(_) => name.to_owned(),
+                Function::Cast(_) => name.to_owned(),
+                Function::Coalesce(_) => format!("coalesce({:?})", name),
+                Function::CharLength => format!("charlen({:?})", name),
+                Function::Lower => format!("lower({:?})", name),
+                Function::Upper => format!("upper({:?})", name),
+            },
+            Column::Tbl { table, name } => format!("{}.{}", table, name),
         }
     }
 
     pub fn table(&self) -> Option<&str> {
         match self {
-            Column::Col(_) => None,
-            Column::ColFn(_, _) => None,
-            Column::Tbl(table, _) => Some(table),
+            Column::Col { .. } => None,
+            Column::FnCol { .. } => None,
+            Column::Tbl { table, .. } => Some(table),
         }
     }
 
     pub fn function(&self) -> Option<&Function> {
-        if let Column::ColFn(_, function) = self {
+        if let Column::FnCol { function, .. } = self {
             Some(function)
         } else {
             None
@@ -304,7 +345,13 @@ impl Column {
     }
 
     pub fn has_func(&self) -> bool {
-        matches!(self, Column::ColFn(_, _))
+        matches!(self, Column::FnCol { .. })
+    }
+}
+
+impl From<&Column> for Column {
+    fn from(c: &Column) -> Self {
+        c.to_owned()
     }
 }
 
@@ -314,9 +361,9 @@ impl From<&str> for Column {
     }
 }
 
-impl From<(&str, Function)> for Column {
-    fn from((s, f): (&str, Function)) -> Self {
-        Column::col_fn(s, f)
+impl From<(Function, &str)> for Column {
+    fn from((f, s): (Function, &str)) -> Self {
+        Column::fn_col(f, s)
     }
 }
 
@@ -395,7 +442,6 @@ pub enum Equation {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Condition {
-    #[serde(flatten)]
     pub column: String,
     #[serde(flatten)]
     pub equation: Equation,
@@ -597,20 +643,32 @@ pub enum JoinType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct ColumnTbl(pub String, pub String);
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Join {
     pub join_type: JoinType,
-    pub on: Vec<(ColumnTbl, ColumnTbl)>,
+    pub left_table: String,
+    pub right_table: String,
+    pub on: Vec<(String, String)>,
 }
 
 impl Join {
-    pub fn new(join_type: JoinType, on: Vec<(ColumnTbl, ColumnTbl)>) -> SqlResult<Self> {
+    pub fn new(
+        join_type: JoinType,
+        left_table: &str,
+        right_table: &str,
+        on: &[(&str, &str)],
+    ) -> SqlResult<Self> {
         if on.is_empty() {
             return Err(SqlError::new_common_error("on cannot be empty"));
         }
-        Ok(Join { join_type, on })
+        Ok(Join {
+            join_type,
+            left_table: left_table.to_string(),
+            right_table: right_table.to_string(),
+            on: on
+                .iter()
+                .map(|(l, r)| (l.to_string(), r.to_string()))
+                .collect(),
+        })
     }
 
     pub fn join_type(&self) -> &JoinType {
@@ -618,14 +676,14 @@ impl Join {
     }
 
     pub fn left_table(&self) -> &str {
-        &self.on[0].0 .0
+        &self.left_table
     }
 
     pub fn right_table(&self) -> &str {
-        &self.on[0].0 .1
+        &self.right_table
     }
 
-    pub fn on(&self) -> &[(ColumnTbl, ColumnTbl)] {
+    pub fn on(&self) -> &[(String, String)] {
         &self.on
     }
 
@@ -731,8 +789,8 @@ impl Select {
         self
     }
 
-    pub fn join(mut self, join: Join) -> Self {
-        self.join = Some(join);
+    pub fn join(mut self, join: &Join) -> Self {
+        self.join = Some(join.to_owned());
         self
     }
 
@@ -942,6 +1000,23 @@ mod test_sql_adt {
     }
 
     #[test]
+    fn column_serialize() {
+        let cols = vec![
+            Column::col("author"),
+            Column::col("age"),
+            Column::col("ord"),
+            Column::fn_col(Function::alias("des"), "description"),
+            Column::tbl("dev_table", "num"),
+        ];
+        println!("{:?}", cols);
+
+        let foo = serde_json::to_string(&cols);
+        assert!(foo.is_ok());
+        let foo = foo.unwrap();
+        println!("{:?}", foo);
+    }
+
+    #[test]
     fn expression_serialize() {
         let e = Expressions(vec![
             Expression::Opposition(Opposition::NOT),
@@ -965,6 +1040,11 @@ mod test_sql_adt {
     }
 
     #[test]
+    fn join_serialize() {
+        // TODO:
+    }
+
+    #[test]
     fn select_serialize() {
         let e = Expressions(vec![
             Expression::Opposition(Opposition::NOT),
@@ -977,13 +1057,12 @@ mod test_sql_adt {
             ]),
         ]);
 
-        let select = Select::new("test")
-            .columns(&[
-                Column::col("v1"),
-                Column::col_fn("v2", Function::Alias("v2_ext".to_owned())),
-            ])
-            .filter(&e)
-            .limit(10);
+        let c = vec![
+            Column::col("v1"),
+            Column::fn_col(Function::Alias("v2_ext".to_owned()), "v2"),
+        ];
+
+        let select = Select::new("test").columns(&c).filter(&e).limit(10);
 
         let s = serde_json::to_string(&select);
         assert!(s.is_ok());
