@@ -382,8 +382,7 @@ pub(crate) fn column_builder(statement: &mut SelectStatement, column: &sql_adt::
             }
         },
         sql_adt::Column::Tbl { table, name } => {
-            let col = format!("{}.{}", table, name);
-            statement.expr(Expr::col(alias!(&col)));
+            statement.expr(Expr::col((alias!(table), alias!(name))));
         }
     }
 }

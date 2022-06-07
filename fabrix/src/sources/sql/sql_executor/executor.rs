@@ -603,9 +603,6 @@ async fn txn_create_and_insert<'a>(
 
 #[cfg(test)]
 mod test_executor {
-
-    use sqlx::{Row, ValueRef};
-
     use super::*;
     use crate::{
         date, datetime, fx, series, xpr, xpr_and, xpr_col, xpr_join, xpr_or, DatabaseMysql,
@@ -1044,8 +1041,14 @@ mod test_executor {
 
     #[tokio::test]
     async fn save_tables_with_join_relation() {
-        let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
-        exc.connect().await.expect("connection is ok");
+        let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        exc1.connect().await.expect("connection is ok");
+
+        let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        exc2.connect().await.expect("connection is ok");
+
+        let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        exc3.connect().await.expect("connection is ok");
 
         let company = fx!(
             "id";
@@ -1066,23 +1069,59 @@ mod test_executor {
 
         let save_strategy = sql_adt::SaveStrategy::Replace;
 
-        let res = exc
+        let res = exc1
+            .save("company", company.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 5);
+        println!("effected rows: {:?}", res);
+
+        let res = exc1
+            .save("employee", employee.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 6);
+        println!("effected rows: {:?}", res);
+
+        let res = exc2
+            .save("company", company.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 5);
+        println!("effected rows: {:?}", res);
+
+        let res = exc2
+            .save("employee", employee.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 6);
+        println!("effected rows: {:?}", res);
+
+        let res = exc3
             .save("company", company, &save_strategy)
             .await
             .expect("save is ok");
+        assert_eq!(res, 5);
         println!("effected rows: {:?}", res);
 
-        let res = exc
+        let res = exc3
             .save("employee", employee, &save_strategy)
             .await
             .expect("save is ok");
+        assert_eq!(res, 6);
         println!("effected rows: {:?}", res);
     }
 
     #[tokio::test]
     async fn select_with_join() {
-        // let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
-        // exc.connect().await.expect("connection is ok");
+        let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        exc1.connect().await.expect("connection is ok");
+
+        let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        exc2.connect().await.expect("connection is ok");
+
+        let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        exc3.connect().await.expect("connection is ok");
 
         let cols = vec![
             xpr_col!("employee", "id"),
@@ -1096,26 +1135,16 @@ mod test_executor {
         let join = xpr_join!("left", "employee", "company", [("company_id", "id")]).unwrap();
         let select = sql_adt::Select::new("employee").columns(&cols).join(&join);
 
-        let s = crate::SqlBuilder::Sqlite.select(&select);
-        println!("{:?}", s);
+        let fx = exc1.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
 
-        // TODO:
-        // BUG: select with join is not working, return all null values
+        let fx = exc2.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
 
-        // let fx = exc.select(&select).await.expect("select is ok");
-        // println!("{:?}", fx);
-    }
-
-    #[tokio::test]
-    async fn sqlx_with_join_select() {
-        let pool = sqlx::sqlite::SqlitePool::connect(CONN3).await.unwrap();
-
-        // TODO:
-        // BUG: their type_info are all Int, which is incorrect
-        let mut rows = sqlx::query(
-                "SELECT employee.id, employee.name, employee.age, company.id, company.name, company.val, company.addr FROM employee LEFT JOIN company ON employee.company_id = company.id",
-            ).map(|row: sqlx::sqlite::SqliteRow| {
-                row.try_get_raw(0).map(|v| println!("{:?}",  v.type_info())).unwrap();
-            }).fetch_all(&pool).await.unwrap();
+        let fx = exc3.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
     }
 }
