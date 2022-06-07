@@ -57,6 +57,28 @@ macro_rules! sv_2_v {
 
 pub(crate) use sv_2_v;
 
+/// sql_adt::Column
+#[macro_export]
+macro_rules! xpr_col {
+    // Column::Col
+    ($column:expr) => {
+        $crate::sql_adt::Column::col($column)
+    };
+
+    // Column::FnCol
+    ($function:expr => $column:expr) => {
+        $crate::sql_adt::Column::fn_col($function, $column)
+    };
+
+    // Column::Tbl
+    ($table:expr, $column:expr) => {
+        $crate::sql_adt::Column::tbl($table, $column)
+    };
+}
+
+pub use xpr_col;
+
+/// sql_adt::Conjunction::AND
 #[macro_export]
 macro_rules! xpr_and {
     // Case: And
@@ -67,6 +89,7 @@ macro_rules! xpr_and {
 
 pub use xpr_and;
 
+/// sql_adt::Conjunction::OR
 #[macro_export]
 macro_rules! xpr_or {
     // Case: And
@@ -77,6 +100,7 @@ macro_rules! xpr_or {
 
 pub use xpr_or;
 
+/// sql_adt::Conjunction::NOT
 #[macro_export]
 macro_rules! xpr_not {
     // Case: Not
@@ -87,36 +111,64 @@ macro_rules! xpr_not {
 
 pub use xpr_not;
 
+/// sql_adt::Function
 #[macro_export]
 macro_rules! xpr_fn {
+    // Case: Function
+    ($function:expr) => {
+        match $function {
+            "max" => $crate::sql_adt::Function::Max,
+            "min" => $crate::sql_adt::Function::Min,
+            "sum" => $crate::sql_adt::Function::Sum,
+            "avg" => $crate::sql_adt::Function::Avg,
+            "abs" => $crate::sql_adt::Function::Abs,
+            "count" => $crate::sql_adt::Function::Count,
+            "charlen" => $crate::sql_adt::Function::CharLength,
+            "lower" => $crate::sql_adt::Function::Lower,
+            "upper" => $crate::sql_adt::Function::Upper,
+            _ => unimplemented!(),
+        }
+    };
+
+    ($function:expr, $value:expr) => {
+        match $function {
+            "alias" => $crate::sql_adt::Function::alias($value),
+            "ifnull" => $crate::sql_adt::Function::ifnull($value),
+            "cast" => $crate::sql_adt::Function::cast($value),
+            _ => unimplemented!(),
+        }
+    };
+
+    ($function:expr, [$($value:expr),* $(,)*]) => {
+        match $function {
+            "coalesce" => {
+                let mut values = Vec::<String>::new();
+                $(
+                    values.push($value);
+                )*
+
+                $crate::sql_adt::Function::Coalesce($values)
+            },
+            _ => unimplemented!(),
+        },
+    };
+}
+
+/// sql_adt::Condition
+#[macro_export]
+macro_rules! xpr_cond {
     // Case: Function
     ($column:expr, $function:expr) => {
         $crate::sql_adt::Condition {
             column: String::from($column),
-            equation: match $function {
-                "max" => $crate::sql_adt::Function::Max,
-                "min" => $crate::sql_adt::Function::Min,
-                "sum" => $crate::sql_adt::Function::Sum,
-                "avg" => $crate::sql_adt::Function::Avg,
-                "abs" => $crate::sql_adt::Function::Abs,
-                "count" => $crate::sql_adt::Function::Count,
-                "charlen" => $crate::sql_adt::Function::CharLength,
-                "lower" => $crate::sql_adt::Function::Lower,
-                "upper" => $crate::sql_adt::Function::Upper,
-                _ => unimplemented!(),
-            },
+            equation: $crate::xpr_fn($function),
         }
     };
 
     ($column:expr, $function:expr, $value:expr) => {
         $crate::sql_adt::Condition {
             column: String::from($column),
-            equation: match $function {
-                "alias" => $crate::sql_adt::Function::Alias($value),
-                "ifnull" => $crate::sql_adt::Function::IfNull($value),
-                "cast" => $crate::sql_adt::Function::Cast($value),
-                _ => unimplemented!(),
-            },
+            equation: $crate::xpr_fn($function, $value),
         }
     };
 
@@ -137,6 +189,31 @@ macro_rules! xpr_fn {
         }
     };
 }
+
+/// sql_adt::Join
+#[macro_export]
+macro_rules! xpr_join {
+    ($join:expr, $left:expr, $right:expr, [$(($lc:expr, $rc:expr)),* $(,)*]) => {{
+        let on = vec![$(($lc, $rc))*];
+
+        let join_type = match $join {
+            "join" => $crate::sql_adt::JoinType::Join,
+            "inner" => $crate::sql_adt::JoinType::Inner,
+            "left" => $crate::sql_adt::JoinType::Left,
+            "right" => $crate::sql_adt::JoinType::Right,
+            _ => $crate::sql_adt::JoinType::Join,
+        };
+
+        $crate::sql_adt::Join::new(
+            join_type,
+            $left,
+            $right,
+            &on,
+        )
+    }};
+}
+
+pub use xpr_join;
 
 /// expression macro
 /// `sql_adt::Expression::Nest(...)`
@@ -260,7 +337,7 @@ mod sql_adt_macros {
     use super::*;
 
     #[test]
-    fn test_xpr_nest() {
+    fn xpr_nest_success() {
         let e1 = xpr!([
             xpr!([
                 xpr!("name", "=", "Jacob"),
@@ -295,5 +372,31 @@ mod sql_adt_macros {
             .finish();
 
         assert_eq!(e1, e2);
+    }
+
+    #[test]
+    fn xpr_col_success() {
+        let cols = vec![
+            xpr_col!("name"),
+            xpr_col!("age"),
+            xpr_col!("ord"),
+            xpr_col!(xpr_fn!("alias", "des") => "description"),
+            xpr_col!("dev_table", "num"),
+        ];
+
+        println!("{:?}", cols);
+    }
+
+    #[test]
+    fn xpr_join_success() {
+        let join = xpr_join!(
+            "join",
+            "left_table",
+            "right_table",
+            [("left_table_id", "right_table_id")]
+        );
+        assert!(join.is_ok());
+
+        println!("{:?}", join);
     }
 }

@@ -4,7 +4,8 @@ use std::str::FromStr;
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use sea_query::{
-    Cond, ConditionExpression, DeleteStatement, Expr, Func, SelectStatement, Value as SValue,
+    Cond, ConditionExpression, DeleteStatement, Expr, Func, JoinType as SJoinType, SelectStatement,
+    Value as SValue,
 };
 
 use super::{alias, sql_adt, sv_2_v};
@@ -333,55 +334,90 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
 
 /// column_builder
 pub(crate) fn column_builder(statement: &mut SelectStatement, column: &sql_adt::Column) {
-    match column.function() {
-        Some(f) => match f {
+    match column {
+        sql_adt::Column::Col { name } => {
+            statement.expr(Expr::col(alias!(name)));
+        }
+        sql_adt::Column::FnCol { function, name } => match function {
             sql_adt::Function::Alias(a) => {
-                statement.expr_as(Expr::col(alias!(column.name())), alias!(a));
+                statement.expr_as(Expr::col(alias!(name)), alias!(a));
             }
             sql_adt::Function::Max => {
-                statement.expr(Func::max(Expr::col(alias!(column.name()))));
+                statement.expr(Func::max(Expr::col(alias!(name))));
             }
             sql_adt::Function::Min => {
-                statement.expr(Func::min(Expr::col(alias!(column.name()))));
+                statement.expr(Func::min(Expr::col(alias!(name))));
             }
             sql_adt::Function::Sum => {
-                statement.expr(Func::sum(Expr::col(alias!(column.name()))));
+                statement.expr(Func::sum(Expr::col(alias!(name))));
             }
             sql_adt::Function::Avg => {
-                statement.expr(Func::avg(Expr::col(alias!(column.name()))));
+                statement.expr(Func::avg(Expr::col(alias!(name))));
             }
             sql_adt::Function::Abs => {
-                statement.expr(Func::abs(Expr::col(alias!(column.name()))));
+                statement.expr(Func::abs(Expr::col(alias!(name))));
             }
             sql_adt::Function::Count => {
-                statement.expr(Func::count(Expr::col(alias!(column.name()))));
+                statement.expr(Func::count(Expr::col(alias!(name))));
             }
             sql_adt::Function::IfNull(n) => {
-                statement.expr(Func::if_null(
-                    Expr::col(alias!(column.name())),
-                    Expr::col(alias!(n)),
-                ));
+                statement.expr(Func::if_null(Expr::col(alias!(name)), Expr::col(alias!(n))));
             }
             sql_adt::Function::Cast(c) => {
-                statement.expr(Func::cast_as(column.name(), alias!(c)));
+                statement.expr(Func::cast_as(name.to_owned(), alias!(c)));
             }
             sql_adt::Function::Coalesce(co) => {
-                statement.expr(Func::coalesce(
-                    co.iter().map(|c| Expr::col(alias!(c))).collect::<Vec<_>>(),
-                ));
+                let se =
+                    Func::coalesce(co.iter().map(|c| Expr::col(alias!(c))).collect::<Vec<_>>());
+                statement.expr(se);
             }
             sql_adt::Function::CharLength => {
-                statement.expr(Func::char_length(Expr::col(alias!(column.name()))));
+                statement.expr(Func::char_length(Expr::col(alias!(name))));
             }
             sql_adt::Function::Lower => {
-                statement.expr(Func::lower(Expr::col(alias!(column.name()))));
+                statement.expr(Func::lower(Expr::col(alias!(name))));
             }
             sql_adt::Function::Upper => {
-                statement.expr(Func::upper(Expr::col(alias!(column.name()))));
+                statement.expr(Func::upper(Expr::col(alias!(name))));
             }
         },
-        None => {
-            statement.column(alias!(column.name()));
+        sql_adt::Column::Tbl { table, name } => {
+            statement.expr(Expr::col((alias!(table), alias!(name))));
         }
+    }
+}
+
+// ================================================================================================
+// JoinBuilder
+// ================================================================================================
+
+impl From<&sql_adt::JoinType> for SJoinType {
+    fn from(jt: &sql_adt::JoinType) -> Self {
+        match jt {
+            sql_adt::JoinType::Join => SJoinType::Join,
+            sql_adt::JoinType::Inner => SJoinType::InnerJoin,
+            sql_adt::JoinType::Left => SJoinType::LeftJoin,
+            sql_adt::JoinType::Right => SJoinType::RightJoin,
+        }
+    }
+}
+
+/// join_builder
+pub(crate) fn join_builder(statement: &mut SelectStatement, join: &sql_adt::Join) {
+    // if join.on() is empty, it is not necessary to join
+    if join.is_valid() {
+        let mut conditions = Cond::all();
+
+        for c in join.on() {
+            let expr = Expr::tbl(alias!(join.left_table()), alias!(&c.0))
+                .equals(alias!(join.right_table()), alias!(&c.1));
+            conditions = conditions.add(expr);
+        }
+
+        statement.join(
+            join.join_type().into(),
+            alias!(join.right_table()),
+            conditions,
+        );
     }
 }

@@ -536,8 +536,6 @@ where
             }
         };
 
-        // TODO:
-        // columns_name should also contain function
         df.set_column_names(&select.columns_name())?;
 
         Ok(df)
@@ -546,7 +544,7 @@ where
 
 /// select primary key and other columns from a table
 fn add_primary_key_to_select<T: Into<String>>(primary_key: T, select: &mut sql_adt::Select) {
-    select.columns.insert(0, sql_adt::Column::new(primary_key));
+    select.columns.insert(0, sql_adt::Column::col(primary_key));
 }
 
 /// `Value` -> String
@@ -605,10 +603,10 @@ async fn txn_create_and_insert<'a>(
 
 #[cfg(test)]
 mod test_executor {
-
     use super::*;
     use crate::{
-        date, datetime, fx, series, xpr, xpr_and, xpr_or, DatabaseMysql, DatabasePg, DatabaseSqlite,
+        date, datetime, fx, series, xpr, xpr_and, xpr_col, xpr_join, xpr_or, DatabaseMysql,
+        DatabasePg, DatabaseSqlite,
     };
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
@@ -926,11 +924,11 @@ mod test_executor {
         let select = sql_adt::Select {
             table: "dev".to_owned(),
             columns: vec![
-                sql_adt::Column::new("names"),
-                sql_adt::Column::new("val"),
-                sql_adt::Column::new("note"),
-                sql_adt::Column::new("dt"),
-                sql_adt::Column::new("ord"),
+                xpr_col!("names"),
+                xpr_col!("val"),
+                xpr_col!("note"),
+                xpr_col!("dt"),
+                xpr_col!("ord"),
             ],
             ..Default::default()
         };
@@ -1039,5 +1037,114 @@ mod test_executor {
         let res = exc.get_existing_ids(TABLE_NAME, &ids).await;
         assert!(res.is_ok());
         println!("{:?}", res.unwrap());
+    }
+
+    #[tokio::test]
+    async fn save_tables_with_join_relation() {
+        let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        exc1.connect().await.expect("connection is ok");
+
+        let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        exc2.connect().await.expect("connection is ok");
+
+        let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        exc3.connect().await.expect("connection is ok");
+
+        let company = fx!(
+            "id";
+            "id" => [1, 2, 3, 4, 5],
+            "name" => ["Google", "Microsoft", "Apple", "Facebook", "Amazon"],
+            "val" => [100, 200, 300, 400, 500],
+            "addr" => ["1600 Amphitheatre Parkway", "One Microsoft Way", "1 Infinite Loop", "1 Microsoft Way", "1 Infinite Loop"],
+        ).unwrap();
+
+        let employee = fx!(
+            "id";
+            "id" => [1, 2, 3, 4, 5, 6],
+            "name" => ["John", "Mike", "Mary", "Jane", "Tom", "Jerry"],
+            "age" => [20, 30, 22, 24, 28, 31],
+            "company_id" => [4, 2, 2, 3, 4, 1],
+        )
+        .unwrap();
+
+        let save_strategy = sql_adt::SaveStrategy::Replace;
+
+        let res = exc1
+            .save("company", company.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 5);
+        println!("effected rows: {:?}", res);
+
+        let res = exc1
+            .save("employee", employee.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 6);
+        println!("effected rows: {:?}", res);
+
+        let res = exc2
+            .save("company", company.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 5);
+        println!("effected rows: {:?}", res);
+
+        let res = exc2
+            .save("employee", employee.clone(), &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 6);
+        println!("effected rows: {:?}", res);
+
+        let res = exc3
+            .save("company", company, &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 5);
+        println!("effected rows: {:?}", res);
+
+        let res = exc3
+            .save("employee", employee, &save_strategy)
+            .await
+            .expect("save is ok");
+        assert_eq!(res, 6);
+        println!("effected rows: {:?}", res);
+    }
+
+    #[tokio::test]
+    async fn select_with_join() {
+        let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        exc1.connect().await.expect("connection is ok");
+
+        let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        exc2.connect().await.expect("connection is ok");
+
+        let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        exc3.connect().await.expect("connection is ok");
+
+        let cols = vec![
+            xpr_col!("employee", "id"),
+            xpr_col!("employee", "name"),
+            xpr_col!("employee", "age"),
+            xpr_col!("company", "id"),
+            xpr_col!("company", "name"),
+            xpr_col!("company", "val"),
+            xpr_col!("company", "addr"),
+        ];
+        let join = xpr_join!("left", "employee", "company", [("company_id", "id")]).unwrap();
+        let select = sql_adt::Select::new("employee").columns(&cols).join(&join);
+
+        let fx = exc1.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
+
+        let fx = exc2.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
+
+        let fx = exc3.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
     }
 }

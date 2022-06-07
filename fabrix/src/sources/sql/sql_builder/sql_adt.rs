@@ -1,4 +1,38 @@
 //! Fabrix SqlBuilder ADT
+//!
+//! 1. TableSchema
+//! 1. TableConstraint
+//! 1. ColumnConstraint
+//! 1. ColumnIndex
+//! 1. Order
+//! 1. Index
+//! 1. ForeignKeyDir
+//! 1. ForeignKeyAction
+//! 1. ForeignKey
+//! 1. Function
+//! 1. Column
+//! 1. AlterTable
+//! 1. Conjunction
+//! 1. Opposition
+//! 1. Equation
+//! 1. Condition
+//! 1. Expression
+//! 1. Expressions
+//! 1. InitState
+//! 1. ConjunctionState
+//! 1. OppositionState
+//! 1. SimpleState
+//! 1. NestState
+//! 1. ExpressionTransit
+//! 1. ExpressionsBuilder
+//! 1. JoinType
+//! 1. Join
+//! 1. Select
+//! 1. Delete
+//! 1. SaveStrategy
+//! 1. IndexType
+//! 1. IndexOption
+//! 1. ExecutionResult
 
 use std::str::FromStr;
 
@@ -210,59 +244,132 @@ pub enum Function {
     Upper,
 }
 
+impl Function {
+    pub fn alias<T: Into<String>>(name: T) -> Self {
+        Function::Alias(name.into())
+    }
+
+    pub fn ifnull<T: Into<String>>(value: T) -> Self {
+        Function::IfNull(value.into())
+    }
+
+    pub fn cast<T: Into<String>>(value: T) -> Self {
+        Function::Cast(value.into())
+    }
+
+    pub fn coalesce<T>(c: Vec<T>) -> Self
+    where
+        String: From<T>,
+    {
+        Function::Coalesce(c.into_iter().map(String::from).collect())
+    }
+}
+
 // ================================================================================================
 // Column
 // ================================================================================================
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Column {
-    pub name: String,
-    pub function: Option<Function>,
+#[serde(untagged)]
+pub enum Column {
+    Col { name: String },
+    FnCol { function: Function, name: String },
+    Tbl { table: String, name: String },
 }
 
 impl Column {
-    pub fn new<C: Into<String>>(column: C) -> Self {
-        Column {
+    pub fn col<C: Into<String>>(column: C) -> Self {
+        Column::Col {
             name: column.into(),
-            function: None,
         }
     }
 
-    pub fn new_with_fn<C: Into<String>>(column: C, function: Function) -> Self {
-        Column {
+    pub fn fn_col<C: Into<String>>(function: Function, column: C) -> Self {
+        Column::FnCol {
+            function,
             name: column.into(),
-            function: Some(function),
+        }
+    }
+
+    pub fn tbl<C: Into<String>>(table: C, column: C) -> Self {
+        Column::Tbl {
+            table: table.into(),
+            name: column.into(),
         }
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        match self {
+            Column::Col { name } => name,
+            Column::FnCol { name, .. } => name,
+            Column::Tbl { name, .. } => name,
+        }
+    }
+
+    pub fn name_display(&self) -> String {
+        match self {
+            Column::Col { name } => name.to_string(),
+            Column::FnCol { function, name } => match function {
+                Function::Alias(a) => a.to_string(),
+                Function::Max => format!("max({:?})", name),
+                Function::Min => format!("min({:?})", name),
+                Function::Sum => format!("sum({:?})", name),
+                Function::Avg => format!("avg({:?})", name),
+                Function::Abs => format!("abs({:?})", name),
+                Function::Count => format!("count({:?})", name),
+                Function::IfNull(_) => name.to_owned(),
+                Function::Cast(_) => name.to_owned(),
+                Function::Coalesce(_) => format!("coalesce({:?})", name),
+                Function::CharLength => format!("charlen({:?})", name),
+                Function::Lower => format!("lower({:?})", name),
+                Function::Upper => format!("upper({:?})", name),
+            },
+            Column::Tbl { table, name } => format!("{}.{}", table, name),
+        }
+    }
+
+    pub fn table(&self) -> Option<&str> {
+        match self {
+            Column::Col { .. } => None,
+            Column::FnCol { .. } => None,
+            Column::Tbl { table, .. } => Some(table),
+        }
     }
 
     pub fn function(&self) -> Option<&Function> {
-        self.function.as_ref()
+        if let Column::FnCol { function, .. } = self {
+            Some(function)
+        } else {
+            None
+        }
     }
 
     pub fn has_func(&self) -> bool {
-        self.function.is_some()
+        matches!(self, Column::FnCol { .. })
+    }
+}
+
+impl From<&Column> for Column {
+    fn from(c: &Column) -> Self {
+        c.to_owned()
     }
 }
 
 impl From<&str> for Column {
     fn from(s: &str) -> Self {
-        Column {
-            name: s.to_string(),
-            function: None,
-        }
+        Column::col(s)
     }
 }
 
-impl From<(&str, Function)> for Column {
-    fn from((s, f): (&str, Function)) -> Self {
-        Column {
-            name: s.to_string(),
-            function: Some(f),
-        }
+impl From<(Function, &str)> for Column {
+    fn from((f, s): (Function, &str)) -> Self {
+        Column::fn_col(f, s)
+    }
+}
+
+impl From<(&str, &str)> for Column {
+    fn from((t, c): (&str, &str)) -> Self {
+        Column::tbl(t, c)
     }
 }
 
@@ -523,6 +630,69 @@ impl ExpressionsBuilder {
 }
 
 // ================================================================================================
+// Join
+// ================================================================================================
+
+/// JoinType
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum JoinType {
+    Join,
+    Inner,
+    Left,
+    Right,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct Join {
+    pub join_type: JoinType,
+    pub left_table: String,
+    pub right_table: String,
+    pub on: Vec<(String, String)>,
+}
+
+impl Join {
+    pub fn new(
+        join_type: JoinType,
+        left_table: &str,
+        right_table: &str,
+        on: &[(&str, &str)],
+    ) -> SqlResult<Self> {
+        if on.is_empty() {
+            return Err(SqlError::new_common_error("on cannot be empty"));
+        }
+        Ok(Join {
+            join_type,
+            left_table: left_table.to_string(),
+            right_table: right_table.to_string(),
+            on: on
+                .iter()
+                .map(|(l, r)| (l.to_string(), r.to_string()))
+                .collect(),
+        })
+    }
+
+    pub fn join_type(&self) -> &JoinType {
+        &self.join_type
+    }
+
+    pub fn left_table(&self) -> &str {
+        &self.left_table
+    }
+
+    pub fn right_table(&self) -> &str {
+        &self.right_table
+    }
+
+    pub fn on(&self) -> &[(String, String)] {
+        &self.on
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.on.is_empty()
+    }
+}
+
+// ================================================================================================
 // Select
 // ================================================================================================
 
@@ -535,6 +705,7 @@ pub struct Select {
     pub order: Option<Vec<Order>>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+    pub join: Option<Join>,
     pub include_primary_key: Option<bool>,
 }
 
@@ -547,6 +718,7 @@ impl Select {
             order: None,
             limit: None,
             offset: None,
+            join: None,
             include_primary_key: None,
         }
     }
@@ -575,18 +747,16 @@ impl Select {
         self.offset
     }
 
+    pub fn get_join(&self) -> Option<&Join> {
+        self.join.as_ref()
+    }
+
     pub fn get_include_primary_key(&self) -> Option<bool> {
         self.include_primary_key
     }
 
     pub fn columns_name(&self) -> Vec<String> {
-        self.columns
-            .iter()
-            .map(|c| match &c.function {
-                Some(f) => format!("{}[{:?}]", c.name(), f),
-                None => c.name().to_owned(),
-            })
-            .collect()
+        self.columns.iter().map(Column::name_display).collect()
     }
 
     pub fn columns<C>(mut self, columns: &[C]) -> Self
@@ -616,6 +786,11 @@ impl Select {
 
     pub fn offset(mut self, offset: usize) -> Self {
         self.offset = Some(offset);
+        self
+    }
+
+    pub fn join(mut self, join: &Join) -> Self {
+        self.join = Some(join.to_owned());
         self
     }
 
@@ -825,6 +1000,23 @@ mod test_sql_adt {
     }
 
     #[test]
+    fn column_serialize() {
+        let cols = vec![
+            Column::col("author"),
+            Column::col("age"),
+            Column::col("ord"),
+            Column::fn_col(Function::alias("des"), "description"),
+            Column::tbl("dev_table", "num"),
+        ];
+        println!("{:?}", cols);
+
+        let foo = serde_json::to_string(&cols);
+        assert!(foo.is_ok());
+        let foo = foo.unwrap();
+        println!("{:?}", foo);
+    }
+
+    #[test]
     fn expression_serialize() {
         let e = Expressions(vec![
             Expression::Opposition(Opposition::NOT),
@@ -848,6 +1040,16 @@ mod test_sql_adt {
     }
 
     #[test]
+    fn join_serialize() {
+        let join = Join::new(JoinType::Inner, "left", "right", &[("id", "id")]);
+        assert!(join.is_ok());
+
+        let join = serde_json::to_string(&join.unwrap());
+        assert!(join.is_ok());
+        println!("{:?}", join.unwrap());
+    }
+
+    #[test]
     fn select_serialize() {
         let e = Expressions(vec![
             Expression::Opposition(Opposition::NOT),
@@ -860,13 +1062,12 @@ mod test_sql_adt {
             ]),
         ]);
 
-        let select = Select::new("test")
-            .columns(&[
-                Column::new("v1"),
-                Column::new_with_fn("v2", Function::Alias("v2_ext".to_owned())),
-            ])
-            .filter(&e)
-            .limit(10);
+        let c = vec![
+            Column::col("v1"),
+            Column::fn_col(Function::Alias("v2_ext".to_owned()), "v2"),
+        ];
+
+        let select = Select::new("test").columns(&c).filter(&e).limit(10);
 
         let s = serde_json::to_string(&select);
         assert!(s.is_ok());

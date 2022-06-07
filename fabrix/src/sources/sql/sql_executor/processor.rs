@@ -27,6 +27,8 @@ impl SqlRowProcessor {
         }
     }
 
+    // TODO:
+    // BUG: caching error when `Join` is used -- missing `type_info()`
     /// since each row has the same type order, saving them in cache for future use
     fn caching(&mut self, sql_row: &SqlRow) {
         if self.cache_markers.is_none() {

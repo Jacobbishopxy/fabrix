@@ -342,7 +342,7 @@ where
     }
 
     /// Simple method to print out all the inner files of the xlsx zip.
-    pub fn contents(&mut self) {
+    pub fn print_contents(&mut self) {
         for i in 0..self.xls.len() {
             let file = self.xls.by_index(i).unwrap();
             let outpath = match file.enclosed_name() {
