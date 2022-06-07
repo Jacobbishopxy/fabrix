@@ -64,6 +64,23 @@ impl DmlQuery for SqlBuilder {
             join_builder(&mut statement, j);
         }
 
+        if let Some(g) = select.get_group_by() {
+            let g = g
+                .iter()
+                .map(|c| match c {
+                    sql_adt::Column::Col { name } => Expr::col(alias!(name)).into(),
+                    sql_adt::Column::FnCol { name, .. } => Expr::col(alias!(name)).into(),
+                    sql_adt::Column::Tbl { table, name } => {
+                        Expr::col((alias!(table), alias!(name))).into()
+                    }
+                    sql_adt::Column::FnTbl { table, name, .. } => {
+                        Expr::col((alias!(table), alias!(name))).into()
+                    }
+                })
+                .collect::<Vec<_>>();
+            statement.add_group_by(g);
+        }
+
         statement!(self, statement)
     }
 }
@@ -107,6 +124,7 @@ mod test_query_dml {
             limit: Some(10),
             offset: Some(20),
             join: None,
+            group_by: None,
             include_primary_key: None,
         });
         println!("{:?}", select);

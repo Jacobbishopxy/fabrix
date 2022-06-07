@@ -84,6 +84,8 @@ async fn read_db_write_parquet() {
         order: None,
         limit: Some(10),
         offset: None,
+        join: None,
+        group_by: None,
     };
     let res = dispatcher.async_read(&ro).await;
     assert!(res.is_ok());
@@ -122,6 +124,8 @@ async fn read_db_operate_write_csv() {
         order: None,
         limit: None,
         offset: None,
+        join: None,
+        group_by: None,
     };
     let res = dispatcher.async_read(&ro).await;
     assert!(res.is_ok());

@@ -25,6 +25,8 @@ where
     order: Option<&'a [sql_adt::Order]>,
     limit: Option<usize>,
     offset: Option<usize>,
+    join: Option<&'a sql_adt::Join>,
+    group_by: Option<&'a [sql_adt::Column]>,
     include_primary_key: Option<bool>,
 }
 
@@ -47,6 +49,8 @@ where
             order: None,
             limit: None,
             offset: None,
+            join: None,
+            group_by: None,
             include_primary_key: None,
         })
     }
@@ -63,6 +67,8 @@ where
             order: None,
             limit: None,
             offset: None,
+            join: None,
+            group_by: None,
             include_primary_key: None,
         })
     }
@@ -84,6 +90,8 @@ where
             order: None,
             limit: None,
             offset: None,
+            join: None,
+            group_by: None,
             include_primary_key: None,
         })
     }
@@ -101,6 +109,8 @@ where
             order: None,
             limit: None,
             offset: None,
+            join: None,
+            group_by: None,
             include_primary_key: None,
         })
     }
@@ -139,6 +149,16 @@ where
         self
     }
 
+    pub fn with_join(&mut self, join: &'a sql_adt::Join) -> &mut Self {
+        self.join = Some(join);
+        self
+    }
+
+    pub fn with_group_by(&mut self, group_by: &'a [sql_adt::Column]) -> &mut Self {
+        self.group_by = Some(group_by);
+        self
+    }
+
     pub fn with_include_primary_key(&mut self, include_primary_key: bool) -> &mut Self {
         self.include_primary_key = Some(include_primary_key);
         self
@@ -161,8 +181,8 @@ where
             order: self.order.map(|o| o.to_vec()),
             limit: self.limit,
             offset: self.offset,
-            // TODO:
-            join: None,
+            join: self.join.cloned(),
+            group_by: self.group_by.map(|g| g.to_vec()),
             include_primary_key: self.include_primary_key,
         };
 
@@ -184,6 +204,8 @@ pub struct SqlReadOptions<'a> {
     pub order: Option<&'a [sql_adt::Order]>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+    pub join: Option<&'a sql_adt::Join>,
+    pub group_by: Option<&'a [sql_adt::Column]>,
 }
 
 impl<'a> ReadOptions for SqlReadOptions<'a> {
@@ -201,6 +223,8 @@ impl<'a> SqlReadOptions<'a> {
             order: select.order.as_deref(),
             limit: select.limit,
             offset: select.offset,
+            join: select.join.as_ref(),
+            group_by: select.group_by.as_deref(),
         }
     }
 }
@@ -221,6 +245,8 @@ where
             order,
             limit,
             offset,
+            join,
+            group_by,
         } = options;
 
         if let Some(table) = table {
@@ -240,6 +266,12 @@ where
         }
         if let Some(offset) = offset {
             self.with_offset(*offset);
+        }
+        if let Some(join) = join {
+            self.with_join(join);
+        }
+        if let Some(group_by) = group_by {
+            self.with_group_by(group_by);
         }
 
         self.finish().await

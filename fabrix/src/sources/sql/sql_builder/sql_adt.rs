@@ -748,6 +748,7 @@ pub struct Select {
     pub limit: Option<usize>,
     pub offset: Option<usize>,
     pub join: Option<Join>,
+    pub group_by: Option<Vec<Column>>,
     pub include_primary_key: Option<bool>,
 }
 
@@ -761,6 +762,7 @@ impl Select {
             limit: None,
             offset: None,
             join: None,
+            group_by: None,
             include_primary_key: None,
         }
     }
@@ -791,6 +793,10 @@ impl Select {
 
     pub fn get_join(&self) -> Option<&Join> {
         self.join.as_ref()
+    }
+
+    pub fn get_group_by(&self) -> Option<&[Column]> {
+        self.group_by.as_deref()
     }
 
     pub fn get_include_primary_key(&self) -> Option<bool> {
@@ -833,6 +839,11 @@ impl Select {
 
     pub fn join(mut self, join: &Join) -> Self {
         self.join = Some(join.to_owned());
+        self
+    }
+
+    pub fn group_by(mut self, group_by: &[Column]) -> Self {
+        self.group_by = Some(group_by.to_owned());
         self
     }
 
