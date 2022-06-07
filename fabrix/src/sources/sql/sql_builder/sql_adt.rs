@@ -272,9 +272,22 @@ impl Function {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum Column {
-    Col { name: String },
-    FnCol { function: Function, name: String },
-    Tbl { table: String, name: String },
+    Col {
+        name: String,
+    },
+    FnCol {
+        function: Function,
+        name: String,
+    },
+    Tbl {
+        table: String,
+        name: String,
+    },
+    FnTbl {
+        function: Function,
+        table: String,
+        name: String,
+    },
 }
 
 impl Column {
@@ -298,11 +311,20 @@ impl Column {
         }
     }
 
+    pub fn fn_tbl<C: Into<String>>(function: Function, table: C, column: C) -> Self {
+        Column::FnTbl {
+            function,
+            table: table.into(),
+            name: column.into(),
+        }
+    }
+
     pub fn name(&self) -> &str {
         match self {
             Column::Col { name } => name,
             Column::FnCol { name, .. } => name,
             Column::Tbl { name, .. } => name,
+            Column::FnTbl { name, .. } => name,
         }
     }
 
@@ -325,6 +347,25 @@ impl Column {
                 Function::Upper => format!("upper({:?})", name),
             },
             Column::Tbl { table, name } => format!("{}.{}", table, name),
+            Column::FnTbl {
+                function,
+                table,
+                name,
+            } => match function {
+                Function::Alias(a) => format!("{:?}.{:?}", table, a),
+                Function::Max => format!("max({:?}.{:?})", table, name),
+                Function::Min => format!("min({:?}.{:?})", table, name),
+                Function::Sum => format!("sum({:?}.{:?})", table, name),
+                Function::Avg => format!("avg({:?}.{:?})", table, name),
+                Function::Abs => format!("abs({:?}.{:?})", table, name),
+                Function::Count => format!("count({:?}.{:?})", table, name),
+                Function::IfNull(_) => format!("{:?}.{:?}", table, name),
+                Function::Cast(_) => format!("{:?}.{:?}", table, name),
+                Function::Coalesce(_) => format!("coalesce({:?}.{:?})", table, name),
+                Function::CharLength => format!("charlen({:?}.{:?})", table, name),
+                Function::Lower => format!("lower({:?}.{:?})", table, name),
+                Function::Upper => format!("upper({:?}.{:?})", table, name),
+            },
         }
     }
 
@@ -333,6 +374,7 @@ impl Column {
             Column::Col { .. } => None,
             Column::FnCol { .. } => None,
             Column::Tbl { table, .. } => Some(table),
+            Column::FnTbl { table, .. } => Some(table),
         }
     }
 
@@ -1063,11 +1105,18 @@ mod test_sql_adt {
         ]);
 
         let c = vec![
-            Column::col("v1"),
+            Column::tbl("left", "v1"),
             Column::fn_col(Function::Alias("v2_ext".to_owned()), "v2"),
+            Column::tbl("right", "des"),
         ];
 
-        let select = Select::new("test").columns(&c).filter(&e).limit(10);
+        let j = Join::new(JoinType::Inner, "left", "right", &[("id", "id")]).expect("join is ok");
+
+        let select = Select::new("test")
+            .columns(&c)
+            .filter(&e)
+            .join(&j)
+            .limit(10);
 
         let s = serde_json::to_string(&select);
         assert!(s.is_ok());

@@ -66,13 +66,18 @@ macro_rules! xpr_col {
     };
 
     // Column::FnCol
-    ($function:expr => $column:expr) => {
+    ([$function:expr], $column:expr) => {
         $crate::sql_adt::Column::fn_col($function, $column)
     };
 
     // Column::Tbl
     ($table:expr, $column:expr) => {
         $crate::sql_adt::Column::tbl($table, $column)
+    };
+
+    // Column::FnTbl
+    ([$function:expr], $table:expr, $column:expr) => {
+        $crate::sql_adt::Column::fn_tbl($function, $table, $column)
     };
 }
 
@@ -380,8 +385,9 @@ mod sql_adt_macros {
             xpr_col!("name"),
             xpr_col!("age"),
             xpr_col!("ord"),
-            xpr_col!(xpr_fn!("alias", "des") => "description"),
+            xpr_col!([xpr_fn!("alias", "des")], "description"),
             xpr_col!("dev_table", "num"),
+            xpr_col!([xpr_fn!("alias", "pri")], "dev", "priority"),
         ];
 
         println!("{:?}", cols);
