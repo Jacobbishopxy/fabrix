@@ -3,9 +3,10 @@
 //! Reading JSON into a Fabrix struct.
 
 use std::fs::File;
-use std::io::{BufRead, BufReader, Cursor, Seek};
+use std::io::{BufReader, Cursor};
 
 use async_trait::async_trait;
+use polars::io::mmap::MmapBytesReader;
 use polars::prelude::{JsonFormat, JsonReader, SerReader};
 
 use crate::{Fabrix, FabrixError, FabrixResult, FromSource, JsonSource, ReadOptions, Schema};
@@ -16,11 +17,11 @@ use super::UNSUPPORTED_TYPE;
 // JSON Reader
 // ================================================================================================
 
-pub struct Reader<R: BufRead + Seek> {
+pub struct Reader<R: MmapBytesReader> {
     json_reader: Option<JsonReader<R>>,
 }
 
-impl<R: BufRead + Seek> Reader<R> {
+impl<R: MmapBytesReader> Reader<R> {
     pub fn new(reader: R) -> Self {
         Self {
             json_reader: Some(JsonReader::new(reader)),
@@ -153,7 +154,7 @@ impl ReadOptions for JsonReadOptions {
 #[async_trait]
 impl<'a, R> FromSource<'a, JsonReadOptions> for Reader<R>
 where
-    R: BufRead + Seek + Send,
+    R: MmapBytesReader + Send,
 {
     async fn async_read<'o>(&mut self, options: &'o JsonReadOptions) -> FabrixResult<Fabrix>
     where

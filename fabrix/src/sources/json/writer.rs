@@ -51,7 +51,7 @@ impl<W: Write> Writer<W> {
     }
 
     pub fn finish(&mut self, mut fabrix: Fabrix) -> FabrixResult<()> {
-        let writer = self
+        let mut writer = self
             .json_writer
             .take()
             .ok_or_else(|| FabrixError::new_common_error("JsonWriter is not initialized"))?;
