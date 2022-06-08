@@ -231,7 +231,38 @@ mod test_query_dml {
             .join(&join);
 
         let select = SqlBuilder::Postgres.select(&select);
-
         println!("{:?}", select);
+
+        assert_eq!(select, "SELECT \"test\".\"v1\", \"test\".\"v2\", \"dev\".\"v3\", \"dev\".\"v4\" FROM \"test\" JOIN \"dev\" ON \"test\".\"id\" = \"dev\".\"id\"");
+    }
+
+    #[test]
+    fn select_with_group_by() {
+        let columns = vec![
+            sql_adt::Column::tbl("employee", "name"),
+            sql_adt::Column::tbl("employee", "age"),
+            sql_adt::Column::tbl("company", "location"),
+            sql_adt::Column::tbl("company", "value"),
+        ];
+
+        let join = sql_adt::Join::new(
+            sql_adt::JoinType::Join,
+            "employee",
+            "company",
+            &[("id", "id")],
+        )
+        .unwrap();
+
+        let group_by = vec![sql_adt::Column::tbl("employee", "age")];
+
+        let select = sql_adt::Select::new("employee")
+            .columns(&columns)
+            .join(&join)
+            .group_by(&group_by);
+
+        let select = SqlBuilder::Postgres.select(&select);
+        println!("{:?}", select);
+
+        assert_eq!(select, "SELECT \"employee\".\"name\", \"employee\".\"age\", \"company\".\"location\", \"company\".\"value\" FROM \"employee\" JOIN \"company\" ON \"employee\".\"id\" = \"company\".\"id\" GROUP BY \"employee\".\"age\"");
     }
 }

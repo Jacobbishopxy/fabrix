@@ -333,18 +333,18 @@ impl Column {
             Column::Col { name } => name.to_string(),
             Column::FnCol { function, name } => match function {
                 Function::Alias(a) => a.to_string(),
-                Function::Max => format!("max({:?})", name),
-                Function::Min => format!("min({:?})", name),
-                Function::Sum => format!("sum({:?})", name),
-                Function::Avg => format!("avg({:?})", name),
-                Function::Abs => format!("abs({:?})", name),
-                Function::Count => format!("count({:?})", name),
+                Function::Max => format!("max({})", name),
+                Function::Min => format!("min({})", name),
+                Function::Sum => format!("sum({})", name),
+                Function::Avg => format!("avg({})", name),
+                Function::Abs => format!("abs({})", name),
+                Function::Count => format!("count({})", name),
                 Function::IfNull(_) => name.to_owned(),
                 Function::Cast(_) => name.to_owned(),
-                Function::Coalesce(_) => format!("coalesce({:?})", name),
-                Function::CharLength => format!("charlen({:?})", name),
-                Function::Lower => format!("lower({:?})", name),
-                Function::Upper => format!("upper({:?})", name),
+                Function::Coalesce(_) => format!("coalesce({})", name),
+                Function::CharLength => format!("charlen({})", name),
+                Function::Lower => format!("lower({})", name),
+                Function::Upper => format!("upper({})", name),
             },
             Column::Tbl { table, name } => format!("{}.{}", table, name),
             Column::FnTbl {
@@ -352,19 +352,19 @@ impl Column {
                 table,
                 name,
             } => match function {
-                Function::Alias(a) => format!("{:?}.{:?}", table, a),
-                Function::Max => format!("max({:?}.{:?})", table, name),
-                Function::Min => format!("min({:?}.{:?})", table, name),
-                Function::Sum => format!("sum({:?}.{:?})", table, name),
-                Function::Avg => format!("avg({:?}.{:?})", table, name),
-                Function::Abs => format!("abs({:?}.{:?})", table, name),
-                Function::Count => format!("count({:?}.{:?})", table, name),
-                Function::IfNull(_) => format!("{:?}.{:?}", table, name),
-                Function::Cast(_) => format!("{:?}.{:?}", table, name),
-                Function::Coalesce(_) => format!("coalesce({:?}.{:?})", table, name),
-                Function::CharLength => format!("charlen({:?}.{:?})", table, name),
-                Function::Lower => format!("lower({:?}.{:?})", table, name),
-                Function::Upper => format!("upper({:?}.{:?})", table, name),
+                Function::Alias(a) => format!("{}.{}", table, a),
+                Function::Max => format!("max({}.{})", table, name),
+                Function::Min => format!("min({}.{})", table, name),
+                Function::Sum => format!("sum({}.{})", table, name),
+                Function::Avg => format!("avg({}.{})", table, name),
+                Function::Abs => format!("abs({}.{})", table, name),
+                Function::Count => format!("count({}.{})", table, name),
+                Function::IfNull(_) => format!("{}.{}", table, name),
+                Function::Cast(_) => format!("{}.{}", table, name),
+                Function::Coalesce(_) => format!("coalesce({}.{})", table, name),
+                Function::CharLength => format!("charlen({}.{})", table, name),
+                Function::Lower => format!("lower({}.{})", table, name),
+                Function::Upper => format!("upper({}.{})", table, name),
             },
         }
     }
@@ -1104,7 +1104,16 @@ mod test_sql_adt {
 
     #[test]
     fn select_serialize() {
-        let e = Expressions(vec![
+        // columns
+        let c = vec![
+            Column::tbl("left", "v1"),
+            Column::fn_col(Function::Alias("v2_ext".to_owned()), "v2"),
+            Column::tbl("right", "des"),
+            Column::tbl("right", "v3"),
+        ];
+
+        // filter
+        let f = Expressions(vec![
             Expression::Opposition(Opposition::NOT),
             Expression::Simple(Condition::new("a", Equation::Equal(Value::I16(1)))),
             Expression::Conjunction(Conjunction::OR),
@@ -1115,18 +1124,17 @@ mod test_sql_adt {
             ]),
         ]);
 
-        let c = vec![
-            Column::tbl("left", "v1"),
-            Column::fn_col(Function::Alias("v2_ext".to_owned()), "v2"),
-            Column::tbl("right", "des"),
-        ];
-
+        // join
         let j = Join::new(JoinType::Inner, "left", "right", &[("id", "id")]).expect("join is ok");
+
+        // group by
+        let g = vec![Column::tbl("right", "v3")];
 
         let select = Select::new("test")
             .columns(&c)
-            .filter(&e)
+            .filter(&f)
             .join(&j)
+            .group_by(&g)
             .limit(10);
 
         let s = serde_json::to_string(&select);

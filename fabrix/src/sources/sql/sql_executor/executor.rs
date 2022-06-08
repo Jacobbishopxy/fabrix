@@ -1,4 +1,8 @@
 //! Database executor
+//!
+//! SqlHelper: helper functions trait
+//! SqlEngine: general sql functions trait
+//! SqlExecutor: sql executor
 
 use std::str::FromStr;
 
@@ -605,7 +609,7 @@ async fn txn_create_and_insert<'a>(
 mod test_executor {
     use super::*;
     use crate::{
-        date, datetime, fx, series, xpr, xpr_and, xpr_col, xpr_join, xpr_or, DatabaseMysql,
+        date, datetime, fx, series, xpr, xpr_and, xpr_col, xpr_fn, xpr_join, xpr_or, DatabaseMysql,
         DatabasePg, DatabaseSqlite,
     };
 
@@ -617,7 +621,7 @@ mod test_executor {
     const TABLE_NAME: &str = "dev";
 
     #[tokio::test]
-    async fn test_connection() {
+    async fn database_connection_success() {
         let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
         let con = exc.connect().await;
         assert!(con.is_ok());
@@ -632,7 +636,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_get_primary_key() {
+    async fn get_primary_key_success() {
         let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
 
         exc.connect().await.expect("connection is ok");
@@ -641,7 +645,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_save_and_select() {
+    async fn save_and_select_success() {
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
 
         exc.connect().await.expect("connection is ok");
@@ -668,7 +672,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_save_quotes_into_sqlite() {
+    async fn save_quotes_into_sqlite_success() {
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
 
         exc.connect().await.expect("connection is ok");
@@ -688,7 +692,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_save_fail_if_exists() {
+    async fn save_fail_if_exists_success() {
         // df
         let df = fx![
             "ord";
@@ -730,7 +734,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_save_replace() {
+    async fn save_replace_success() {
         // df
         let df = fx![
             "ord";
@@ -785,7 +789,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_save_append() {
+    async fn save_append_success() {
         // df
         let df = fx![
             "ord";
@@ -826,7 +830,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_save_upsert() {
+    async fn save_upsert_success() {
         // df
         let df = fx![
             "ord";
@@ -860,7 +864,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_delete() {
+    async fn delete_success() {
         let filter = xpr!([
             xpr!("ord", "=", 15),
             xpr_or!(),
@@ -899,7 +903,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_select_primary_key() {
+    async fn select_primary_key_success() {
         let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
         exc.connect().await.expect("connection is ok");
 
@@ -920,7 +924,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_select() {
+    async fn simple_select_success() {
         let select = sql_adt::Select {
             table: "dev".to_owned(),
             columns: vec![
@@ -962,7 +966,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_get_table_schema() {
+    async fn get_table_schema_success() {
         // mysql
         let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
         exc.connect().await.expect("connection is ok");
@@ -989,7 +993,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_get_table_constraint() {
+    async fn get_table_constraint_success() {
         // mysql
         let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
         exc.connect().await.expect("connection is ok");
@@ -1011,7 +1015,7 @@ mod test_executor {
     }
 
     #[tokio::test]
-    async fn test_get_existing_ids() {
+    async fn get_existing_ids_success() {
         let ids = series!("ord" => [10,11,14,20,21]);
 
         // mysql
@@ -1134,6 +1138,42 @@ mod test_executor {
         ];
         let join = xpr_join!("left", "employee", "company", [("company_id", "id")]).unwrap();
         let select = sql_adt::Select::new("employee").columns(&cols).join(&join);
+
+        let fx = exc1.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
+
+        let fx = exc2.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
+
+        let fx = exc3.select(&select).await;
+        assert!(fx.is_ok());
+        println!("{:?}", fx);
+    }
+
+    #[tokio::test]
+    async fn select_with_join_and_group_by() {
+        let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        exc1.connect().await.expect("connection is ok");
+
+        let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        exc2.connect().await.expect("connection is ok");
+
+        let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        exc3.connect().await.expect("connection is ok");
+
+        let cols = vec![
+            xpr_col!([xpr_fn!("count")], "employee", "id"),
+            xpr_col!("company", "name"),
+        ];
+        let join = xpr_join!("left", "employee", "company", [("company_id", "id")]).unwrap();
+        let group_by = vec![xpr_col!("company", "name")];
+
+        let select = sql_adt::Select::new("employee")
+            .columns(&cols)
+            .join(&join)
+            .group_by(&group_by);
 
         let fx = exc1.select(&select).await;
         assert!(fx.is_ok());
