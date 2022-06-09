@@ -1617,9 +1617,9 @@ dependencies = [
 
 [[package]]
 name = "polars-core"
-version = "0.22.2"
+version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a99e2b99093395c0a7aebaf71d1d032f404608f04eb3bc8395804b9dc71c951f"
+checksum = "99a6ceb13d74b4009083018e3ef94fe03328187cf33290f890e80177f7906d4d"
 dependencies = [
  "ahash",
  "anyhow",

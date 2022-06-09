@@ -350,7 +350,7 @@ where
                 None => continue,
             };
 
-            if (&*file.name()).ends_with('/') {
+            if file.name().ends_with('/') {
                 println!("File {}: \"{}\"", i, outpath.display());
             } else {
                 println!(
