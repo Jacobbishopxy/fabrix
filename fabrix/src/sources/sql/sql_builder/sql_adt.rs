@@ -1017,6 +1017,7 @@ impl TryFrom<FieldInfo> for IndexOption {
 // ExecutionResult
 // ================================================================================================
 
+#[derive(Debug)]
 pub struct ExecutionResult {
     pub rows_affected: u64,
 }

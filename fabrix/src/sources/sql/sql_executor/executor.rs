@@ -455,7 +455,7 @@ where
                 // start a transaction
                 let txn = self.pool.as_ref().unwrap().begin_transaction().await?;
 
-                let res = txn_create_and_insert(&self.driver, txn, table_name, data).await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data, false).await?;
 
                 Ok(res as usize)
             }
@@ -468,7 +468,7 @@ where
                     txn.execute(&del_str).await?;
                 }
 
-                let res = txn_create_and_insert(&self.driver, txn, table_name, data).await?;
+                let res = txn_create_and_insert(&self.driver, txn, table_name, data, true).await?;
 
                 Ok(res as usize)
             }
@@ -565,6 +565,7 @@ async fn txn_create_and_insert<'a>(
     mut txn: LoaderTransaction<'a>,
     table_name: &str,
     data: Fabrix,
+    if_not_exists: bool,
 ) -> SqlResult<usize> {
     // create table string
     let index_option = data
@@ -580,7 +581,12 @@ async fn txn_create_and_insert<'a>(
         }
         None => data.fields(),
     };
-    let create_str = driver.create_table(table_name, &fields, index_option.as_ref());
+    let create_str = driver.create_table(
+        table_name,
+        &fields,
+        index_option.as_ref(),
+        Some(if_not_exists),
+    );
 
     // create table
     if let Err(e) = txn.execute(&create_str).await {

@@ -12,9 +12,14 @@ impl DdlMutation for SqlBuilder {
         table_name: &str,
         columns: &[FieldInfo],
         index_option: Option<&sql_adt::IndexOption>,
+        if_not_exists: Option<bool>,
     ) -> String {
         let mut statement = Table::create();
-        statement.table(alias!(table_name)).if_not_exists();
+        statement.table(alias!(table_name));
+
+        if let Some(true) = if_not_exists {
+            statement.if_not_exists();
+        }
 
         if let Some(idx) = index_option {
             statement.col(&mut gen_primary_col(idx));
@@ -213,6 +218,7 @@ mod test_mutation_ddl {
                 FieldInfo::new("v5", ValueType::Date),
             ],
             Some(&index_option),
+            Some(true),
         );
         println!("{}", create_table);
 
@@ -236,6 +242,7 @@ mod test_mutation_ddl {
                 FieldInfo::new("v5", ValueType::Date),
             ],
             Some(&index_option),
+            Some(true),
         );
         println!("{}", create_table);
 

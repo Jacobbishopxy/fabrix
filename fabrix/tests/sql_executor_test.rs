@@ -11,9 +11,7 @@
 
 use std::str::FromStr;
 
-use fabrix::{datetime, fx, xpr, xpr_and, xpr_or};
-use fabrix::{sql_adt, SqlEngine, SqlExecutor};
-use fabrix::{DatabaseMysql, DatabasePg, DatabaseSqlite};
+use fabrix::prelude::*;
 
 const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -25,10 +23,10 @@ const TABLE_NAME: &str = "dev";
 To create a new sqlite database, run the following commands:
 (project_root/fabrix/dev.sqlite)
 
-cargo test --package fabrix --test sql_executor_test -- test_create_sqlite_db --exact --nocapture
+cargo test --package fabrix --test sql_executor_test -- create_sqlite_db_success --exact --nocapture
 */
 #[tokio::test]
-async fn test_create_sqlite_db() -> anyhow::Result<()> {
+async fn create_sqlite_db_success() -> anyhow::Result<()> {
     use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
     use sqlx::ConnectOptions;
     use std::str::FromStr;
@@ -45,10 +43,10 @@ async fn test_create_sqlite_db() -> anyhow::Result<()> {
 }
 
 /*
-cargo test --package fabrix --test sql_executor_test -- test_connection --exact --nocapture
+cargo test --package fabrix --test sql_executor_test -- connection_success --exact --nocapture
 */
 #[tokio::test]
-async fn test_connection() {
+async fn connection_success() {
     let mut exc1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
     let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
@@ -64,10 +62,10 @@ async fn test_connection() {
 }
 
 /*
-cargo test --package fabrix --test sql_executor_test -- test_save_fail_if_exists --exact --nocapture
+cargo test --package fabrix --test sql_executor_test -- save_fail_if_exists_success --exact --nocapture
 */
 #[tokio::test]
-async fn test_save_fail_if_exists() {
+async fn save_fail_if_exists_success() {
     let df = fx![
         "ord";
         "names" => ["Jacob", "Sam", "James", "Lucas", "Mia"],
@@ -108,10 +106,10 @@ async fn test_save_fail_if_exists() {
 }
 
 /*
-cargo test --package fabrix --test sql_executor_test -- test_save_replace --exact --nocapture
+cargo test --package fabrix --test sql_executor_test -- save_replace_success --exact --nocapture
 */
 #[tokio::test]
-async fn test_save_replace() {
+async fn save_replace_success() {
     // df
     let df = fx![
         "ord";
@@ -155,10 +153,10 @@ async fn test_save_replace() {
 }
 
 /*
-cargo test --package fabrix --test sql_executor_test -- test_save_append --exact --nocapture
+cargo test --package fabrix --test sql_executor_test -- save_append_success --exact --nocapture
 */
 #[tokio::test]
-async fn test_save_append() {
+async fn save_append_success() {
     // df
     let df = fx![
         "ord";
@@ -199,10 +197,10 @@ async fn test_save_append() {
 }
 
 /*
-cargo test --package fabrix --test sql_executor_test -- test_save_upsert --exact --nocapture
+cargo test --package fabrix --test sql_executor_test -- save_upsert_success --exact --nocapture
 */
 #[tokio::test]
-async fn test_save_upsert() {
+async fn save_upsert_success() {
     // df
     let df = fx![
         "ord";
@@ -236,10 +234,10 @@ async fn test_save_upsert() {
 }
 
 /*
-cargo test --package fabrix --test sql_executor_test -- test_delete --exact --nocapture
+cargo test --package fabrix --test sql_executor_test -- delete_success --exact --nocapture
 */
 #[tokio::test]
-async fn test_delete() {
+async fn delete_success() {
     let filter = xpr!([
         xpr!("ord", "=", 15),
         xpr_or!(),
@@ -275,4 +273,63 @@ async fn test_delete() {
 
     let res3 = exc3.delete(&delete).await;
     assert!(res3.is_ok());
+}
+
+/*
+cargo test --package fabrix --test sql_executor_test -- transaction_success --exact --nocapture
+
+Transaction test:
+The second create_table will fail, and the first create_table will be rolled back.
+*/
+#[tokio::test]
+async fn transaction_success() {
+    let df = fx!(
+        "id";
+        "id" => [1,2,3,4,5,6,7,8,9,10],
+        "name" => ["A","B","C","D","E","F","G","H","I","J"],
+        "dt" => [
+            datetime!(2010, 2, 5, 9, 10, 11),
+            datetime!(2011, 2, 4, 9, 10, 11),
+            datetime!(2012, 2, 3, 9, 10, 11),
+            datetime!(2013, 2, 2, 9, 10, 11),
+            datetime!(2014, 2, 1, 9, 10, 11),
+            datetime!(2015, 2, 1, 9, 10, 11),
+            datetime!(2016, 2, 1, 9, 10, 11),
+            datetime!(2017, 2, 1, 9, 10, 11),
+            datetime!(2018, 2, 1, 9, 10, 11),
+            datetime!(2019, 2, 1, 9, 10, 11),
+        ]
+    )
+    .unwrap();
+
+    let pool = sqlx::postgres::PgPool::connect(CONN2).await.unwrap();
+    let conn = DatabasePg::new_pg_pool(pool);
+
+    let mut txn = conn
+        .begin_transaction()
+        .await
+        .expect("begin transaction is ok");
+
+    let columns = df.fields();
+    let que = SqlBuilder::Postgres.create_table("test_transaction", &columns, None, None);
+
+    txn.execute(&que).await.unwrap();
+
+    let assert_value;
+
+    let res = match txn.execute(&que).await {
+        Ok(_) => {
+            println!("success");
+            assert_value = 1;
+            txn.commit().await
+        }
+        Err(_) => {
+            println!("fail and rollback");
+            assert_value = 2;
+            txn.rollback().await
+        }
+    };
+
+    assert!(res.is_ok());
+    assert_eq!(assert_value, 2);
 }

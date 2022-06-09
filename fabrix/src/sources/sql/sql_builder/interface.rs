@@ -27,6 +27,7 @@ pub trait DdlMutation {
         table_name: &str,
         columns: &[FieldInfo],
         index_option: Option<&sql_adt::IndexOption>,
+        if_not_exists: Option<bool>,
     ) -> String;
 
     fn alter_table(&self, alter: &sql_adt::AlterTable) -> String;

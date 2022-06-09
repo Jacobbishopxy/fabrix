@@ -109,7 +109,6 @@ There are three main parts in this crate:
 
 ## Todo
 
-- sql: transaction debug & demo
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support
