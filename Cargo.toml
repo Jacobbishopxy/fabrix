@@ -1,0 +1,11 @@
+[workspace]
+members=[
+  "fabrix",
+  "fabrix-core",
+  "fabrix-mg",
+  "fabrix-sql",
+  "fabrix-xl",
+]
+exclude=[
+  "examples",
+]

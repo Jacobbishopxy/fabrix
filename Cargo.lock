@@ -635,6 +635,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabrix-core"
+version = "0.1.0"
+
+[[package]]
+name = "fabrix-mg"
+version = "0.1.0"
+
+[[package]]
+name = "fabrix-sql"
+version = "0.1.0"
+
+[[package]]
+name = "fabrix-xl"
+version = "0.1.0"
+
+[[package]]
 name = "fallible-streaming-iterator"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1484,9 +1500,9 @@ dependencies = [
 
 [[package]]
 name = "parquet2"
-version = "0.13.0"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5653509c49578c1dbea76a1007d6e3b2fbcf52f2fcb9a3d84593599510c293ae"
+checksum = "73fd2690ad041f9296876daef1f2706f6347073bdbcc719090887f1691e4a09d"
 dependencies = [
  "async-stream",
  "bitpacking",
@@ -1592,9 +1608,9 @@ dependencies = [
 
 [[package]]
 name = "polars"
-version = "0.22.0"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2826f1c69706592147912c9d0307d416bcedd0f6b61e796daf962900e4453099"
+checksum = "71427d55858cdd973ad9011351455cb78851f16db5a097de6de16d34f3ac1bee"
 dependencies = [
  "polars-core",
  "polars-io",
@@ -1605,9 +1621,9 @@ dependencies = [
 
 [[package]]
 name = "polars-arrow"
-version = "0.22.2"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb4315aa78df6712ce5c0b1fd30258e4578c43837ae417467ea4138bed9f15fe"
+checksum = "6e4d9a8435b1c81c6a07e5a2be4febbd5b742e046125a13180d82470bda5e9f0"
 dependencies = [
  "arrow2",
  "hashbrown 0.12.1",
@@ -1617,9 +1633,9 @@ dependencies = [
 
 [[package]]
 name = "polars-core"
-version = "0.22.3"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99a6ceb13d74b4009083018e3ef94fe03328187cf33290f890e80177f7906d4d"
+checksum = "88a97d027227286850fafb2463ea2b68f0a1925af4ce330ea558ab2828204b9d"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1642,9 +1658,9 @@ dependencies = [
 
 [[package]]
 name = "polars-io"
-version = "0.22.0"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4830fcf88e27d31da260325a466e6e5ce4d2ca40d9f6f03f23658d6eca30193c"
+checksum = "7d0b9cf62d439298d34a1ca0c2f3914fc83746382f52d1eb4c873864f21ba416"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1668,9 +1684,9 @@ dependencies = [
 
 [[package]]
 name = "polars-lazy"
-version = "0.22.0"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3881d5086a60d59b9bbe7b4f153c5fd5fc5c1ec0330ed8e375ff029bddb38ee"
+checksum = "76acd16d955e9b30ed0a60c6bb5df25b8cc75f73c159369dfc9085dcacf207e5"
 dependencies = [
  "ahash",
  "glob",
@@ -1686,9 +1702,9 @@ dependencies = [
 
 [[package]]
 name = "polars-ops"
-version = "0.22.1"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c1cb2de695050bb7c7d18172f79102fd87ebccb77f26e7bc32bac9b11ad20a2"
+checksum = "c4d9d8f57e0ef0c70ab8301052419d973b193d835cddab337f7c6ee23d2ab123"
 dependencies = [
  "polars-arrow",
  "polars-core",
@@ -1696,9 +1712,9 @@ dependencies = [
 
 [[package]]
 name = "polars-time"
-version = "0.22.0"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7517f8354f49fa81f89f5ebc360fb576cf8dcc737158d732a9d34ad0d274cbf3"
+checksum = "3cc8e36855330dafb9a31e77157745101965b1cee9b50503c58b50d63379d10d"
 dependencies = [
  "chrono",
  "lexical",
@@ -1709,9 +1725,9 @@ dependencies = [
 
 [[package]]
 name = "polars-utils"
-version = "0.22.2"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ab758fe80ee031caabd072fdbe402d578e0016afc1926a882c92b4225bd5adf"
+checksum = "057bcf4086ddfcd49e17f688c375bc7a16e1e68205b284277715aa0733674fc8"
 dependencies = [
  "parking_lot 0.12.1",
  "rayon",
