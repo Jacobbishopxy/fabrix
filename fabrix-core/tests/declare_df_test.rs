@@ -1,6 +1,6 @@
 //! Df test case
 
-use fabrix::{datetime, fx, series, uuid, Uuid};
+use ::fabrix_core::{datetime, fx, series, uuid, Uuid};
 
 /*
 Create a dataframe with specified index column

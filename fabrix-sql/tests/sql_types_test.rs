@@ -9,7 +9,8 @@ use nom::character::complete::alpha1;
 use nom::sequence::{delimited, separated_pair};
 use nom::IResult;
 
-use fabrix::{SqlError, Value, ValueType};
+use ::fabrix_sql::SqlError;
+use fabrix_core::{Value, ValueType};
 
 trait SqlTypeTagMarker: Sync + Send {
     fn to_str(&self) -> &str;

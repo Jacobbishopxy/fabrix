@@ -94,8 +94,8 @@ There are three main parts in this crate:
 
 ## Test Cases
 
-1. [Declare DataFrame](./fabrix/tests/declare_df_test.rs)
-1. [Sql executor CRUD](./fabrix/tests/sql_executor_test.rs)
+1. [Declare DataFrame](./fabrix-core/tests/declare_df_test.rs)
+1. [Sql executor CRUD](./fabrix-sql/tests/sql_executor_test.rs)
 1. [Read Excel file and write to database](./fabrix/tests/read_xl_to_db_test.rs)
 1. [Dispatcher test - from one source to another](./fabrix/tests/dispatcher_tests.rs)
 

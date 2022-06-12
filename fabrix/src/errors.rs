@@ -69,10 +69,6 @@ pub enum FabrixError {
     #[error(transparent)]
     POLARS(#[from] polars::prelude::PolarsError),
 
-    // Zip errors
-    #[error(transparent)]
-    Zip(#[from] zip::result::ZipError),
-
     // Sql errors
     #[cfg(feature = "sql")]
     #[error(transparent)]

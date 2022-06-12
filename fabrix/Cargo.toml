@@ -12,13 +12,8 @@ fabrix-xl = { path = "../fabrix-xl" }
 
 # General dependencies
 async-trait = "0"
-anyhow = "1"
-bigdecimal = "0"
 chrono = { version = "0", features = ["serde"] }
-futures = "0"
 itertools = "0"
-lazy_static = "1"
-nom = "7"
 polars = { version = "0", features = [
     "lazy",
     "bigidx",
@@ -28,44 +23,18 @@ polars = { version = "0", features = [
     "dtype-full",
     "object",
 ] }
-rust_decimal = "1"
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "0", features = ["serde", "v4"] }
 
-# Featured dependencies
-sea-query = { version = "0", features = [
-    #"sqlx-postgres",
-    #"sqlx-mysql",
-    #"sqlx-sqlite",
-    "with-chrono",
-    "with-json",
-    "with-rust_decimal",
-    "with-bigdecimal",
-    "with-uuid"
-], optional = true }
-sqlx = { version = "0", features = [
-    "runtime-tokio-native-tls",
-    "postgres",
-    "mysql",
-    "sqlite",
-    "chrono",
-    "bigdecimal",
-    "decimal",
-    "uuid"
-], optional = true }
-quick-xml = { version = "0", features = ["serialize"], optional = true }
-zip = { version = "0", optional = true }
-bson2 = { version = "2", features = ["chrono-0_4", "uuid-0_8", "serde_with"], optional = true }
 
 [features]
 default = ["sql", "xl", "csv", "parquet", "json", "bson", "mongo"]
-sql = ["sea-query", "sqlx"]
-xl = ["quick-xml", "zip"]
+sql = []
+xl = []
 csv = []
 parquet = []
 json = []
-bson = ["bson2"]
-mongo = ["bson2"]
+bson = []
+mongo = []
