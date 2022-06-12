@@ -12,6 +12,7 @@ There are three main parts in this crate:
 
 ```txt
 ├── fabrix-core                        // Core package
+|   |
 │   ├── value.rs                       // the smallest data unit
 │   ├── series.rs                      // series of value
 │   ├── fabrix.rs                      // dataframe holder
@@ -21,7 +22,7 @@ There are three main parts in this crate:
 │   ├── error.rs                       // error handling for core
 │   └── macros.rs                      // macros for core
 |
-├── fabrix-sql                         // SQL utility
+├── fabrix-sql                         // SQL package
 │   │
 │   ├── sql_builder                    // SQL builder
 │   │   ├── sql_adt.rs                 // algebraic data type
@@ -42,7 +43,7 @@ There are three main parts in this crate:
 │   │
 │   └── error.rs                       // Sql error
 |
-├── fabrix-xl                          // Excel utility
+├── fabrix-xl                          // Excel package
 │   │
 │   ├── util.rs                        // Excel utility
 │   ├── worksheet.rs                   // Excel worksheet
@@ -52,7 +53,7 @@ There are three main parts in this crate:
 |
 ├── fabrix-mg                          // MongoDB utility
 |
-├── fabrix
+├── fabrix                             // Fabrix
 │   │
 │   ├── sources                        // Fabrix source
 |   |   │
@@ -80,10 +81,10 @@ There are three main parts in this crate:
 |   |   └── mongo                      // MongoDB data source
 │   |
 |   ├── dispatcher                     // dispatcher for different data source
+|   |   │
 |   |   ├── ds.rs                      // dispatcher and source traits
 |   |   ├── xl_db.rs                   // Excel -> Database
-|   |   ├── xl_json.rs                 // Excel -> JSON
-|   |   └── xl_bson.rs                 // Excel -> BSON
+|   |   └── xl_json.rs                 // Excel -> JSON
 │   |
 |   ├── errors.rs                      // error handling
 |   ├── prelude.rs                     // prelude of this crate
@@ -121,6 +122,8 @@ There are three main parts in this crate:
 
 ## Todo
 
+- all packages' error handling
+- sql dynamic connection pool helper
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support
