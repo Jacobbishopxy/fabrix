@@ -8,11 +8,11 @@
 use std::{collections::HashMap, marker::PhantomData};
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use fabrix_core::{Bytes, Decimal, Uuid, Value, ValueType};
 use itertools::Itertools;
 use sqlx::{mysql::MySqlRow, postgres::PgRow, sqlite::SqliteRow, Row as SRow};
 
-use super::{impl_sql_type_tag_marker, static_sttm_get, tmap_pair};
-use crate::{Bytes, Decimal, SqlBuilder, SqlResult, Uuid, Value, ValueType};
+use super::{impl_sql_type_tag_marker, static_sttm_get, tmap_pair, SqlBuilder, SqlResult};
 
 const MISMATCHED_SQL_ROW: &str = "mismatched sql row";
 

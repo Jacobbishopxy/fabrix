@@ -6,3 +6,39 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+fabrix-core = { path = "../fabrix-core" }
+
+async-trait = "0"
+chrono = { version = "0", features = ["serde"] }
+futures = "0"
+thiserror = "1"
+itertools = "0"
+lazy_static = "1"
+rust_decimal = "1"
+sea-query = { version = "0", features = [
+    #"sqlx-postgres",
+    #"sqlx-mysql",
+    #"sqlx-sqlite",
+    "with-chrono",
+    "with-json",
+    "with-rust_decimal",
+    "with-bigdecimal",
+    "with-uuid"
+]}
+serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0", features = [
+    "runtime-tokio-native-tls",
+    "postgres",
+    "mysql",
+    "sqlite",
+    "chrono",
+    "bigdecimal",
+    "decimal",
+    "uuid"
+]}
+nom = "7"
+uuid = { version = "0", features = ["serde", "v4"] }
+
+[dev-dependencies]
+serde_json = "1"
+tokio = "1"

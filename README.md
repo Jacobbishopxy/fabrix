@@ -11,73 +11,85 @@ There are three main parts in this crate:
 ## Structure
 
 ```txt
-├── core
-│   ├── value.rs                        // the smallest data unit
-│   ├── series.rs                       // series of value
-│   ├── fabrix.rs                       // dataframe holder
-│   ├── row.rs                          // row-wise data structure
-│   ├── schema.rs                       // dataframe schema
-│   ├── util.rs                         // utility functions
-│   ├── error.rs                        // error handling for core
-│   └── macros.rs                       // macros for core
-│
-├── sources
+├── fabrix-core                        // Core package
+│   ├── value.rs                       // the smallest data unit
+│   ├── series.rs                      // series of value
+│   ├── fabrix.rs                      // dataframe holder
+│   ├── row.rs                         // row-wise data structure
+│   ├── schema.rs                      // dataframe schema
+│   ├── util.rs                        // utility functions
+│   ├── error.rs                       // error handling for core
+│   └── macros.rs                      // macros for core
+|
+├── fabrix-sql                         // SQL utility
 │   │
-│   ├── sql                             // Sql data source
-│   │   ├── sql_builder                 // SQL builder
-│   │   │   ├── sql_adt.rs              // algebraic data type
-│   │   │   ├── builder.rs              // builder functions
-│   │   │   ├── interface.rs            // SQL builder & ddl/dml logic interface
-│   │   │   ├── query_ddl.rs            // ddl query: check table or schema
-│   │   │   ├── query_dml.rs            // dml query: select and etc
-│   │   │   ├── mutation_ddl.rs         // ddl mutation: create/alter/drop table
-│   │   │   ├── mutation_dml.rs         // dml mutation: insert/update/delete data
-│   │   │   └── macros.rs               // Macros for SQL builder
-│   │   │
-│   │   ├── sql_executor                // SQL executor
-│   │   │   ├── types.rs                // Conversion between Sql data type and Fabrix `Value`
-│   │   │   ├── processor.rs            // Sql row process, turn raw sql row into `Vec<Value>` or `Row`
-│   │   │   ├── loader.rs               // Database loader, CRUD logic implementation
-│   │   │   ├── executor.rs             // Sql executor, business logic implementation
-│   │   │   └── macros.rs               // Macros for sql executor
-│   │   │
-│   │   ├── error.rs                    // Sql error
-│   │   ├── reader.rs                   // Sql reader
-│   │   └── writer.rs                   // Sql writer
+│   ├── sql_builder                    // SQL builder
+│   │   ├── sql_adt.rs                 // algebraic data type
+│   │   ├── builder.rs                 // builder functions
+│   │   ├── interface.rs               // SQL builder & ddl/dml logic interface
+│   │   ├── query_ddl.rs               // ddl query: check table or schema
+│   │   ├── query_dml.rs               // dml query: select and etc
+│   │   ├── mutation_ddl.rs            // ddl mutation: create/alter/drop table
+│   │   ├── mutation_dml.rs            // dml mutation: insert/update/delete data
+│   │   └── macros.rs                  // Macros for SQL builder
 │   │
-│   ├── xl                              // Excel data source
-│   │   ├── util.rs                     // Excel utility
-│   │   ├── worksheet.rs                // Excel worksheet
-│   │   ├── workbook.rs                 // Excel workbook
-│   │   ├── executor.rs                 // Excel executor, business logic implementation
-│   │   └── reader.rs                   // Excel reader
+│   ├── sql_executor                   // SQL executor
+│   │   ├── types.rs                   // Conversion between Sql data type and Fabrix `Value`
+│   │   ├── processor.rs               // Sql row process, turn raw sql row into `Vec<Value>` or `Row`
+│   │   ├── loader.rs                  // Database loader, CRUD logic implementation
+│   │   ├── executor.rs                // Sql executor, business logic implementation
+│   │   └── macros.rs                  // Macros for sql executor
 │   │
-│   ├── csv                             // CSV data source
-│   │   ├── reader.rs                   // CSV reader
-│   │   └── writer.rs                   // CSV writer
+│   └── error.rs                       // Sql error
+|
+├── fabrix-xl                          // Excel utility
 │   │
-│   ├── parquet                         // Parquet data source
-│   │   ├── reader.rs                   // Parquet reader
-│   │   └── writer.rs                   // Parquet writer
+│   ├── util.rs                        // Excel utility
+│   ├── worksheet.rs                   // Excel worksheet
+│   ├── workbook.rs                    // Excel workbook
+│   ├── executor.rs                    // Excel executor, business logic implementation
+│   └── error.rs                       // Xl error
+|
+├── fabrix-mg                          // MongoDB utility
+|
+├── fabrix
 │   │
-│   ├── json                            // JSON data source
-│   │   ├── reader.rs                   // JSON reader
-│   │   └── writer.rs                   // JSON writer
-│   │
-│   ├── bson                            // BSON data source
-│   │
-│   └── mongo                           // MongoDB data source
-│
-├── dispatcher                          // dispatcher for different data source
-│   ├── ds.rs                           // dispatcher and source traits
-│   ├── xl_db.rs                        // Excel -> Database
-│   ├── xl_json.rs                      // Excel -> JSON
-│   └── xl_bson.rs                      // Excel -> BSON
-│
-├── errors.rs                           // error handling
-├── macros.rs                           // helpful macros
-├── prelude.rs                          // prelude of this crate
-└── lib.rs
+│   ├── sources                        // Fabrix source
+|   |   │
+|   |   ├── sql                        // Sql data source
+|   |   │   ├── reader.rs              // Sql reader
+|   |   │   └── writer.rs              // Sql writer
+|   |   │
+|   |   ├── xl                         // Excel data source
+|   |   │   └── reader.rs              // Excel reader
+|   |   │
+|   |   ├── csv                        // CSV data source
+|   |   │   ├── reader.rs              // CSV reader
+|   |   │   └── writer.rs              // CSV writer
+|   |   │
+|   |   ├── parquet                    // Parquet data source
+|   |   │   ├── reader.rs              // Parquet reader
+|   |   │   └── writer.rs              // Parquet writer
+|   |   │
+|   |   ├── json                       // JSON data source
+|   |   │   ├── reader.rs              // JSON reader
+|   |   │   └── writer.rs              // JSON writer
+|   |   │
+|   |   ├── bson                       // BSON data source
+|   |   │
+|   |   └── mongo                      // MongoDB data source
+│   |
+|   ├── dispatcher                     // dispatcher for different data source
+|   |   ├── ds.rs                      // dispatcher and source traits
+|   |   ├── xl_db.rs                   // Excel -> Database
+|   |   ├── xl_json.rs                 // Excel -> JSON
+|   |   └── xl_bson.rs                 // Excel -> BSON
+│   |
+|   ├── errors.rs                      // error handling
+|   ├── prelude.rs                     // prelude of this crate
+|   └── lib.rs
+|
+└── LICENSE
 ```
 
 ## Test Cases

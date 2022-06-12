@@ -1,6 +1,7 @@
 //! Fabrix sql executor pool
 
 use async_trait::async_trait;
+use fabrix_core::{D1Value, D2Value, Row, ValueType};
 use futures::TryStreamExt;
 use itertools::Either;
 use sqlx::mysql::MySqlQueryResult;
@@ -9,7 +10,7 @@ use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{Executor, MySql, MySqlPool, PgPool, Postgres, Sqlite, SqlitePool, Transaction};
 
 use super::{fetch_process, fetch_process_cst, types::SqlRow, SqlRowProcessor};
-use crate::{sql_adt::ExecutionResult, D1Value, D2Value, Row, SqlBuilder, SqlResult, ValueType};
+use crate::{sql_adt::ExecutionResult, SqlBuilder, SqlResult};
 
 /// turn MySqlQueryResult into ExecutionResult
 impl From<MySqlQueryResult> for ExecutionResult {
@@ -539,10 +540,12 @@ where
 
 #[cfg(test)]
 mod test_pool {
-    use super::*;
-    use crate::{value, DdlQuery, SqlBuilder};
+    use fabrix_core::value;
     use futures::TryStreamExt;
     use sqlx::{Executor, Row};
+
+    use super::*;
+    use crate::{DdlQuery, SqlBuilder};
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";

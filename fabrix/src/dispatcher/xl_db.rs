@@ -7,13 +7,13 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
+use fabrix_core::{value, D2Value, Fabrix, Series, Value};
+use fabrix_sql::{sql_adt, DatabaseType, SqlEngine, SqlExecutor};
+use fabrix_xl::{ExcelValue, XlCell, XlConsumer, XlExecutor};
 use itertools::Itertools;
 use tokio::sync::Mutex;
 
-use crate::{
-    sql_adt, value, D2Value, DatabaseType, ExcelValue, Fabrix, FabrixError, FabrixResult, Series,
-    SqlEngine, SqlExecutor, Value, XlCell, XlConsumer, XlExecutor,
-};
+use crate::{FabrixError, FabrixResult};
 
 pub type XlDbExecutor<R, T> = XlExecutor<SqlExecutor<T>, XlDbConvertor, R>;
 
@@ -362,8 +362,10 @@ mod test_xl_reader {
 
     use std::fs::File;
 
+    use fabrix_sql::{DatabaseSqlite, SqlEngine};
+    use fabrix_xl::{XlSource, XlWorkbook};
+
     use super::*;
-    use crate::{DatabaseSqlite, SqlEngine, XlSource, XlWorkbook};
 
     const CONN3: &str = "sqlite://dev.sqlite";
 
@@ -468,13 +470,18 @@ mod test_xl_reader {
             .async_consume_fn_mut(
                 Some(40),
                 XL_SHEET_NAME2,
-                |d| convertor.convert_col_wised(d, XlIndexSelection::None),
+                |d| {
+                    convertor
+                        .convert_col_wised(d, XlIndexSelection::None)
+                        .map_err(|_| fabrix_xl::XlError::new_common_error("invalid convert"))
+                },
                 |d| {
                     Box::pin(async {
                         let am = Arc::clone(&am_consumer);
                         let mut lk = am.lock().await;
                         lk.replace_existing_table("test_table", d, true)
                             .await
+                            .map_err(|_| fabrix_xl::XlError::new_common_error("invalid consume"))
                             .map(|_| ())
                     })
                 },
@@ -501,7 +508,12 @@ mod test_xl_reader {
             .async_consume_fn_mut(
                 Some(40),
                 XL_SHEET_NAME2,
-                |d| xl2db.convertor.convert_col_wised(d, XlIndexSelection::None),
+                |d| {
+                    xl2db
+                        .convertor
+                        .convert_col_wised(d, XlIndexSelection::None)
+                        .map_err(|_| fabrix_xl::XlError::new_common_error("invalid convert"))
+                },
                 |d| {
                     Box::pin(async {
                         xl2db
@@ -510,6 +522,7 @@ mod test_xl_reader {
                             .await
                             .replace_existing_table("test_table", d, true)
                             .await
+                            .map_err(|_| fabrix_xl::XlError::new_common_error("invalid consume"))
                             .map(|_| ())
                     })
                 },

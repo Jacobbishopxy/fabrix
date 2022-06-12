@@ -1,7 +1,8 @@
 //! Sql builder interface
 
-use super::sql_adt;
-use crate::{Fabrix, FieldInfo, Series, SqlResult};
+use fabrix_core::{Fabrix, FieldInfo, Series};
+
+use crate::{sql_adt, SqlResult};
 
 // DDL Query
 pub trait DdlQuery {

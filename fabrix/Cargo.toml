@@ -5,6 +5,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Self-contained dependencies
+fabrix-core = { path = "../fabrix-core" }
+fabrix-sql = { path = "../fabrix-sql" }
+fabrix-xl = { path = "../fabrix-xl" }
+
 # General dependencies
 async-trait = "0"
 anyhow = "1"

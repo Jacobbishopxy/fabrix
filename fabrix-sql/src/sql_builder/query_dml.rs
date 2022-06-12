@@ -1,12 +1,13 @@
 //! Sql Builder: dml query
 
+use fabrix_core::Series;
 use sea_query::{Expr, Order, Query};
 
 use super::{
     alias, column_builder, filter_builder, join_builder, sql_adt, statement,
     try_from_value_to_svalue, DeleteOrSelect,
 };
-use crate::{DmlQuery, Series, SqlBuilder, SqlResult};
+use crate::{DmlQuery, SqlBuilder, SqlResult};
 
 impl DmlQuery for SqlBuilder {
     /// given a list of ids, check existed ids (used for `upsert` method). Make sure index contains only not-null values
@@ -87,9 +88,10 @@ impl DmlQuery for SqlBuilder {
 
 #[cfg(test)]
 mod test_query_dml {
+    use fabrix_core::series;
 
     use super::*;
-    use crate::{series, xpr, xpr_and, xpr_not, xpr_or};
+    use crate::{xpr, xpr_and, xpr_not, xpr_or};
 
     #[test]
     fn select_ids() {

@@ -31,8 +31,8 @@ use crate::{CoreResult, D2Value, Fabrix, Series, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub struct Row {
-    pub(crate) index: Option<usize>,
-    pub(crate) data: Vec<Value>,
+    pub index: Option<usize>,
+    pub data: Vec<Value>,
 }
 
 impl Row {

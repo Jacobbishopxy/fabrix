@@ -222,6 +222,12 @@ macro_rules! impl_named_from_ref {
                 $crate::Series::from(ps)
             }
         }
+
+        impl<T: AsRef<$dtype>> $crate::FabrixSeriesNamedFromRef<T, $dtype> for $crate::Series {
+            fn from_ref(name: &str, v: T) -> Self {
+                $crate::Series::new(name, v)
+            }
+        }
     };
 }
 
@@ -234,6 +240,12 @@ macro_rules! impl_named_from_owned {
                 let ps =
                     polars::prelude::ChunkedArray::<$polars_type>::from_vec(name, v).into_series();
                 $crate::Series(ps)
+            }
+        }
+
+        impl $crate::FabrixSeriesNamedFromOwned<$dtype> for $crate::Series {
+            fn from_owned(name: &str, v: $dtype) -> Self {
+                $crate::Series::from_vec(name, v)
             }
         }
     };
@@ -310,20 +322,14 @@ macro_rules! si {
     ($fn_call:expr, $series_iter_var:ident) => {{
         use polars::prelude::ChunkLen;
         let arr = $fn_call.unwrap();
-        $crate::core::SeriesIterator::$series_iter_var(
-            arr,
-            $crate::core::util::Stepper::new(arr.len()),
-        )
+        $crate::SeriesIterator::$series_iter_var(arr, $crate::util::Stepper::new(arr.len()))
     }};
     ($fn_call:expr, $downcast_type:ident, $series_iter_var:ident) => {{
         use polars::prelude::ChunkLen;
         let arr = $fn_call
             .downcast_ref::<polars::prelude::ObjectChunked<$downcast_type>>()
             .unwrap();
-        $crate::core::SeriesIterator::$series_iter_var(
-            arr,
-            $crate::core::util::Stepper::new(arr.len()),
-        )
+        $crate::SeriesIterator::$series_iter_var(arr, $crate::util::Stepper::new(arr.len()))
     }};
 }
 
@@ -395,5 +401,226 @@ mod test_polars_dev {
         let mut iter = a.into_iter().skip_while(|x| *x < 3);
 
         println!("{:?}", iter.next());
+    }
+}
+
+/// value creation macro
+#[macro_export]
+macro_rules! value {
+    ($val:expr) => {{
+        $crate::Value::from($val)
+    }};
+}
+
+/// date creation macro
+#[macro_export]
+macro_rules! date {
+    ($year:expr, $month:expr, $day:expr) => {
+        chrono::NaiveDate::from_ymd($year, $month, $day)
+    };
+}
+
+/// time creation macro
+#[macro_export]
+macro_rules! time {
+    ($hour:expr, $minute:expr, $second:expr) => {
+        chrono::NaiveTime::from_hms($hour, $minute, $second)
+    };
+}
+
+/// datetime creation macro
+#[macro_export]
+macro_rules! datetime {
+    ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
+        chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second)
+    };
+}
+
+/// decimal creation macro
+#[macro_export]
+macro_rules! decimal {
+    ($value:expr, $scale:expr) => {
+        $crate::Decimal::new($value, $scale)
+    };
+}
+
+/// uuid creation macro
+#[macro_export]
+macro_rules! uuid {
+    () => {{
+        $crate::Uuid(uuid::Uuid::new_v4())
+    }};
+    ($string:expr) => {{
+        use std::str::FromStr;
+
+        $crate::Uuid(uuid::Uuid::from_str($string).unwrap_or_else(|_| uuid::Uuid::nil()))
+    }};
+}
+
+/// bytes creation macro
+#[macro_export]
+macro_rules! bytes {
+    ($string:expr) => {
+        $crate::Bytes::from($string)
+    };
+}
+
+/// df creation macro
+/// Supporting:
+/// 1. dataframe with default index
+/// 1. dataframe with given index
+#[macro_export]
+macro_rules! fx {
+    ($($col_name:expr => $slice:expr),+ $(,)*) => {{
+        use $crate::FabrixSeriesNamedFromRef;
+
+        let columns = vec![
+            $(
+                $crate::Series::from_ref($col_name, $slice),
+            )+
+        ];
+
+        $crate::Fabrix::from_series_no_index(columns)
+    }};
+    ($index_name:expr; $($col_name:expr => $slice:expr),+ $(,)*) => {{
+        use $crate::FabrixSeriesNamedFromRef;
+
+        let columns = vec![
+            $(
+                $crate::Series::from_ref($col_name, $slice),
+            )+
+        ];
+
+        $crate::Fabrix::from_series(columns, $index_name)
+    }};
+}
+
+/// series creation macro
+/// Supporting:
+/// 1. series with default name
+/// 1. series with given name
+#[macro_export]
+macro_rules! series {
+    ($slice:expr) => {{
+        // use polars::prelude::NamedFrom;
+        use $crate::FabrixSeriesNamedFromRef;
+
+        $crate::Series::from_ref($crate::IDX, $slice)
+        // $crate::Series::new($crate::IDX, $slice)
+    }};
+    ($name:expr => $slice:expr) => {{
+        // use polars::prelude::NamedFrom;
+        use $crate::FabrixSeriesNamedFromRef;
+
+        $crate::Series::from_ref($name, $slice)
+        // $crate::Series::new($name, $slice)
+    }};
+}
+
+/// rows creation macro
+/// Supporting:
+/// 1. rows with default indices
+/// 1. rows with given indices
+#[macro_export]
+macro_rules! rows {
+    ($([$($val:expr),* $(,)*]),+ $(,)*) => {{
+        let mut buf: Vec<$crate::Row> = Vec::new();
+        $({
+            let mut row: Vec<$crate::Value> = Vec::new();
+            $(
+                row.push($crate::value!($val));
+            )*
+            buf.push($crate::Row::new(None, row));
+        })+
+
+        buf
+    }};
+    ($index_loc:expr; $([$($val:expr),* $(,)*]),+ $(,)*) => {{
+        let mut buf: Vec<$crate::Row> = Vec::new();
+        $({
+            let mut row: Vec<$crate::Value> = Vec::new();
+            $(
+                row.push($crate::value!($val));
+            )*
+            buf.push($crate::Row::new(Some($index_loc), row));
+        })+
+
+        buf
+    }};
+}
+
+#[cfg(test)]
+mod test_macros {
+
+    #[test]
+    fn test_value() {
+        println!("{:?}", value!("Jacob"));
+    }
+
+    #[test]
+    fn test_series_new() {
+        // use chrono::NaiveDate;
+
+        let series = series!([Some("Jacob"), None, Some("Sam"), Some("Jason")]);
+        println!("{:?}", series);
+
+        let series = series!("name" => ["Jacob", "Sam", "Jason"]);
+        println!("{:?}", series);
+
+        // let series = series!("date" => [
+        //     NaiveDate::from_ymd(2019, 1, 1),
+        //     NaiveDate::from_ymd(2019, 1, 2),
+        //     NaiveDate::from_ymd(2019, 1, 3),
+        // ]);
+        // println!("{:?}", series);
+    }
+
+    #[test]
+    fn test_df_new1() {
+        let df = fx![
+            "names" => ["Jacob", "Sam", "Jason"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)]
+        ]
+        .unwrap();
+
+        println!("{:?}", df);
+        println!("{:?}", df.dtypes());
+        println!("{:?}", df.get_column("names").unwrap());
+    }
+
+    #[test]
+    fn test_df_new2() {
+        let df = fx![
+            "ord";
+            "names" => ["Jacob", "Sam", "Jason"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)]
+        ]
+        .unwrap();
+
+        println!("{:?}", df);
+        println!("{:?}", df.fields());
+        println!("{:?}", df.get_column("names").unwrap());
+    }
+
+    #[test]
+    fn test_rows_new() {
+        let rows = rows!(
+            [0, "Jacob", "A", 10],
+            [1, "Sam", "A", 9],
+            [2, "James", "A", 9],
+        );
+
+        println!("{:?}", rows);
+
+        let rows = rows!(
+            0;
+            [1, "Jacob", "A", 10],
+            [2, "Sam", "A", 9],
+            [3, "James", "A", 9],
+        );
+
+        println!("{:?}", rows);
     }
 }

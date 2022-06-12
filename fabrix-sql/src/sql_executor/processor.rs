@@ -1,5 +1,6 @@
 //! Sql row processor
 
+use fabrix_core::{D1Value, Row, Value, ValueType};
 use itertools::Itertools;
 use sqlx::{Column, Row as SRow};
 
@@ -7,7 +8,7 @@ use super::types::{
     value_type_try_into_marker, OptMarker, SqlRow, SqlTypeTagMarker, MYSQL_TMAP, PG_TMAP,
     SQLITE_TMAP,
 };
-use crate::{D1Value, Row, SqlBuilder, SqlResult, Value, ValueType};
+use crate::{SqlBuilder, SqlResult};
 
 /// SqlRowProcessor is the core struct for processing different types of SqlRow
 pub(crate) struct SqlRowProcessor {
@@ -141,8 +142,9 @@ impl SqlRowProcessor {
 
 #[cfg(test)]
 mod test_processor {
+    use fabrix_core::value;
+
     use super::*;
-    use crate::value;
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     // const CONN2: &str = "postgres://root:secret@localhost:5432/dev";

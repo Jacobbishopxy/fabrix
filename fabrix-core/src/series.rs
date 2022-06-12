@@ -41,9 +41,9 @@ use itertools::Itertools;
 use polars::prelude::{
     BooleanChunked, BooleanType, DateChunked, DatetimeChunked, Float32Chunked, Float32Type,
     Float64Chunked, Float64Type, Int16Chunked, Int16Type, Int32Chunked, Int32Type, Int64Chunked,
-    Int64Type, Int8Chunked, Int8Type, ObjectChunked, TakeRandom, TakeRandomUtf8, TimeChunked,
-    UInt16Chunked, UInt16Type, UInt32Chunked, UInt32Type, UInt64Chunked, UInt64Type, UInt8Chunked,
-    UInt8Type, Utf8Chunked, Utf8Type,
+    Int64Type, Int8Chunked, Int8Type, NamedFromOwned, ObjectChunked, TakeRandom, TakeRandomUtf8,
+    TimeChunked, UInt16Chunked, UInt16Type, UInt32Chunked, UInt32Type, UInt64Chunked, UInt64Type,
+    UInt8Chunked, UInt8Type, Utf8Chunked, Utf8Type,
 };
 use polars::prelude::{
     DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PolarsSeries, TimeUnit,
@@ -55,6 +55,13 @@ use super::{
     ObjectTypeUuid, Stepper, BYTES, DAYS19700101, DECIMAL, IDX, NANO10E9, UUID,
 };
 use crate::{series, value, Bytes, CoreResult, Decimal, Uuid, Value, ValueType};
+
+pub trait FabrixSeriesNamedFromRef<T, P: ?Sized>: NamedFrom<T, P> {
+    fn from_ref(name: &str, _: T) -> Self;
+}
+pub trait FabrixSeriesNamedFromOwned<T>: NamedFromOwned<T> {
+    fn from_owned(name: &str, _: T) -> Self;
+}
 
 // ================================================================================================
 // Series constructors
@@ -99,6 +106,7 @@ impl_named_from_ref!([Option<f64>], Float64Type, from_slice_options);
 impl_named_from_ref!([String], Utf8Type, from_slice);
 impl_named_from_ref!([Option<String>], Utf8Type, from_slice_options);
 
+/// polars `NamedFrom` as inner `new` method
 impl<'a, T: AsRef<[&'a str]>> NamedFrom<T, [&'a str]> for Series {
     fn new(name: &str, v: T) -> Self {
         let polars_series = Utf8Chunked::from_slice(name, v.as_ref()).into_series();
@@ -111,7 +119,19 @@ impl<'a, T: AsRef<[Option<&'a str>]>> NamedFrom<T, [Option<&'a str>]> for Series
         Series(polars_series)
     }
 }
+/// fabrix `NamedFrom` as outer `new` method
+impl<'a, T: AsRef<[&'a str]>> FabrixSeriesNamedFromRef<T, [&'a str]> for Series {
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
+    }
+}
+impl<'a, T: AsRef<[Option<&'a str>]>> FabrixSeriesNamedFromRef<T, [Option<&'a str>]> for Series {
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
+    }
+}
 
+/// polars `NamedFrom` as inner `new` method
 impl<T: AsRef<[NaiveDate]>> NamedFrom<T, [NaiveDate]> for Series {
     fn new(name: &str, v: T) -> Self {
         let v = v
@@ -124,7 +144,6 @@ impl<T: AsRef<[NaiveDate]>> NamedFrom<T, [NaiveDate]> for Series {
         Series(polars_series)
     }
 }
-
 impl<T: AsRef<[Option<NaiveDate>]>> NamedFrom<T, [Option<NaiveDate>]> for Series {
     fn new(name: &str, v: T) -> Self {
         let v = v
@@ -137,7 +156,19 @@ impl<T: AsRef<[Option<NaiveDate>]>> NamedFrom<T, [Option<NaiveDate>]> for Series
         Series(polars_series)
     }
 }
+/// fabrix `NamedFrom` as outer `new` method
+impl<T: AsRef<[NaiveDate]>> FabrixSeriesNamedFromRef<T, [NaiveDate]> for Series {
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
+    }
+}
+impl<T: AsRef<[Option<NaiveDate>]>> FabrixSeriesNamedFromRef<T, [Option<NaiveDate>]> for Series {
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
+    }
+}
 
+/// polars `NamedFrom` as inner `new` method
 impl<T: AsRef<[NaiveTime]>> NamedFrom<T, [NaiveTime]> for Series {
     fn new(name: &str, v: T) -> Self {
         let v = v
@@ -150,7 +181,6 @@ impl<T: AsRef<[NaiveTime]>> NamedFrom<T, [NaiveTime]> for Series {
         Series(polars_series)
     }
 }
-
 impl<T: AsRef<[Option<NaiveTime>]>> NamedFrom<T, [Option<NaiveTime>]> for Series {
     fn new(name: &str, v: T) -> Self {
         let v = v
@@ -163,7 +193,19 @@ impl<T: AsRef<[Option<NaiveTime>]>> NamedFrom<T, [Option<NaiveTime>]> for Series
         Series(polars_series)
     }
 }
+/// fabrix `NamedFrom` as outer `new` method
+impl<T: AsRef<[NaiveTime]>> FabrixSeriesNamedFromRef<T, [NaiveTime]> for Series {
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
+    }
+}
+impl<T: AsRef<[Option<NaiveTime>]>> FabrixSeriesNamedFromRef<T, [Option<NaiveTime>]> for Series {
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
+    }
+}
 
+/// polars `NamedFrom` as inner `new` method
 impl<T: AsRef<[NaiveDateTime]>> NamedFrom<T, [NaiveDateTime]> for Series {
     fn new(name: &str, v: T) -> Self {
         let v = v
@@ -176,7 +218,6 @@ impl<T: AsRef<[NaiveDateTime]>> NamedFrom<T, [NaiveDateTime]> for Series {
         Series(polars_series)
     }
 }
-
 impl<T: AsRef<[Option<NaiveDateTime>]>> NamedFrom<T, [Option<NaiveDateTime>]> for Series {
     fn new(name: &str, v: T) -> Self {
         let v = v
@@ -187,6 +228,19 @@ impl<T: AsRef<[Option<NaiveDateTime>]>> NamedFrom<T, [Option<NaiveDateTime>]> fo
         let ca = Int64Chunked::from_slice_options(name, v.as_ref());
         let polars_series = ca.into_datetime(TimeUnit::Nanoseconds, None).into_series();
         Series(polars_series)
+    }
+}
+/// fabrix `NamedFrom` as outer `new` method
+impl<T: AsRef<[NaiveDateTime]>> FabrixSeriesNamedFromRef<T, [NaiveDateTime]> for Series {
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
+    }
+}
+impl<T: AsRef<[Option<NaiveDateTime>]>> FabrixSeriesNamedFromRef<T, [Option<NaiveDateTime>]>
+    for Series
+{
+    fn from_ref(name: &str, v: T) -> Self {
+        Series::new(name, v)
     }
 }
 
@@ -805,6 +859,12 @@ mod test_fabrix_series {
 
     use super::*;
     use crate::{date, datetime, series, time, uuid, value};
+
+    #[test]
+    fn test_series_from_ref() {
+        let s = Series::from_ref("idx", &[1, 2, 3, 4, 5]);
+        println!("{:?}", s);
+    }
 
     #[test]
     fn test_series_creation() {

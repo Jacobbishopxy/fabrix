@@ -1,9 +1,10 @@
 //! Sql Builder: ddl mutation
 
+use fabrix_core::{FieldInfo, ValueType};
 use sea_query::{ColumnDef, ForeignKey, ForeignKeyAction, Index, Table};
 
 use super::{alias, sql_adt, statement};
-use crate::{DdlMutation, FieldInfo, SqlBuilder, ValueType};
+use crate::{DdlMutation, SqlBuilder};
 
 impl DdlMutation for SqlBuilder {
     /// given a `Dataframe` columns, generate SQL create_table string
@@ -157,7 +158,7 @@ fn gen_primary_col(index_option: &sql_adt::IndexOption) -> ColumnDef {
 
 /// generate column by `DataframeColumn`
 fn gen_col(field: &FieldInfo) -> ColumnDef {
-    let mut c = ColumnDef::new(alias!(&field.name));
+    let mut c = ColumnDef::new(alias!(field.name()));
     match field.dtype() {
         ValueType::Bool => c.boolean(),
         ValueType::U8 => c.integer(),
@@ -202,7 +203,6 @@ impl From<&sql_adt::ForeignKeyAction> for ForeignKeyAction {
 mod test_mutation_ddl {
 
     use super::*;
-    use crate::FieldInfo;
 
     #[test]
     fn test_create_table_mysql() {

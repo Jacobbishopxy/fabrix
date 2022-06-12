@@ -1,14 +1,11 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//! Fabrix SQL
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod error;
+pub mod sql_builder;
+pub mod sql_executor;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use error::{SqlError, SqlResult};
+pub use sql_builder::builder::SqlBuilder;
+pub use sql_builder::interface::{DdlMutation, DdlQuery, DmlMutation, DmlQuery};
+pub use sql_builder::sql_adt;
+pub use sql_executor::*;

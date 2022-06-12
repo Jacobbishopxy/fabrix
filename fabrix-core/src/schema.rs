@@ -2,9 +2,41 @@
 //!
 //! DataFrame Schema
 
+use polars::datatypes::Field as PolarsField;
 use polars::prelude::Schema as PolarsSchema;
 
-use crate::FieldInfo;
+use crate::ValueType;
+
+/// field info: column name, column type & has null
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct FieldInfo {
+    pub name: String,
+    pub dtype: ValueType,
+}
+
+impl FieldInfo {
+    pub fn new<T>(name: T, dtype: ValueType) -> Self
+    where
+        T: Into<String>,
+    {
+        let name = name.into();
+        FieldInfo { name, dtype }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn dtype(&self) -> &ValueType {
+        &self.dtype
+    }
+}
+
+impl From<FieldInfo> for PolarsField {
+    fn from(fi: FieldInfo) -> Self {
+        PolarsField::new(&fi.name, fi.dtype.into())
+    }
+}
 
 /// Schema
 ///

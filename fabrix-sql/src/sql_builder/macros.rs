@@ -32,10 +32,10 @@ pub(crate) use alias;
 macro_rules! sv_2_v {
     ($option_value:expr, $nullable:ident) => {
         if $nullable {
-            Ok($crate::value!($option_value))
+            Ok(fabrix_core::value!($option_value))
         } else {
             match $option_value {
-                Some(v) => Ok($crate::value!(v)),
+                Some(v) => Ok(fabrix_core::value!(v)),
                 None => Err($crate::SqlError::new_common_error("unsupported type")),
             }
         }
@@ -43,12 +43,12 @@ macro_rules! sv_2_v {
     ($option_value:expr, $null_type:ty, $nullable:ident) => {
         if $nullable {
             match $option_value {
-                Some(v) => Ok($crate::value!(*v)),
-                None => Ok($crate::value!(None::<$null_type>)),
+                Some(v) => Ok(fabrix_core::value!(*v)),
+                None => Ok(fabrix_core::value!(None::<$null_type>)),
             }
         } else {
             match $option_value {
-                Some(v) => Ok($crate::value!(*v)),
+                Some(v) => Ok(fabrix_core::value!(*v)),
                 None => Err($crate::SqlError::new_common_error("unsupported type")),
             }
         }
@@ -253,12 +253,12 @@ macro_rules! xpr {
             column: $column.into(),
             equation: match $equation {
                 "between" => $crate::sql_adt::Equation::Between((
-                    $crate::value!($value1),
-                    $crate::value!($value2),
+                    fabrix_core::value!($value1),
+                    fabrix_core::value!($value2),
                 )),
                 "in" => $crate::sql_adt::Equation::In(vec![
-                    $crate::value!($value1),
-                    $crate::value!($value2),
+                    fabrix_core::value!($value1),
+                    fabrix_core::value!($value2),
                 ]),
                 _ => unimplemented!(),
             },
@@ -271,9 +271,9 @@ macro_rules! xpr {
             column: $column.into(),
             equation: match $equation {
                 "in" => {
-                    let mut values = Vec::<$crate::Value>::new();
+                    let mut values = Vec::<fabrix_core::Value>::new();
                     $(
-                        values.push($crate::value!($value));
+                        values.push(fabrix_core::value!($value));
                     )*
                     $crate::sql_adt::Equation::In(values)
                 }
@@ -287,12 +287,12 @@ macro_rules! xpr {
         $crate::sql_adt::Condition {
             column: $column.into(),
             equation: match $equation {
-                "=" => $crate::sql_adt::Equation::Equal($crate::value!($value)),
-                "!=" => $crate::sql_adt::Equation::NotEqual($crate::value!($value)),
-                ">" => $crate::sql_adt::Equation::Greater($crate::value!($value)),
-                ">=" => $crate::sql_adt::Equation::GreaterEqual($crate::value!($value)),
-                "<" => $crate::sql_adt::Equation::Less($crate::value!($value)),
-                "<=" => $crate::sql_adt::Equation::LessEqual($crate::value!($value)),
+                "=" => $crate::sql_adt::Equation::Equal(fabrix_core::value!($value)),
+                "!=" => $crate::sql_adt::Equation::NotEqual(fabrix_core::value!($value)),
+                ">" => $crate::sql_adt::Equation::Greater(fabrix_core::value!($value)),
+                ">=" => $crate::sql_adt::Equation::GreaterEqual(fabrix_core::value!($value)),
+                "<" => $crate::sql_adt::Equation::Less(fabrix_core::value!($value)),
+                "<=" => $crate::sql_adt::Equation::LessEqual(fabrix_core::value!($value)),
                 "%" => $crate::sql_adt::Equation::Like($value.to_string()),
                 _ => unimplemented!(),
             },
@@ -337,9 +337,10 @@ pub(crate) use xpr_transit;
 
 #[cfg(test)]
 mod sql_adt_macros {
-    use crate::{sql_adt, sql_adt::ExpressionTransit, value};
+    use fabrix_core::value;
 
     use super::*;
+    use crate::{sql_adt, sql_adt::ExpressionTransit};
 
     #[test]
     fn xpr_nest_success() {

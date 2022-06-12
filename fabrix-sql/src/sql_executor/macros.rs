@@ -117,22 +117,22 @@ macro_rules! impl_sql_type_tag_marker {
                 self.0
             }
 
-            fn to_dtype(&self) -> $crate::ValueType {
-                $crate::ValueType::$value_type
+            fn to_dtype(&self) -> fabrix_core::ValueType {
+                fabrix_core::ValueType::$value_type
             }
 
             fn extract_value(
                 &self,
                 sql_row: &SqlRow,
                 idx: usize,
-            ) -> $crate::SqlResult<$crate::Value> {
+            ) -> $crate::SqlResult<fabrix_core::Value> {
                 match sql_row {
                     $(
                         SqlRow::$sql_row_var(r) => {
                             let v: Option<$dtype> = r.try_get(idx)?;
                             match v {
-                                Some(r) => Ok($crate::value!(r)),
-                                None => Ok($crate::Value::Null),
+                                Some(r) => Ok(fabrix_core::value!(r)),
+                                None => Ok(fabrix_core::Value::Null),
                             }
                         },
                     )*
@@ -142,7 +142,7 @@ macro_rules! impl_sql_type_tag_marker {
                 }
             }
 
-            fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> $crate::SqlResult<Option<$crate::Value>> {
+            fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> $crate::SqlResult<Option<fabrix_core::Value>> {
                 match sql_row {
                     $(
                         SqlRow::$sql_row_var(r) => {
@@ -163,22 +163,22 @@ macro_rules! impl_sql_type_tag_marker {
                 self.0
             }
 
-            fn to_dtype(&self) -> $crate::ValueType {
-                $crate::ValueType::$value_type
+            fn to_dtype(&self) -> fabrix_core::ValueType {
+                fabrix_core::ValueType::$value_type
             }
 
             fn extract_value(
                 &self,
                 sql_row: &SqlRow,
                 idx: usize,
-            ) -> $crate::SqlResult<$crate::Value> {
+            ) -> $crate::SqlResult<fabrix_core::Value> {
                 match sql_row {
                     $(
                         SqlRow::$sql_row_var(r) => {
                             let v: Option<$inner_type> = r.try_get(idx)?;
                             match v {
-                                Some(r) => Ok($crate::value!(r)),
-                                None => Ok($crate::Value::Null),
+                                Some(r) => Ok(fabrix_core::value!(r)),
+                                None => Ok(fabrix_core::Value::Null),
                             }
                         },
                     )*
@@ -188,7 +188,7 @@ macro_rules! impl_sql_type_tag_marker {
                 }
             }
 
-            fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> $crate::SqlResult<Option<$crate::Value>> {
+            fn extract_optional_value(&self, sql_row: &SqlRow, idx: usize) -> $crate::SqlResult<Option<fabrix_core::Value>> {
                 match sql_row {
                     $(
                         SqlRow::$sql_row_var(r) => {

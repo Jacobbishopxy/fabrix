@@ -895,6 +895,9 @@ dependencies = [
  "bigdecimal 0.3.0",
  "bson2",
  "chrono",
+ "fabrix-core",
+ "fabrix-sql",
+ "fabrix-xl",
  "futures",
  "itertools",
  "lazy_static",
@@ -909,6 +912,53 @@ dependencies = [
  "thiserror",
  "tokio",
  "uuid",
+ "zip",
+]
+
+[[package]]
+name = "fabrix-core"
+version = "0.1.0"
+dependencies = [
+ "bigdecimal 0.2.2",
+ "chrono",
+ "itertools",
+ "polars",
+ "rust_decimal",
+ "serde",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "fabrix-sql"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "fabrix-core",
+ "futures",
+ "itertools",
+ "lazy_static",
+ "nom",
+ "rust_decimal",
+ "sea-query",
+ "serde",
+ "sqlx",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "fabrix-xl"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "fabrix-core",
+ "futures",
+ "lazy_static",
+ "quick-xml",
+ "thiserror",
  "zip",
 ]
 

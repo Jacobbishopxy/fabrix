@@ -11,7 +11,7 @@ use quick_xml::{events::Event, Reader};
 use zip::ZipArchive;
 
 use super::{util, DateSystem, SheetReader, XlWorksheet};
-use crate::{FabrixError, FabrixResult};
+use crate::{XlError, XlResult};
 
 /// The main struct of this module.
 ///
@@ -168,7 +168,7 @@ where
     /// to uniquely identify sheets within the file. The targets have information on where the
     /// sheets can be found within the zip. This function returns a hashmap of id -> target so that
     /// you can quickly determine the name of the sheet xml file within the zip.
-    fn rels(&mut self) -> FabrixResult<HashMap<String, String>> {
+    fn rels(&mut self) -> XlResult<HashMap<String, String>> {
         let mut map = HashMap::new();
 
         match self.xls.by_name("xl/_rels/workbook.xml.rels") {
@@ -210,7 +210,7 @@ where
                         // exits the loop when reaching end of file
                         Ok(Event::Eof) => break,
                         Err(e) => {
-                            return Err(FabrixError::new_common_error(format!(
+                            return Err(XlError::new_common_error(format!(
                                 "Error at position {}: {:?}",
                                 reader.buffer_position(),
                                 e
@@ -230,7 +230,7 @@ where
 
     /// Return `SheetMap` of all sheets in this workbook. See `SheetMap` class and associated
     /// methods for more detailed documentation.
-    pub fn sheets(&mut self) -> FabrixResult<SheetMap> {
+    pub fn sheets(&mut self) -> XlResult<SheetMap> {
         let rels = self.rels()?;
         let num_sheets = rels
             .iter()
@@ -290,7 +290,7 @@ where
                         }
                         Ok(Event::Eof) => break,
                         Err(e) => {
-                            return Err(FabrixError::new_common_error(format!(
+                            return Err(XlError::new_common_error(format!(
                                 "Error at position {}: {:?}",
                                 reader.buffer_position(),
                                 e
@@ -323,7 +323,7 @@ where
     ///     // non-xlsx file
     ///     let mut wb = Workbook::open("src/main.rs");
     ///     assert!(wb.is_err());
-    pub fn new(file: READER) -> FabrixResult<Self> {
+    pub fn new(file: READER) -> XlResult<Self> {
         match ZipArchive::new(file) {
             Ok(mut xls) => {
                 let strings = strings(&mut xls)?;
@@ -366,14 +366,11 @@ where
     /// Create a SheetReader for the given worksheet. A `SheetReader` is a struct in the
     /// `xl::Worksheet` class that can be used to iterate over rows, etc. See documentation in the
     /// `xl::Worksheet` module for more information.
-    pub(crate) fn sheet_reader<'a>(
-        &'a mut self,
-        zip_target: &str,
-    ) -> FabrixResult<SheetReader<'a>> {
+    pub(crate) fn sheet_reader<'a>(&'a mut self, zip_target: &str) -> XlResult<SheetReader<'a>> {
         let target = match self.xls.by_name(zip_target) {
             Ok(ws) => ws,
             Err(_) => {
-                return Err(FabrixError::new_common_error(format!(
+                return Err(XlError::new_common_error(format!(
                     "Could not find worksheet: {}",
                     zip_target
                 )))
@@ -397,7 +394,7 @@ where
     }
 }
 
-fn strings<READER: Read + Seek>(zip_file: &mut ZipArchive<READER>) -> FabrixResult<Vec<String>> {
+fn strings<READER: Read + Seek>(zip_file: &mut ZipArchive<READER>) -> XlResult<Vec<String>> {
     let mut strings = Vec::new();
     match zip_file.by_name("xl/sharedStrings.xml") {
         Ok(strings_file) => {
@@ -435,7 +432,7 @@ fn strings<READER: Read + Seek>(zip_file: &mut ZipArchive<READER>) -> FabrixResu
                     }
                     Ok(Event::Eof) => break,
                     Err(e) => {
-                        return Err(FabrixError::new_common_error(format!(
+                        return Err(XlError::new_common_error(format!(
                             "Error at position {}: {:?}",
                             reader.buffer_position(),
                             e,
@@ -454,7 +451,7 @@ fn strings<READER: Read + Seek>(zip_file: &mut ZipArchive<READER>) -> FabrixResu
 /// find the number of rows and columns used in a particular worksheet. takes the workbook xlsx
 /// location as its first parameter, and the location of the worksheet in question (within the zip)
 /// as the second parameter. Returns a tuple of (rows, columns) in the worksheet.
-fn find_styles<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> FabrixResult<Vec<String>> {
+fn find_styles<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> XlResult<Vec<String>> {
     let mut styles = Vec::new();
     let mut number_formats = standard_styles();
     let styles_xml = match xlsx.by_name("xl/styles.xml") {
@@ -492,7 +489,7 @@ fn find_styles<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> FabrixResu
             }
             Ok(Event::Eof) => break,
             Err(e) => {
-                return Err(FabrixError::new_common_error(format!(
+                return Err(XlError::new_common_error(format!(
                     "Error at position {}: {:?}",
                     reader.buffer_position(),
                     e
@@ -549,7 +546,7 @@ fn standard_styles() -> HashMap<String, String> {
     styles
 }
 
-fn get_date_system<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> FabrixResult<DateSystem> {
+fn get_date_system<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> XlResult<DateSystem> {
     match xlsx.by_name("xl/workbook.xml") {
         Ok(wb) => {
             let reader = BufReader::new(wb);
@@ -568,7 +565,7 @@ fn get_date_system<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> Fabrix
                     }
                     Ok(Event::Eof) => break Ok(DateSystem::V1900),
                     Err(e) => {
-                        return Err(FabrixError::new_common_error(format!(
+                        return Err(XlError::new_common_error(format!(
                             "Error at position {}: {:?}",
                             reader.buffer_position(),
                             e
@@ -579,8 +576,6 @@ fn get_date_system<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> Fabrix
                 buf.clear();
             }
         }
-        Err(_) => Err(FabrixError::new_common_error(
-            "Could not find xl/workbook.xml",
-        )),
+        Err(_) => Err(XlError::new_common_error("Could not find xl/workbook.xml")),
     }
 }

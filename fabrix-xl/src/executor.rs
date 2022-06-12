@@ -8,19 +8,20 @@ use std::io::{Cursor, Read, Seek};
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use fabrix_core::D2;
 use futures::future::BoxFuture;
 
 use super::{RowIter, XlCell, XlSource, XlWorkbook};
-use crate::{FabrixError, FabrixResult, D2};
+use crate::{XlError, XlResult};
 
 /// A convert function pointer used for converting `D2<UnitOut>` into type parameter `FinalOut`.
-pub type ConvertFP<IN, OUT> = fn(IN) -> FabrixResult<OUT>;
+pub type ConvertFP<IN, OUT> = fn(IN) -> XlResult<OUT>;
 
 /// A synchronous convert function pointer used for consuming type parameter `FinalOut`
-pub type SyncConsumeFP<OUT> = fn(OUT) -> FabrixResult<()>;
+pub type SyncConsumeFP<OUT> = fn(OUT) -> XlResult<()>;
 
 /// A asynchronous convert function pointer used for consuming type parameter `FinalOut`
-pub type AsyncConsumeFP<'a, OUT> = fn(OUT) -> BoxFuture<'a, FabrixResult<()>>;
+pub type AsyncConsumeFP<'a, OUT> = fn(OUT) -> BoxFuture<'a, XlResult<()>>;
 
 /// Xl Consumer
 ///
@@ -56,14 +57,14 @@ pub trait XlConsumer<CORE> {
     fn consume(
         chunked_data: Self::FinalOut,
         consume_fn: SyncConsumeFP<Self::FinalOut>,
-    ) -> FabrixResult<()> {
+    ) -> XlResult<()> {
         consume_fn(chunked_data)
     }
     /// consume `FinalOut` synchronously
     fn consume_mut<'a>(
         chunked_data: Self::FinalOut,
-        mut consume_fn: impl FnMut(Self::FinalOut) -> FabrixResult<()> + 'a,
-    ) -> FabrixResult<()> {
+        mut consume_fn: impl FnMut(Self::FinalOut) -> XlResult<()> + 'a,
+    ) -> XlResult<()> {
         consume_fn(chunked_data)
     }
 
@@ -71,7 +72,7 @@ pub trait XlConsumer<CORE> {
     async fn consume_async<'a>(
         chunked_data: Self::FinalOut,
         consume_fn: AsyncConsumeFP<'a, Self::FinalOut>,
-    ) -> FabrixResult<()>
+    ) -> XlResult<()>
     where
         Self::FinalOut: 'a,
     {
@@ -81,10 +82,8 @@ pub trait XlConsumer<CORE> {
     /// consume `FinalOut` asynchronously, with mutable reference `consume_fn`
     async fn consume_async_mut<'a>(
         chunked_data: Self::FinalOut,
-        mut consume_fn: impl FnMut(Self::FinalOut) -> BoxFuture<'a, FabrixResult<()>>
-            + Send
-            + 'async_trait,
-    ) -> FabrixResult<()>
+        mut consume_fn: impl FnMut(Self::FinalOut) -> BoxFuture<'a, XlResult<()>> + Send + 'async_trait,
+    ) -> XlResult<()>
     where
         Self::FinalOut: 'a,
     {
@@ -93,24 +92,24 @@ pub trait XlConsumer<CORE> {
 }
 
 impl TryFrom<XlSource> for XlWorkbook<File> {
-    type Error = FabrixError;
+    type Error = XlError;
 
     fn try_from(value: XlSource) -> Result<Self, Self::Error> {
         match value {
             XlSource::File(file) => Ok(XlWorkbook::new(file)?),
             XlSource::Path(path) => Ok(XlWorkbook::new(File::open(path)?)?),
-            _ => Err(FabrixError::new_common_error("Unsupported XlSource type")),
+            _ => Err(XlError::new_common_error("Unsupported XlSource type")),
         }
     }
 }
 
 impl TryFrom<XlSource> for XlWorkbook<Cursor<Vec<u8>>> {
-    type Error = FabrixError;
+    type Error = XlError;
 
     fn try_from(value: XlSource) -> Result<Self, Self::Error> {
         match value {
             XlSource::Buff(bytes) => Ok(XlWorkbook::new(bytes)?),
-            _ => Err(FabrixError::new_common_error("Unsupported XlSource type")),
+            _ => Err(XlError::new_common_error("Unsupported XlSource type")),
         }
     }
 }
@@ -140,11 +139,11 @@ where
         batch_size: Option<usize>,
         workbook: &'a mut XlWorkbook<READER>,
         sheet_name: &str,
-    ) -> FabrixResult<Self> {
+    ) -> XlResult<Self> {
         let sheets = workbook.sheets()?;
         let sheet = match sheets.get(sheet_name) {
             Some(ws) => ws,
-            None => return Err(FabrixError::new_common_error("Sheet not found")),
+            None => return Err(XlError::new_common_error("Sheet not found")),
         };
 
         let buffer = sheet.rows(workbook)?;
@@ -293,7 +292,7 @@ where
     }
 
     /// replace or set a new workbook
-    pub fn add_source(&mut self, source: XlWorkbook<READER>) -> FabrixResult<()> {
+    pub fn add_source(&mut self, source: XlWorkbook<READER>) -> XlResult<()> {
         self.workbook = Some(source);
         Ok(())
     }
@@ -303,7 +302,7 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-    ) -> FabrixResult<XlSheetIter<CONSUMER, CORE>> {
+    ) -> XlResult<XlSheetIter<CONSUMER, CORE>> {
         gen_worksheet_iter(&mut self.workbook, batch_size, sheet_name)
     }
 
@@ -314,7 +313,7 @@ where
         sheet_name: &str,
         convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
-    ) -> FabrixResult<()> {
+    ) -> XlResult<()> {
         let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
             &mut self.workbook,
             batch_size,
@@ -334,9 +333,9 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        convert_fn: impl Fn(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
+        convert_fn: impl Fn(D2<CONSUMER::UnitOut>) -> XlResult<CONSUMER::FinalOut>,
         consume_fn: SyncConsumeFP<CONSUMER::FinalOut>,
-    ) -> FabrixResult<()> {
+    ) -> XlResult<()> {
         let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
             &mut self.workbook,
             batch_size,
@@ -356,9 +355,9 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
-        mut consume_fn: impl FnMut(CONSUMER::FinalOut) -> FabrixResult<()>,
-    ) -> FabrixResult<()> {
+        mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> XlResult<CONSUMER::FinalOut>,
+        mut consume_fn: impl FnMut(CONSUMER::FinalOut) -> XlResult<()>,
+    ) -> XlResult<()> {
         let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
             &mut self.workbook,
             batch_size,
@@ -380,7 +379,7 @@ where
         sheet_name: &str,
         convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
-    ) -> FabrixResult<()> {
+    ) -> XlResult<()> {
         let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
             &mut self.workbook,
             batch_size,
@@ -402,7 +401,7 @@ where
         sheet_name: &str,
         convert_fn: ConvertFP<D2<CONSUMER::UnitOut>, CONSUMER::FinalOut>,
         consume_fn: AsyncConsumeFP<'a, CONSUMER::FinalOut>,
-    ) -> FabrixResult<()> {
+    ) -> XlResult<()> {
         let iter = gen_worksheet_iter::<CONSUMER, CORE, READER>(
             &mut self.workbook,
             batch_size,
@@ -422,9 +421,9 @@ where
         &mut self,
         batch_size: Option<usize>,
         sheet_name: &str,
-        mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> FabrixResult<CONSUMER::FinalOut>,
-        mut consume_fn: impl FnMut(CONSUMER::FinalOut) -> BoxFuture<'a, FabrixResult<()>> + Send,
-    ) -> FabrixResult<()>
+        mut convert_fn: impl FnMut(D2<CONSUMER::UnitOut>) -> XlResult<CONSUMER::FinalOut>,
+        mut consume_fn: impl FnMut(CONSUMER::FinalOut) -> BoxFuture<'a, XlResult<()>> + Send,
+    ) -> XlResult<()>
     where
         CONSUMER::FinalOut: 'a,
     {
@@ -453,7 +452,7 @@ fn gen_worksheet_iter<'a, CONSUMER, CORE, READER: Read + Seek>(
     workbook: &'a mut Option<XlWorkbook<READER>>,
     batch_size: Option<usize>,
     sheet_name: &str,
-) -> FabrixResult<XlSheetIter<'a, CONSUMER, CORE>>
+) -> XlResult<XlSheetIter<'a, CONSUMER, CORE>>
 where
     CONSUMER: XlConsumer<CORE>,
 {
@@ -463,7 +462,7 @@ where
 
             Ok(worker.into_iter())
         }
-        None => Err(FabrixError::new_common_error("Workbook not found")),
+        None => Err(XlError::new_common_error("Workbook not found")),
     }
 }
 
@@ -529,16 +528,16 @@ mod test_xl_executor {
         }
     }
 
-    fn convert_fn(data: D2<String>) -> FabrixResult<Fo> {
+    fn convert_fn(data: D2<String>) -> XlResult<Fo> {
         Ok(Fo(data))
     }
 
-    fn consume_fn(fo: Fo) -> FabrixResult<()> {
+    fn consume_fn(fo: Fo) -> XlResult<()> {
         println!("{}\n\n", fo);
         Ok(())
     }
 
-    async fn async_consume_fn(fo: Fo) -> FabrixResult<()> {
+    async fn async_consume_fn(fo: Fo) -> XlResult<()> {
         println!("{}\n\n", fo);
         Ok(())
     }
@@ -552,7 +551,7 @@ mod test_xl_executor {
             Self { count: 0 }
         }
 
-        async fn async_consume_fn_mut(&mut self, fo: Fo) -> FabrixResult<()> {
+        async fn async_consume_fn_mut(&mut self, fo: Fo) -> XlResult<()> {
             println!("{}\n\n", fo);
             self.count += 1;
             Ok(())

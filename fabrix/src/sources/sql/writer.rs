@@ -5,9 +5,9 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+use fabrix_sql::{sql_adt, DatabaseType, SqlConnInfo, SqlEngine, SqlError, SqlExecutor};
 
-use super::{sql_adt, SqlConnInfo, SqlEngine, SqlExecutor};
-use crate::{DatabaseType, Fabrix, FabrixError, FabrixResult, IntoSource, SqlError, WriteOptions};
+use crate::{Fabrix, FabrixError, FabrixResult, IntoSource, WriteOptions};
 
 // ================================================================================================
 // Sql Writer
@@ -152,8 +152,10 @@ where
 
 #[cfg(test)]
 mod test_sql_writer {
+    use fabrix_sql::DatabaseSqlite;
+
     use super::*;
-    use crate::{date, fx, DatabaseSqlite};
+    use crate::{date, fx};
 
     const CONN: &str = "sqlite://dev.sqlite";
     const TABLE: &str = "ds_sql_test";

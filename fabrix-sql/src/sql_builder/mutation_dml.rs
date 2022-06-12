@@ -1,9 +1,10 @@
 //! Sql Builder: dml mutation
 
+use fabrix_core::Fabrix;
 use sea_query::{Expr, Query};
 
 use super::{alias, filter_builder, sql_adt, statement, try_from_value_to_svalue, DeleteOrSelect};
-use crate::{DmlMutation, Fabrix, SqlBuilder, SqlResult};
+use crate::{DmlMutation, SqlBuilder, SqlResult};
 
 impl DmlMutation for SqlBuilder {
     /// given a `Dataframe`, insert it into an existing table
@@ -16,7 +17,7 @@ impl DmlMutation for SqlBuilder {
         let columns = fx
             .fields()
             .iter()
-            .map(|c| alias!(&c.name))
+            .map(|c| alias!(c.name()))
             .collect::<Vec<_>>();
         statement.columns(columns);
         let column_info = fx.fields();
@@ -60,7 +61,7 @@ impl DmlMutation for SqlBuilder {
                         // skip the index column
                         if i != column_loc {
                             let svalue = try_from_value_to_svalue(v, inf.dtype(), true)?;
-                            updates.push((alias!(&inf.name), svalue));
+                            updates.push((alias!(inf.name()), svalue));
                         }
                     }
 
@@ -95,10 +96,11 @@ impl DmlMutation for SqlBuilder {
 
 #[cfg(test)]
 mod test_mutation_dml {
+    use fabrix_core::{datetime, fx};
     use sea_query::{MysqlQueryBuilder, PostgresQueryBuilder, SqliteQueryBuilder};
 
     use super::*;
-    use crate::{datetime, fx, xpr, xpr_and, xpr_or};
+    use crate::{xpr, xpr_and, xpr_or};
 
     #[test]
     fn test_insert() {

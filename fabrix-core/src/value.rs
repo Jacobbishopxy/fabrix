@@ -829,7 +829,7 @@ impl_try_from_value!(Bytes, Option<Bytes>, "Option<Bytes>");
 // Conversion of Value to NaiveDate/NaiveTime/NaiveDateTime
 // ================================================================================================
 
-pub(crate) struct Value2ChronoHelper;
+pub struct Value2ChronoHelper;
 
 impl Value2ChronoHelper {
     pub fn convert_value_to_naive_date(value: Value) -> Result<NaiveDate, CoreError> {

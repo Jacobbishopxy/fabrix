@@ -7,6 +7,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+use fabrix_core::{D1Value, Fabrix, Series, Value, ValueType};
 
 use super::{
     conn_e_err, conn_n_err,
@@ -15,8 +16,7 @@ use super::{
     FabrixDatabaseLoader, SqlConnInfo,
 };
 use crate::{
-    sql_adt, D1Value, DdlMutation, DdlQuery, DmlMutation, DmlQuery, Fabrix, Series, SqlBuilder,
-    SqlError, SqlResult, Value, ValueType,
+    sql_adt, DdlMutation, DdlQuery, DmlMutation, DmlQuery, SqlBuilder, SqlError, SqlResult,
 };
 
 #[async_trait]
@@ -613,10 +613,11 @@ async fn txn_create_and_insert<'a>(
 
 #[cfg(test)]
 mod test_executor {
+    use fabrix_core::{date, datetime, fx, series};
+
     use super::*;
     use crate::{
-        date, datetime, fx, series, xpr, xpr_and, xpr_col, xpr_fn, xpr_join, xpr_or, DatabaseMysql,
-        DatabasePg, DatabaseSqlite,
+        xpr, xpr_and, xpr_col, xpr_fn, xpr_join, xpr_or, DatabaseMysql, DatabasePg, DatabaseSqlite,
     };
 
     const CONN1: &str = "mysql://root:secret@localhost:3306/dev";

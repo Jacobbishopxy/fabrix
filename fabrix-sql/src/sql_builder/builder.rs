@@ -3,14 +3,14 @@
 use std::str::FromStr;
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use fabrix_core::{Decimal, Uuid, Value, Value2ChronoHelper, ValueType};
 use sea_query::{
     Cond, ConditionExpression, DeleteStatement, Expr, Func, JoinType as SJoinType, SelectStatement,
     Value as SValue,
 };
 
 use super::{alias, sql_adt, sv_2_v};
-use crate::core::Value2ChronoHelper;
-use crate::{Decimal, SqlError, SqlResult, Uuid, Value, ValueType};
+use crate::{SqlError, SqlResult};
 
 // ================================================================================================
 // SqlBuilder
@@ -53,43 +53,39 @@ impl FromStr for SqlBuilder {
 }
 
 /// Don't use it in general type conversion, use `try_from_value_to_svalue` instead
-impl From<Value> for SValue {
-    fn from(v: Value) -> Self {
-        match v {
-            Value::Bool(v) => SValue::Bool(Some(v)),
-            Value::U8(v) => SValue::TinyUnsigned(Some(v)),
-            Value::U16(v) => SValue::SmallUnsigned(Some(v)),
-            Value::U32(v) => SValue::Unsigned(Some(v)),
-            Value::U64(v) => SValue::BigUnsigned(Some(v)),
-            Value::I8(v) => SValue::TinyInt(Some(v)),
-            Value::I16(v) => SValue::SmallInt(Some(v)),
-            Value::I32(v) => SValue::Int(Some(v)),
-            Value::I64(v) => SValue::BigInt(Some(v)),
-            Value::F32(v) => SValue::Float(Some(v)),
-            Value::F64(v) => SValue::Double(Some(v)),
-            Value::String(v) => SValue::String(Some(Box::new(v))),
-            v @ Value::Date(..) => SValue::ChronoDate(Some(Box::new(
-                Value2ChronoHelper::convert_value_to_naive_date(v).unwrap(),
-            ))),
-            v @ Value::Time(..) => SValue::ChronoTime(Some(Box::new(
-                Value2ChronoHelper::convert_value_to_naive_time(v).unwrap(),
-            ))),
-            v @ Value::DateTime(..) => SValue::ChronoDateTime(Some(Box::new(
-                Value2ChronoHelper::convert_value_to_naive_datetime(v).unwrap(),
-            ))),
-            Value::Decimal(v) => SValue::Decimal(Some(Box::new(v.0))),
-            Value::Uuid(v) => SValue::Uuid(Some(Box::new(v.0))),
-            Value::Bytes(v) => SValue::Bytes(Some(Box::new(v.0))),
-            // Temporary workaround
-            Value::Null => SValue::Bool(None),
-        }
+pub(crate) fn from_value_to_svalue(value: Value) -> SValue {
+    match value {
+        Value::Bool(v) => SValue::Bool(Some(v)),
+        Value::U8(v) => SValue::TinyUnsigned(Some(v)),
+        Value::U16(v) => SValue::SmallUnsigned(Some(v)),
+        Value::U32(v) => SValue::Unsigned(Some(v)),
+        Value::U64(v) => SValue::BigUnsigned(Some(v)),
+        Value::I8(v) => SValue::TinyInt(Some(v)),
+        Value::I16(v) => SValue::SmallInt(Some(v)),
+        Value::I32(v) => SValue::Int(Some(v)),
+        Value::I64(v) => SValue::BigInt(Some(v)),
+        Value::F32(v) => SValue::Float(Some(v)),
+        Value::F64(v) => SValue::Double(Some(v)),
+        Value::String(v) => SValue::String(Some(Box::new(v))),
+        v @ Value::Date(..) => SValue::ChronoDate(Some(Box::new(
+            Value2ChronoHelper::convert_value_to_naive_date(v).unwrap(),
+        ))),
+        v @ Value::Time(..) => SValue::ChronoTime(Some(Box::new(
+            Value2ChronoHelper::convert_value_to_naive_time(v).unwrap(),
+        ))),
+        v @ Value::DateTime(..) => SValue::ChronoDateTime(Some(Box::new(
+            Value2ChronoHelper::convert_value_to_naive_datetime(v).unwrap(),
+        ))),
+        Value::Decimal(v) => SValue::Decimal(Some(Box::new(v.0))),
+        Value::Uuid(v) => SValue::Uuid(Some(Box::new(v.0))),
+        Value::Bytes(v) => SValue::Bytes(Some(Box::new(v.0))),
+        // Temporary workaround
+        Value::Null => SValue::Bool(None),
     }
 }
 
-impl From<&Value> for SValue {
-    fn from(v: &Value) -> Self {
-        v.clone().into()
-    }
+pub(crate) fn from_value_ref_to_svalue(value: &Value) -> SValue {
+    from_value_to_svalue(value.clone())
 }
 
 /// Type conversion: from polars DataType to SeqQuery Value
@@ -294,14 +290,17 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
             sql_adt::Expression::Simple(s) => {
                 let expr = Expr::col(alias!(s.column()));
                 let expr = match s.equation() {
-                    sql_adt::Equation::Equal(v) => expr.eq(v),
-                    sql_adt::Equation::NotEqual(v) => expr.ne(v),
-                    sql_adt::Equation::Greater(v) => expr.gt(v),
-                    sql_adt::Equation::GreaterEqual(v) => expr.gte(v),
-                    sql_adt::Equation::Less(v) => expr.lt(v),
-                    sql_adt::Equation::LessEqual(v) => expr.lte(v),
-                    sql_adt::Equation::In(v) => expr.is_in(v),
-                    sql_adt::Equation::Between(v) => expr.between(&v.0, &v.1),
+                    sql_adt::Equation::Equal(v) => expr.eq(from_value_ref_to_svalue(v)),
+                    sql_adt::Equation::NotEqual(v) => expr.ne(from_value_ref_to_svalue(v)),
+                    sql_adt::Equation::Greater(v) => expr.gt(from_value_ref_to_svalue(v)),
+                    sql_adt::Equation::GreaterEqual(v) => expr.gte(from_value_ref_to_svalue(v)),
+                    sql_adt::Equation::Less(v) => expr.lt(from_value_ref_to_svalue(v)),
+                    sql_adt::Equation::LessEqual(v) => expr.lte(from_value_ref_to_svalue(v)),
+                    sql_adt::Equation::In(v) => expr.is_in(v.iter().map(from_value_ref_to_svalue)),
+                    sql_adt::Equation::Between(v) => expr.between(
+                        from_value_ref_to_svalue(&v.0),
+                        from_value_ref_to_svalue(&v.1),
+                    ),
                     sql_adt::Equation::Like(v) => expr.like(v),
                 };
                 if state.negate {

@@ -617,6 +617,9 @@ dependencies = [
  "bigdecimal 0.3.0",
  "bson2",
  "chrono",
+ "fabrix-core",
+ "fabrix-sql",
+ "fabrix-xl",
  "futures",
  "itertools",
  "lazy_static",
@@ -637,6 +640,16 @@ dependencies = [
 [[package]]
 name = "fabrix-core"
 version = "0.1.0"
+dependencies = [
+ "bigdecimal 0.2.2",
+ "chrono",
+ "itertools",
+ "polars",
+ "rust_decimal",
+ "serde",
+ "thiserror",
+ "uuid",
+]
 
 [[package]]
 name = "fabrix-mg"
@@ -645,10 +658,38 @@ version = "0.1.0"
 [[package]]
 name = "fabrix-sql"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "fabrix-core",
+ "futures",
+ "itertools",
+ "lazy_static",
+ "nom",
+ "rust_decimal",
+ "sea-query",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "fabrix-xl"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "fabrix-core",
+ "futures",
+ "lazy_static",
+ "quick-xml",
+ "thiserror",
+ "tokio",
+ "zip",
+]
 
 [[package]]
 name = "fallible-streaming-iterator"
@@ -677,9 +718,9 @@ dependencies = [
 
 [[package]]
 name = "flume"
-version = "0.10.12"
+version = "0.10.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "843c03199d0c0ca54bc1ea90ac0d507274c28abcc4f691ae8b4eaa375087c76a"
+checksum = "1ceeb589a3157cac0ab8cc585feb749bd2cea5cb55a6ee802ad72d9fd38303da"
 dependencies = [
  "futures-core",
  "futures-sink",

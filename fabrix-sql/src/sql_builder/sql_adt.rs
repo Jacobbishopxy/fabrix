@@ -36,10 +36,11 @@
 
 use std::str::FromStr;
 
+use fabrix_core::{FieldInfo, Series, Value, ValueType};
 use serde::{Deserialize, Serialize};
 
 use super::xpr_transit;
-use crate::{FieldInfo, Series, SqlError, SqlResult, Value, ValueType};
+use crate::{SqlError, SqlResult};
 
 // ================================================================================================
 // Schema

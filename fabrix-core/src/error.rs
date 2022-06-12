@@ -6,11 +6,47 @@ use std::fmt::Display;
 
 use thiserror::Error;
 
-use crate::{CommonError, ValueType};
+use crate::ValueType;
 
 pub type CoreResult<T> = Result<T, CoreError>;
 
 type DataFrameDTypes = (ValueType, Vec<ValueType>);
+
+#[derive(Debug)]
+pub enum CommonError {
+    Str(&'static str),
+    String(String),
+}
+
+impl AsRef<str> for CommonError {
+    fn as_ref(&self) -> &str {
+        match self {
+            CommonError::Str(s) => s,
+            CommonError::String(s) => s.as_str(),
+        }
+    }
+}
+
+impl std::fmt::Display for CommonError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CommonError::Str(v) => write!(f, "{:?}", v),
+            CommonError::String(v) => write!(f, "{:?}", v),
+        }
+    }
+}
+
+impl From<&'static str> for CommonError {
+    fn from(v: &'static str) -> Self {
+        CommonError::Str(v)
+    }
+}
+
+impl From<String> for CommonError {
+    fn from(v: String) -> Self {
+        CommonError::String(v)
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum CoreError {

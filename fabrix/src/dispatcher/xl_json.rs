@@ -1,8 +1,8 @@
 //! xl -> json
 
+use fabrix_core::D2;
+use fabrix_xl::{ExcelValue, XlCell, XlConsumer, XlExecutor};
 use serde_json::{Number as JsonNumber, Value as JsonValue};
-
-use crate::{ExcelValue, XlCell, XlConsumer, XlExecutor, D2};
 
 pub type XlJsonExecutor<R> = XlExecutor<XlJson, XlJsonConvertor, R>;
 
@@ -61,8 +61,9 @@ impl XlConsumer<XlJsonConvertor> for XlJson {
 mod xl_json_tests {
     use std::fs::File;
 
+    use fabrix_xl::{XlSource, XlWorkbook};
+
     use super::*;
-    use crate::{sources::xl::XlSource, XlWorkbook};
 
     const SOURCE_PATH: &str = "../mock/test.xlsx";
     const SHEET_NAME: &str = "data";

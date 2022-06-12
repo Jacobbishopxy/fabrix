@@ -1,14 +1,27 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//! Fabrix core  
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![feature(trait_upcasting)]
+#![allow(incomplete_features)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod error;
+pub mod fabrix;
+pub mod fmt;
+pub(crate) mod macros;
+pub mod row;
+pub mod rowframe;
+pub mod schema;
+pub mod series;
+pub mod util;
+pub mod value;
+
+pub use error::*;
+pub use fabrix::*;
+pub use row::*;
+pub use rowframe::*;
+pub use schema::*;
+pub use series::*;
+pub use value::*;
+
+pub(crate) use macros::*;
+pub use util::IDX;
+pub(crate) use util::*;

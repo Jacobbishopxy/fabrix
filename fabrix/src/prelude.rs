@@ -3,14 +3,14 @@
 //! This is the prelude for the Fabrix crate.
 
 pub use super::errors::*;
-pub use crate::core::{
-    Bytes, CoreError, CoreResult, D1Value, D2Value, Decimal, Fabrix, FieldInfo, IndexTag,
-    IntoIndexTag, Row, RowFrame, Schema, Series, Uuid, Value, ValueType, ValueTypes, D1, D2,
-};
-pub use crate::{
-    date, datetime, decimal, fx, time, uuid, xpr, xpr_and, xpr_col, xpr_cond, xpr_fn, xpr_not,
-    xpr_or,
-};
+
+pub use fabrix_core::*;
+
+#[cfg(feature = "sql")]
+pub use fabrix_sql::*;
+
+#[cfg(feature = "xl")]
+pub use fabrix_xl::*;
 
 // sources: db
 #[cfg(feature = "sql")]
