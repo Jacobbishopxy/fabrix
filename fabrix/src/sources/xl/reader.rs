@@ -8,9 +8,11 @@ use std::{
 };
 
 use async_trait::async_trait;
+use fabrix_core::{value, Fabrix, Value, D2};
+use fabrix_xl::{ExcelValue, XlCell, XlConsumer, XlExecutor, XlSource, XlWorkbook};
 
-use super::{XlCell, XlConsumer, XlExecutor, XlSource, XlWorkbook, UNSUPPORTED_TYPE};
-use crate::{value, Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions, Value, D2};
+use super::UNSUPPORTED_TYPE;
+use crate::{FabrixError, FabrixResult, FromSource, ReadOptions};
 
 // ================================================================================================
 // Xl into Fabrix convertor implementation
@@ -51,14 +53,14 @@ impl XlConsumer<()> for XlFabrix {
 
     fn transform(cell: XlCell) -> Self::UnitOut {
         match cell.value {
-            super::ExcelValue::Bool(v) => value!(v),
-            super::ExcelValue::Number(v) => value!(v),
-            super::ExcelValue::String(v) => value!(v.to_string()),
-            super::ExcelValue::Date(v) => value!(v),
-            super::ExcelValue::Time(v) => value!(v),
-            super::ExcelValue::DateTime(v) => value!(v),
-            super::ExcelValue::None => Value::Null,
-            super::ExcelValue::Error(v) => Value::String(format!("error: {v}")),
+            ExcelValue::Bool(v) => value!(v),
+            ExcelValue::Number(v) => value!(v),
+            ExcelValue::String(v) => value!(v.to_string()),
+            ExcelValue::Date(v) => value!(v),
+            ExcelValue::Time(v) => value!(v),
+            ExcelValue::DateTime(v) => value!(v),
+            ExcelValue::None => Value::Null,
+            ExcelValue::Error(v) => Value::String(format!("error: {v}")),
         }
     }
 }
@@ -124,7 +126,10 @@ impl<R: Read + Seek> Reader<R> {
         xl_reader.consume_fn_mut(
             None,
             &sheet_name,
-            |d| XlFabrix::transform_data(d, is_column_wised, has_header),
+            |d| {
+                XlFabrix::transform_data(d, is_column_wised, has_header)
+                    .map_err(|_| fabrix_xl::XlError::new_common_error("invalid transform"))
+            },
             |d| {
                 helper.store(d);
                 Ok(())

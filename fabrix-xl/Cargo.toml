@@ -1,0 +1,20 @@
+[package]
+name = "fabrix-xl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fabrix-core = { path = "../fabrix-core" }
+
+async-trait = "0"
+chrono = { version = "0", features = ["serde"] }
+futures = "0"
+thiserror = "1"
+lazy_static = "1"
+quick-xml = { version = "0", features = ["serialize"] }
+zip = { version = "0" }
+
+[dev-dependencies]
+tokio = "1"

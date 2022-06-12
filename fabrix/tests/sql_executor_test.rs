@@ -11,7 +11,7 @@
 
 use std::str::FromStr;
 
-use fabrix::prelude::*;
+use ::fabrix::prelude::*;
 
 const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";

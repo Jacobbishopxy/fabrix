@@ -4,8 +4,8 @@
 
 use bson2::{Bson, DateTime};
 use chrono::Timelike;
-
-use crate::{ExcelValue, XlCell, XlConsumer, XlExecutor, D2};
+use fabrix_core::D2;
+use fabrix_xl::{ExcelValue, XlCell, XlConsumer, XlExecutor};
 
 pub type XlBsonExecutor<R> = XlExecutor<XlBson, XlBsonConvertor, R>;
 
@@ -50,8 +50,9 @@ impl XlConsumer<XlBsonConvertor> for XlBson {
 mod xl_bson_tests {
     use std::fs::File;
 
+    use fabrix_xl::{XlSource, XlWorkbook};
+
     use super::*;
-    use crate::{XlSource, XlWorkbook};
 
     const XL_PATH: &str = "../mock/test.xlsx";
 

@@ -13,12 +13,12 @@ use std::str::FromStr;
 use actix_multipart::Multipart;
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use clap::Parser;
-use fabrix::XlWorkbook;
 use futures_util::TryStreamExt;
 use serde::Deserialize;
 use uuid::Uuid;
 
 use fabrix::{dispatcher::xl_json, FabrixError};
+use fabrix_xl::XlWorkbook;
 
 const TMP_DIR: &str = "./tmp";
 const XL_FILE_TYPE: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -119,7 +119,9 @@ async fn xl_to_json(
                 Ok(())
             },
         )
-        .map_err(|e| WebError { err: e })?;
+        .map_err(|e| WebError {
+            err: FabrixError::XL(e),
+        })?;
 
         data.push(helper.data);
     }

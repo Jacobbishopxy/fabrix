@@ -5,7 +5,7 @@
 
 use std::fs::File;
 
-use fabrix::{prelude::*, DatabasePg};
+use ::fabrix::prelude::*;
 
 // const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
 const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
@@ -29,7 +29,12 @@ async fn test_xl2db_async_no_index() {
         .async_consume_fn_mut(
             Some(30),
             XL_SHEET_NAME,
-            |d| xl2db.convertor.convert_row_wised(d, ()),
+            |d| {
+                xl2db
+                    .convertor
+                    .convert_row_wised(d, ())
+                    .map_err(|e| XlError::new_common_error(e.to_string()))
+            },
             |d| {
                 Box::pin(async {
                     xl2db
@@ -39,6 +44,7 @@ async fn test_xl2db_async_no_index() {
                         .replace_existing_table(SQL_TABLE_NAME, d, true)
                         // .append_table("test_table", d)
                         .await
+                        .map_err(|e| XlError::new_common_error(e.to_string()))
                 })
             },
         )
@@ -92,7 +98,12 @@ async fn test_xl2db_async_with_index_row_wised() {
         .async_consume_fn_mut(
             Some(30),
             XL_SHEET_NAME,
-            |d| xl2db.convertor.convert_row_wised(d, 0),
+            |d| {
+                xl2db
+                    .convertor
+                    .convert_row_wised(d, 0)
+                    .map_err(|e| XlError::new_common_error(e.to_string()))
+            },
             |d| {
                 Box::pin(async {
                     xl2db
@@ -101,6 +112,7 @@ async fn test_xl2db_async_with_index_row_wised() {
                         .await
                         .replace_existing_table(SQL_TABLE_NAME, d, false)
                         .await
+                        .map_err(|e| XlError::new_common_error(e.to_string()))
                 })
             },
         )
@@ -121,7 +133,12 @@ async fn test_xl2db_async_with_index_col_wised() {
         .async_consume_fn_mut(
             None,
             XL_SHEET_NAME2,
-            |d| xl2db.convertor.convert_col_wised(d, "id"),
+            |d| {
+                xl2db
+                    .convertor
+                    .convert_col_wised(d, "id")
+                    .map_err(|e| XlError::new_common_error(e.to_string()))
+            },
             |d| {
                 Box::pin(async {
                     xl2db
@@ -130,6 +147,7 @@ async fn test_xl2db_async_with_index_col_wised() {
                         .await
                         .replace_existing_table(SQL_TABLE_NAME, d, false)
                         .await
+                        .map_err(|e| XlError::new_common_error(e.to_string()))
                 })
             },
         )
