@@ -86,11 +86,11 @@ impl FromStr for &Sttm {
             Ok((_, (db_type, sql_type))) => match db_type {
                 "MYSQL" => MYSQL_TMAP
                     .get(sql_type)
-                    .ok_or_else(|| SqlError::InvalidType("MYSQL data type not found".to_owned())),
+                    .ok_or(SqlError::InvalidType("MYSQL data type not found")),
                 "PG" => PG_TMAP
                     .get(sql_type)
-                    .ok_or_else(|| SqlError::InvalidType("PG data type not found".to_owned())),
-                _ => Err(SqlError::InvalidType("DB type not found".to_owned())),
+                    .ok_or(SqlError::InvalidType("PG data type not found")),
+                _ => Err(SqlError::InvalidType("DB type not found")),
             },
             Err(e) => Err(SqlError::InvalidIndex(format!("{:?}", e))),
         }

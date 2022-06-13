@@ -51,7 +51,7 @@ impl<W: Write> Writer<W> {
         let writer = self
             .parquet_writer
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("ParquetWriter is not initialized"))?;
+            .ok_or(FabrixError::NotInitialized("ParquetWriter"))?;
 
         writer.finish(&mut fabrix.data)?;
         Ok(())
@@ -69,7 +69,7 @@ impl<'a> TryFrom<ParquetSource<'a>> for Writer<File> {
         match source {
             ParquetSource::File(file) => Ok(Self::new(file)),
             ParquetSource::Path(path) => Ok(Self::new(File::create(path)?)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -80,7 +80,7 @@ impl<'a> TryFrom<ParquetSource<'a>> for Writer<&'a mut Cursor<Vec<u8>>> {
     fn try_from(source: ParquetSource<'a>) -> FabrixResult<Self> {
         match source {
             ParquetSource::BuffWrite(bytes) => Ok(Self::new(bytes)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }

@@ -137,7 +137,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual))
                     )?
                 }
             }
@@ -151,7 +151,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual))
                     )?
                 }
             }
@@ -183,7 +183,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual))
                     )?
                 }
             }
@@ -197,7 +197,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual))
                     )?
                 }
             }

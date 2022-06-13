@@ -76,7 +76,7 @@ pub(crate) fn excel_number_to_date(
             let mut base = NaiveDate::from_ymd(1899, 12, 31).and_hms(0, 0, 0);
             if (number - 60.0).abs() < 0.0001 {
                 return Err(XlError::Parsing(
-                    "Bad date in Excel file - 2/29/1900 not valid".to_owned(),
+                    "Bad date in Excel file - 2/29/1900 not valid",
                 ));
             } else if number > 60.0 {
                 base -= Duration::days(1)

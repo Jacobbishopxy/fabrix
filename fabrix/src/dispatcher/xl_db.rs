@@ -60,9 +60,7 @@ impl XlDbConvertor {
             // assuming the first cell is the index name, if with_index is true, remove it
             if let Some(i) = index_loc {
                 if i >= fld.len() {
-                    return Err(FabrixError::new_common_error(format!(
-                        "index_loc: {i} is out of range"
-                    )));
+                    return Err(FabrixError::OutOfRange(i, fld.len()));
                 }
             }
             self.fields = Some(fld);
@@ -74,13 +72,13 @@ impl XlDbConvertor {
     fn transform_col_wised_data(data: D2Value) -> FabrixResult<Vec<Series>> {
         // even has 1 row the first row is the index, cannot build up a dataframe
         if data.len() <= 1 {
-            return Err(FabrixError::new_common_error("data is empty"));
+            return Err(FabrixError::EmptyContent("data"));
         }
 
         let mut collection = Vec::new();
         for mut row in data.into_iter() {
             if row.is_empty() {
-                return Err(FabrixError::new_common_error("empty row"));
+                return Err(FabrixError::EmptyContent("row"));
             }
             // assume the 1st cell is the series name
             let name = row.remove(0).to_string();
@@ -112,7 +110,7 @@ impl XlDbConvertor {
                     .iter()
                     .position(|f| f == name)
                     .ok_or_else(|| {
-                        FabrixError::new_common_error(format!("index name: {name} not found"))
+                        FabrixError::NotFound(format!("index name: {name} not found"))
                     })?;
                 self.set_row_wised_fields(&mut data, Some(idx))?;
                 let mut df = Fabrix::from_row_values(data, Some(idx), false)?;
@@ -141,7 +139,7 @@ impl XlDbConvertor {
             XlIndexSelection::Num(num) => {
                 // extract index
                 if num >= collection.len() {
-                    return Err(FabrixError::new_common_error(format!(
+                    return Err(FabrixError::NotFound(format!(
                         "index_col: {num} is out of range"
                     )));
                 }
@@ -153,7 +151,7 @@ impl XlDbConvertor {
                     .iter()
                     .position(|s| s.name() == name)
                     .ok_or_else(|| {
-                        FabrixError::new_common_error(format!("index name: {name} not found"))
+                        FabrixError::NotFound(format!("index name: {name} not found"))
                     })?;
 
                 Ok(Fabrix::from_series(collection, idx)?)

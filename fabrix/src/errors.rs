@@ -8,42 +8,41 @@ use thiserror::Error;
 pub type FabrixResult<T> = Result<T, FabrixError>;
 
 // ================================================================================================
-// Common error
+// Uncategorized errors
 // ================================================================================================
-
 #[derive(Debug)]
-pub enum CommonError {
+pub enum UncategorizedError {
     Str(&'static str),
     String(String),
 }
 
-impl AsRef<str> for CommonError {
+impl AsRef<str> for UncategorizedError {
     fn as_ref(&self) -> &str {
         match self {
-            CommonError::Str(s) => s,
-            CommonError::String(s) => s.as_str(),
+            UncategorizedError::Str(s) => s,
+            UncategorizedError::String(s) => s.as_str(),
         }
     }
 }
 
-impl std::fmt::Display for CommonError {
+impl std::fmt::Display for UncategorizedError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CommonError::Str(v) => write!(f, "{:?}", v),
-            CommonError::String(v) => write!(f, "{:?}", v),
+            UncategorizedError::Str(v) => write!(f, "{:?}", v),
+            UncategorizedError::String(v) => write!(f, "{:?}", v),
         }
     }
 }
 
-impl From<&'static str> for CommonError {
+impl From<&'static str> for UncategorizedError {
     fn from(v: &'static str) -> Self {
-        CommonError::Str(v)
+        UncategorizedError::Str(v)
     }
 }
 
-impl From<String> for CommonError {
+impl From<String> for UncategorizedError {
     fn from(v: String) -> Self {
-        CommonError::String(v)
+        UncategorizedError::String(v)
     }
 }
 
@@ -53,9 +52,29 @@ impl From<String> for CommonError {
 
 #[derive(Error, Debug)]
 pub enum FabrixError {
-    // common errors
-    #[error("common error {0}")]
-    Common(CommonError),
+    #[error("uncategorized err {0}")]
+    Uncategorized(UncategorizedError),
+
+    #[error("empty content {0}")]
+    EmptyContent(&'static str),
+
+    #[error("{0} is out of range {1}")]
+    OutOfRange(usize, usize),
+
+    #[error("{0}")]
+    NotFound(String),
+
+    #[error("{0} is not initialized")]
+    NotInitialized(&'static str),
+
+    #[error("{0} is not set")]
+    NotSet(&'static str),
+
+    #[error("unsupported type {0}")]
+    UnsupportedType(&'static str),
+
+    #[error("{0}")]
+    InvalidArgument(String),
 
     // IO errors
     #[error(transparent)]
@@ -91,25 +110,4 @@ pub enum FabrixError {
     // unknown error
     #[error("unknown error")]
     Unknown,
-}
-
-impl From<&str> for FabrixError {
-    fn from(v: &str) -> Self {
-        FabrixError::Common(CommonError::String(v.to_owned()))
-    }
-}
-
-impl From<String> for FabrixError {
-    fn from(v: String) -> Self {
-        FabrixError::Common(CommonError::String(v))
-    }
-}
-
-impl FabrixError {
-    pub fn new_common_error<T>(msg: T) -> Self
-    where
-        T: Into<CommonError>,
-    {
-        FabrixError::Common(msg.into())
-    }
 }

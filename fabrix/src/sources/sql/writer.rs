@@ -132,8 +132,7 @@ where
             save_strategy,
         } = options;
 
-        let table_name =
-            table_name.ok_or_else(|| FabrixError::new_common_error("table name not found"))?;
+        let table_name = table_name.ok_or_else(|| FabrixError::NotSet("table name"))?;
 
         if let Some(save_strategy) = save_strategy {
             self.save_strategy = Some(save_strategy.clone());

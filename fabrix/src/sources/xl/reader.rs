@@ -110,14 +110,14 @@ impl<R: Read + Seek> Reader<R> {
         let mut xl_reader = self
             .xl_reader
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("XlReader is not initialized"))?;
+            .ok_or(FabrixError::NotInitialized("XlReader"))?;
 
         let mut helper = XlFabrix::new();
 
         let sheet_name = self
             .sheet_name
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("Sheet name is not set"))?;
+            .ok_or(FabrixError::NotSet("sheet name"))?;
 
         let has_header = self.has_header.take().unwrap_or(true);
 
@@ -156,7 +156,7 @@ impl TryFrom<XlSource> for Reader<File> {
         match source {
             XlSource::File(file) => Self::new(file),
             XlSource::Path(path) => Self::new(File::open(path)?),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -167,7 +167,7 @@ impl TryFrom<XlSource> for Reader<Cursor<Vec<u8>>> {
     fn try_from(source: XlSource) -> Result<Self, Self::Error> {
         match source {
             XlSource::Buff(bytes) => Self::new(bytes),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }

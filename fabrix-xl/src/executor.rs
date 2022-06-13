@@ -143,7 +143,7 @@ where
         let sheets = workbook.sheets()?;
         let sheet = match sheets.get(sheet_name) {
             Some(ws) => ws,
-            None => return Err(XlError::SourceNotFound("worksheet".to_owned())),
+            None => return Err(XlError::SourceNotFound("worksheet")),
         };
 
         let buffer = sheet.rows(workbook)?;
@@ -462,7 +462,7 @@ where
 
             Ok(worker.into_iter())
         }
-        None => Err(XlError::SourceNotFound("workbook".to_owned())),
+        None => Err(XlError::SourceNotFound("workbook")),
     }
 }
 

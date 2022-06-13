@@ -54,7 +54,7 @@ pub enum SqlError {
     UnsupportedSeaQueryType,
 
     #[error("invalid type {0}")]
-    InvalidType(String),
+    InvalidType(&'static str),
 
     #[error("invalid constraint")]
     InvalidConstraint,
@@ -72,19 +72,19 @@ pub enum SqlError {
     ConnectionNotEstablished,
 
     #[error("unsupported database operation {0}")]
-    UnsupportedDatabaseOperation(String),
+    UnsupportedDatabaseOperation(&'static str),
 
     #[error("source {0} not found")]
-    SourceNotFound(String),
+    SourceNotFound(&'static str),
 
     #[error("source {0} already exists")]
-    SourceAlreadyExists(String),
+    SourceAlreadyExists(&'static str),
 
     #[error("content {0} is empty")]
     EmptyContent(String),
 
     #[error("mismatched sql row {0}")]
-    MismatchedSqlRow(String),
+    MismatchedSqlRow(&'static str),
 
     #[error(transparent)]
     Core(#[from] CoreError),

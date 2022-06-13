@@ -357,12 +357,7 @@ where
     pub(crate) fn sheet_reader<'a>(&'a mut self, zip_target: &str) -> XlResult<SheetReader<'a>> {
         let target = match self.xls.by_name(zip_target) {
             Ok(ws) => ws,
-            Err(_) => {
-                return Err(XlError::SourceNotFound(format!(
-                    "worksheet: {}",
-                    zip_target
-                )))
-            }
+            Err(_) => return Err(XlError::SourceNotFound("worksheet")),
         };
         // let _ = std::io::copy(&mut target, &mut std::io::stdout());
 
@@ -546,6 +541,6 @@ fn get_date_system<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> XlResu
                 buf.clear();
             }
         }
-        Err(_) => Err(XlError::SourceNotFound("xl/workbook.xml".to_owned())),
+        Err(_) => Err(XlError::SourceNotFound("xl/workbook.xml")),
     }
 }

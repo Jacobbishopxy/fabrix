@@ -147,7 +147,7 @@ impl<'a, R: MmapBytesReader> Reader<'a, R> {
         let reader = self
             .csv_reader
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("CsvReader is not initialized"))?;
+            .ok_or(FabrixError::NotInitialized("CsvReader"))?;
 
         let df = reader.finish()?;
 
@@ -170,7 +170,7 @@ impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, File> {
         match source {
             CsvSource::File(file) => Ok(Self::new(file)),
             CsvSource::Path(path) => Ok(Self::new(File::open(path)?)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -181,7 +181,7 @@ impl<'a> TryFrom<CsvSource<'a>> for Reader<'a, Cursor<Vec<u8>>> {
     fn try_from(source: CsvSource) -> FabrixResult<Self> {
         match source {
             CsvSource::BuffRead(bytes) => Ok(Reader::new(bytes)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }

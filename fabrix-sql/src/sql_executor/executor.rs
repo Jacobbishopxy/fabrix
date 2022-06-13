@@ -218,7 +218,7 @@ where
         conn_n_err!(self.pool);
         if let SqlBuilder::Sqlite = &self.driver {
             return Err(SqlError::UnsupportedDatabaseOperation(
-                "Sqlite does not support constraints".to_owned(),
+                "Sqlite does not support constraints",
             ));
         }
         let que = self.driver.check_table_constraint(table_name);
@@ -251,7 +251,7 @@ where
         conn_n_err!(self.pool);
         if let SqlBuilder::Sqlite = &self.driver {
             return Err(SqlError::UnsupportedDatabaseOperation(
-                "Sqlite does not support constraints".to_owned(),
+                "Sqlite does not support constraints",
             ));
         }
         let que = self.driver.check_column_constraint(table_name);
@@ -277,7 +277,7 @@ where
         conn_n_err!(self.pool);
         if let SqlBuilder::Sqlite = &self.driver {
             return Err(SqlError::UnsupportedDatabaseOperation(
-                "Sqlite does not support indexes".to_owned(),
+                "Sqlite does not support indexes",
             ));
         }
         let que = self.driver.check_column_index(table_name);
@@ -313,7 +313,7 @@ where
             return values.iter().map(try_value_into_string).collect();
         }
 
-        Err(SqlError::SourceNotFound("tables".to_owned()))
+        Err(SqlError::SourceNotFound("tables"))
     }
 
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String> {
@@ -333,7 +333,7 @@ where
             }
         }
 
-        Err(SqlError::SourceNotFound("primary key".to_owned()))
+        Err(SqlError::SourceNotFound("primary key"))
     }
 
     async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1Value> {
@@ -447,7 +447,7 @@ where
         match strategy {
             sql_adt::SaveStrategy::FailIfExists => {
                 if self.get_table_exists(table_name).await {
-                    return Err(SqlError::SourceAlreadyExists("table".to_owned()));
+                    return Err(SqlError::SourceAlreadyExists("table"));
                 }
 
                 // start a transaction
@@ -553,7 +553,7 @@ fn add_primary_key_to_select<T: Into<String>>(primary_key: T, select: &mut sql_a
 fn try_value_into_string(value: &Value) -> SqlResult<String> {
     match value {
         Value::String(v) => Ok(v.to_owned()),
-        _ => Err(SqlError::InvalidType("value is not a string".to_owned())),
+        _ => Err(SqlError::InvalidType("value is not a string")),
     }
 }
 

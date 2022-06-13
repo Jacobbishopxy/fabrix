@@ -13,10 +13,10 @@ pub enum XlError {
     UnsupportedSource,
 
     #[error("{0} not found")]
-    SourceNotFound(String),
+    SourceNotFound(&'static str),
 
     #[error("parsing error {0}")]
-    Parsing(String),
+    Parsing(&'static str),
 
     #[error("{0}")]
     Unexpected(String),

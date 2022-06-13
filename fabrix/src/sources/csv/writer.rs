@@ -81,7 +81,7 @@ impl<W: Write> Writer<W> {
         let mut writer = self
             .csv_writer
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("CsvWriter is not initialized"))?;
+            .ok_or(FabrixError::NotInitialized("CsvWriter"))?;
 
         writer.finish(&mut fabrix.data)?;
         Ok(())
@@ -99,7 +99,7 @@ impl<'a> TryFrom<CsvSource<'a>> for Writer<File> {
         match source {
             CsvSource::File(file) => Ok(Self::new(file)),
             CsvSource::Path(path) => Ok(Self::new(File::create(path)?)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -110,7 +110,7 @@ impl<'a> TryFrom<CsvSource<'a>> for Writer<&'a mut Cursor<Vec<u8>>> {
     fn try_from(source: CsvSource<'a>) -> FabrixResult<Self> {
         match source {
             CsvSource::BuffWrite(bytes) => Ok(Self::new(bytes)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }

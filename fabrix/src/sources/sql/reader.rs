@@ -165,14 +165,8 @@ where
     }
 
     pub async fn finish(&mut self) -> FabrixResult<Fabrix> {
-        let table = self
-            .table
-            .ok_or_else(|| FabrixError::new_common_error("table is not set"))?
-            .to_owned();
-        let columns = self
-            .columns
-            .ok_or_else(|| FabrixError::new_common_error("columns is not set"))?
-            .to_vec();
+        let table = self.table.ok_or(FabrixError::NotSet("table"))?.to_owned();
+        let columns = self.columns.ok_or(FabrixError::NotSet("columns"))?.to_vec();
 
         let select = sql_adt::Select {
             table,

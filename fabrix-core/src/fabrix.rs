@@ -212,7 +212,7 @@ impl Fabrix {
             .map(|mut s| {
                 if has_header {
                     if s.len() < 2 {
-                        return Err(idl_err(s.len()));
+                        return Err(idl_err());
                     }
                     let name = s.remove(0).to_string();
                     Series::from_values(s, name, true)

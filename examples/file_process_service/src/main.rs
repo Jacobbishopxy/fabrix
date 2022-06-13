@@ -92,7 +92,7 @@ async fn xl_to_json(
         dbg!(&file_type);
 
         if file_type != XL_FILE_TYPE {
-            let err = FabrixError::new_common_error(format!("Invalid file type: {file_type}"));
+            let err = FabrixError::InvalidArgument(format!("Invalid file type: {file_type}"));
             return Err(WebError { err }.into());
         }
 
@@ -120,7 +120,7 @@ async fn xl_to_json(
             },
         )
         .map_err(|e| WebError {
-            err: FabrixError::XL(e),
+            err: FabrixError::Xl(e),
         })?;
 
         data.push(helper.data);

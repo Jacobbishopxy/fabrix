@@ -163,14 +163,14 @@ where
     pub fn sync_write(&mut self, options: &'a WO) -> FabrixResult<()> {
         match self.fabrix.take() {
             Some(fx) => self.writer.sync_write(fx, options),
-            None => Err(FabrixError::new_common_error("No fabrix to write")),
+            None => Err(FabrixError::EmptyContent("fabrix data")),
         }
     }
 
     pub async fn async_write(&mut self, options: &'a WO) -> FabrixResult<()> {
         match self.fabrix.take() {
             Some(fx) => self.writer.async_write(fx, options).await,
-            None => Err(FabrixError::new_common_error("No fabrix to write")),
+            None => Err(FabrixError::EmptyContent("fabrix data")),
         }
     }
 }

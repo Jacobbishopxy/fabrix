@@ -92,7 +92,7 @@ impl<R: MmapBytesReader> Reader<R> {
         let reader = self
             .json_reader
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("JsonReader is not initialized"))?;
+            .ok_or(FabrixError::NotInitialized("JsonReader"))?;
 
         let df = reader.finish()?;
 
@@ -115,7 +115,7 @@ impl<'a> TryFrom<JsonSource<'a>> for Reader<BufReader<File>> {
         match source {
             JsonSource::File(file) => Ok(Reader::new(BufReader::new(file))),
             JsonSource::Path(path) => Ok(Reader::new(BufReader::new(File::open(path)?))),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -126,7 +126,7 @@ impl<'a> TryFrom<JsonSource<'a>> for Reader<Cursor<Vec<u8>>> {
     fn try_from(source: JsonSource<'a>) -> Result<Self, Self::Error> {
         match source {
             JsonSource::BuffRead(bytes) => Ok(Reader::new(bytes)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }

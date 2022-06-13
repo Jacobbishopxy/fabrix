@@ -84,7 +84,7 @@ impl<R: MmapBytesReader> Reader<R> {
         let reader = self
             .parquet_reader
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("ParquetReader is not initialized"))?;
+            .ok_or(FabrixError::NotInitialized("ParquetReader"))?;
 
         let df = reader.finish()?;
 
@@ -110,7 +110,7 @@ impl<'a> TryFrom<ParquetSource<'a>> for Reader<File> {
                 let file = File::open(path)?;
                 Ok(Self::new(file))
             }
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -121,7 +121,7 @@ impl<'a> TryFrom<ParquetSource<'a>> for Reader<Cursor<Vec<u8>>> {
     fn try_from(value: ParquetSource<'a>) -> Result<Self, Self::Error> {
         match value {
             ParquetSource::BuffRead(bytes) => Ok(Self::new(bytes)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }

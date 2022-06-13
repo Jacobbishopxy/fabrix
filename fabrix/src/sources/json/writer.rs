@@ -54,7 +54,7 @@ impl<W: Write> Writer<W> {
         let mut writer = self
             .json_writer
             .take()
-            .ok_or_else(|| FabrixError::new_common_error("JsonWriter is not initialized"))?;
+            .ok_or(FabrixError::NotInitialized("JsonWriter"))?;
 
         writer.finish(&mut fabrix.data)?;
         Ok(())
@@ -72,7 +72,7 @@ impl<'a> TryFrom<JsonSource<'a>> for Writer<File> {
         match source {
             JsonSource::File(file) => Ok(Writer::new(file)),
             JsonSource::Path(path) => Ok(Writer::new(File::create(path)?)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
@@ -83,7 +83,7 @@ impl<'a> TryFrom<JsonSource<'a>> for Writer<&'a mut Cursor<Vec<u8>>> {
     fn try_from(source: JsonSource<'a>) -> FabrixResult<Self> {
         match source {
             JsonSource::BuffWrite(bytes) => Ok(Writer::new(bytes)),
-            _ => Err(FabrixError::new_common_error(UNSUPPORTED_TYPE)),
+            _ => Err(FabrixError::UnsupportedType(UNSUPPORTED_TYPE)),
         }
     }
 }
