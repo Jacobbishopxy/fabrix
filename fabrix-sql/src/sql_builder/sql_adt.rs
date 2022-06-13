@@ -88,7 +88,7 @@ impl FromStr for TableConstraintType {
             "UNIQUE" => Ok(TableConstraintType::Unique),
             "PRIMARY KEY" => Ok(TableConstraintType::PrimaryKey),
             "FOREIGN KEY" => Ok(TableConstraintType::ForeignKey),
-            _ => Err(SqlError::new_common_error("invalid constraint type")),
+            _ => Err(SqlError::InvalidConstraint),
         }
     }
 }
@@ -701,7 +701,7 @@ impl Join {
         on: &[(&str, &str)],
     ) -> SqlResult<Self> {
         if on.is_empty() {
-            return Err(SqlError::new_common_error("on cannot be empty"));
+            return Err(SqlError::EmptyContent("param `on`".to_string()));
         }
         Ok(Join {
             join_type,
@@ -971,10 +971,7 @@ impl IndexOption {
             ValueType::Uuid => Ok(IndexType::Uuid),
             ValueType::F32 => Ok(IndexType::Int),
             ValueType::F64 => Ok(IndexType::BigInt),
-            _ => Err(SqlError::new_common_error(format!(
-                "{:?} is not an appropriate index type",
-                dtype
-            ))),
+            _ => Err(SqlError::InvalidIndex(dtype.to_string())),
         }?;
 
         Ok(IndexOption {
@@ -1001,10 +998,7 @@ impl TryFrom<FieldInfo> for IndexOption {
             ValueType::Uuid => Ok(IndexType::Uuid),
             ValueType::F32 => Ok(IndexType::Int),
             ValueType::F64 => Ok(IndexType::BigInt),
-            _ => Err(SqlError::new_common_error(format!(
-                "{:?} cannot convert to index type",
-                dtype
-            ))),
+            _ => Err(SqlError::InvalidIndex(dtype.to_string())),
         }?;
 
         Ok(IndexOption {

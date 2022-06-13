@@ -36,7 +36,7 @@ macro_rules! sv_2_v {
         } else {
             match $option_value {
                 Some(v) => Ok(fabrix_core::value!(v)),
-                None => Err($crate::SqlError::new_common_error("unsupported type")),
+                None => Err($crate::SqlError::UnsupportedSeaQueryType),
             }
         }
     };
@@ -49,7 +49,7 @@ macro_rules! sv_2_v {
         } else {
             match $option_value {
                 Some(v) => Ok(fabrix_core::value!(*v)),
-                None => Err($crate::SqlError::new_common_error("unsupported type")),
+                None => Err($crate::SqlError::UnsupportedSeaQueryType),
             }
         }
     };

@@ -14,8 +14,6 @@ use sqlx::{mysql::MySqlRow, postgres::PgRow, sqlite::SqliteRow, Row as SRow};
 
 use super::{impl_sql_type_tag_marker, static_sttm_get, tmap_pair, SqlBuilder, SqlResult};
 
-const MISMATCHED_SQL_ROW: &str = "mismatched sql row";
-
 /// type alias
 pub(crate) type OptMarker = Option<&'static dyn SqlTypeTagMarker>;
 
@@ -104,22 +102,22 @@ impl PartialEq<Sttm> for str {
 // ================================================================================================
 
 impl_sql_type_tag_marker!(bool, Bool; [Mysql, Pg, Sqlite]);
-impl_sql_type_tag_marker!(u8, U8; [Mysql], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(u16, U16; [Mysql], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(u32, U32; [Mysql], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(u64, U64; [Mysql], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(i8, I8; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(i16, I16; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(u8, U8; [Mysql], "u8");
+impl_sql_type_tag_marker!(u16, U16; [Mysql], "u16");
+impl_sql_type_tag_marker!(u32, U32; [Mysql], "u32");
+impl_sql_type_tag_marker!(u64, U64; [Mysql], "u64");
+impl_sql_type_tag_marker!(i8, I8; [Mysql, Pg], "i8");
+impl_sql_type_tag_marker!(i16, I16; [Mysql, Pg], "i16");
 impl_sql_type_tag_marker!(i32, I32; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(i64, I64; [Mysql, Pg, Sqlite]);
-impl_sql_type_tag_marker!(f32, F32; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(f32, F32; [Mysql, Pg], "f32");
 impl_sql_type_tag_marker!(f64, F64; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(String, String; [Mysql, Pg, Sqlite]);
-impl_sql_type_tag_marker!(NaiveDate, Date; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(NaiveTime, Time; [Mysql, Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(NaiveDate, Date; [Mysql, Pg], "NaiveDate");
+impl_sql_type_tag_marker!(NaiveTime, Time; [Mysql, Pg], "NaiveTime");
 impl_sql_type_tag_marker!(NaiveDateTime, DateTime; [Mysql, Pg, Sqlite]);
-impl_sql_type_tag_marker!(Decimal <= rust_decimal::Decimal, Decimal; [Mysql, Pg], MISMATCHED_SQL_ROW);
-impl_sql_type_tag_marker!(Uuid <= uuid::Uuid, Uuid; [Pg], MISMATCHED_SQL_ROW);
+impl_sql_type_tag_marker!(Decimal <= rust_decimal::Decimal, Decimal; [Mysql, Pg], "Decimal");
+impl_sql_type_tag_marker!(Uuid <= uuid::Uuid, Uuid; [Pg], "Uuid");
 impl_sql_type_tag_marker!(Bytes <= Vec<u8>, Bytes; [Mysql, Pg, Sqlite]);
 
 // ================================================================================================

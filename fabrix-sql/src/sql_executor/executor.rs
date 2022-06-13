@@ -153,7 +153,7 @@ where
         let mut conn = s.split(':');
         let driver_str = conn
             .next()
-            .ok_or_else(|| SqlError::new_common_error("Invalid conn str"))?;
+            .ok_or_else(|| SqlError::InvalidConnStr(s.to_owned()))?;
 
         let driver = SqlBuilder::from_str(driver_str)?;
         Ok(SqlExecutor {
@@ -217,8 +217,8 @@ where
     ) -> SqlResult<Vec<sql_adt::TableConstraint>> {
         conn_n_err!(self.pool);
         if let SqlBuilder::Sqlite = &self.driver {
-            return Err(SqlError::new_common_error(
-                "Sqlite does not support constraints",
+            return Err(SqlError::UnsupportedDatabaseOperation(
+                "Sqlite does not support constraints".to_owned(),
             ));
         }
         let que = self.driver.check_table_constraint(table_name);
@@ -250,8 +250,8 @@ where
     ) -> SqlResult<Vec<sql_adt::ColumnConstraint>> {
         conn_n_err!(self.pool);
         if let SqlBuilder::Sqlite = &self.driver {
-            return Err(SqlError::new_common_error(
-                "Sqlite does not support constraints",
+            return Err(SqlError::UnsupportedDatabaseOperation(
+                "Sqlite does not support constraints".to_owned(),
             ));
         }
         let que = self.driver.check_column_constraint(table_name);
@@ -276,8 +276,8 @@ where
     async fn get_column_index(&self, table_name: &str) -> SqlResult<Vec<sql_adt::ColumnIndex>> {
         conn_n_err!(self.pool);
         if let SqlBuilder::Sqlite = &self.driver {
-            return Err(SqlError::new_common_error(
-                "Sqlite does not support indexes",
+            return Err(SqlError::UnsupportedDatabaseOperation(
+                "Sqlite does not support indexes".to_owned(),
             ));
         }
         let que = self.driver.check_column_index(table_name);
@@ -313,7 +313,7 @@ where
             return values.iter().map(try_value_into_string).collect();
         }
 
-        Err(SqlError::new_common_error("tables not found"))
+        Err(SqlError::SourceNotFound("tables".to_owned()))
     }
 
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String> {
@@ -333,7 +333,7 @@ where
             }
         }
 
-        Err(SqlError::new_common_error("primary key not found"))
+        Err(SqlError::SourceNotFound("primary key".to_owned()))
     }
 
     async fn get_existing_ids(&self, table_name: &str, ids: &Series) -> SqlResult<D1Value> {
@@ -447,9 +447,7 @@ where
         match strategy {
             sql_adt::SaveStrategy::FailIfExists => {
                 if self.get_table_exists(table_name).await {
-                    return Err(SqlError::new_common_error(
-                        "table already exist, table cannot be saved",
-                    ));
+                    return Err(SqlError::SourceAlreadyExists("table".to_owned()));
                 }
 
                 // start a transaction
@@ -555,7 +553,7 @@ fn add_primary_key_to_select<T: Into<String>>(primary_key: T, select: &mut sql_a
 fn try_value_into_string(value: &Value) -> SqlResult<String> {
     match value {
         Value::String(v) => Ok(v.to_owned()),
-        _ => Err(SqlError::new_common_error("value is not a string")),
+        _ => Err(SqlError::InvalidType("value is not a string".to_owned())),
     }
 }
 

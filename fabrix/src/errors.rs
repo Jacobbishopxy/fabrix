@@ -63,26 +63,26 @@ pub enum FabrixError {
 
     // Core errors
     #[error(transparent)]
-    CORE(#[from] fabrix_core::CoreError),
+    Core(#[from] fabrix_core::CoreError),
 
     // Polars errors
     #[error(transparent)]
-    POLARS(#[from] polars::prelude::PolarsError),
+    Polars(#[from] polars::prelude::PolarsError),
 
     // Sql errors
     #[cfg(feature = "sql")]
     #[error(transparent)]
-    DB(#[from] fabrix_sql::SqlError),
+    Sql(#[from] fabrix_sql::SqlError),
 
     // Xl errors
     #[cfg(feature = "xl")]
     #[error(transparent)]
-    XL(#[from] fabrix_xl::XlError),
+    Xl(#[from] fabrix_xl::XlError),
 
     // Mongo errors
     // #[cfg(feature = "mongo")]
     // #[error(transparent)]
-    // MONGO(#[from] MongoError),
+    // Mg(#[from] MongoError),
 
     // Tokio lock error
     #[error(transparent)]

@@ -416,11 +416,7 @@ impl<'a> Iterator for RowIter<'a> {
                     }
                     Ok(Event::Eof) => break None,
                     Err(e) => {
-                        self.error = Some(XlError::new_common_error(format!(
-                            "Error at position {}: {:?}",
-                            reader.buffer_position(),
-                            e
-                        )));
+                        self.error = Some(XlError::Xml(e));
                         break None;
                     }
                     _ => (),

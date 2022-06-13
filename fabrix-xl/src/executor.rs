@@ -98,7 +98,7 @@ impl TryFrom<XlSource> for XlWorkbook<File> {
         match value {
             XlSource::File(file) => Ok(XlWorkbook::new(file)?),
             XlSource::Path(path) => Ok(XlWorkbook::new(File::open(path)?)?),
-            _ => Err(XlError::new_common_error("Unsupported XlSource type")),
+            _ => Err(XlError::UnsupportedSource),
         }
     }
 }
@@ -109,7 +109,7 @@ impl TryFrom<XlSource> for XlWorkbook<Cursor<Vec<u8>>> {
     fn try_from(value: XlSource) -> Result<Self, Self::Error> {
         match value {
             XlSource::Buff(bytes) => Ok(XlWorkbook::new(bytes)?),
-            _ => Err(XlError::new_common_error("Unsupported XlSource type")),
+            _ => Err(XlError::UnsupportedSource),
         }
     }
 }
@@ -143,7 +143,7 @@ where
         let sheets = workbook.sheets()?;
         let sheet = match sheets.get(sheet_name) {
             Some(ws) => ws,
-            None => return Err(XlError::new_common_error("Sheet not found")),
+            None => return Err(XlError::SourceNotFound("worksheet".to_owned())),
         };
 
         let buffer = sheet.rows(workbook)?;
@@ -462,7 +462,7 @@ where
 
             Ok(worker.into_iter())
         }
-        None => Err(XlError::new_common_error("Workbook not found")),
+        None => Err(XlError::SourceNotFound("workbook".to_owned())),
     }
 }
 

@@ -44,10 +44,7 @@ impl FromStr for SqlBuilder {
             "mysql" | "m" => Ok(SqlBuilder::Mysql),
             "postgres" | "p" => Ok(SqlBuilder::Postgres),
             "sqlite" | "s" => Ok(SqlBuilder::Sqlite),
-            _ => Err(SqlError::new_common_error(format!(
-                "{} is not a valid sql builder",
-                s
-            ))),
+            _ => Err(SqlError::InvalidBuilder(s.to_string())),
         }
     }
 }
@@ -148,10 +145,7 @@ pub(crate) fn try_from_value_to_svalue(
             if nullable {
                 Ok(from_data_type_to_null_svalue(dtype))
             } else {
-                Err(SqlError::new_common_error(format!(
-                    "convert {:?} to {:?} error",
-                    value, dtype
-                )))
+                Err(SqlError::Conversion(value.to_string(), dtype.to_string()))
             }
         }
     }
@@ -178,7 +172,7 @@ pub(crate) fn from_svalue_to_value(svalue: SValue, nullable: bool) -> SqlResult<
         SValue::ChronoDateTime(ov) => sv_2_v!(ov, NaiveDateTime, nullable),
         SValue::Decimal(ov) => sv_2_v!(ov, Decimal, nullable),
         SValue::Uuid(ov) => sv_2_v!(ov, Uuid, nullable),
-        _ => Err(SqlError::new_common_error("unsupported type")),
+        _ => Err(SqlError::UnsupportedSeaQueryType),
     }
 }
 

@@ -128,7 +128,7 @@ impl<R: Read + Seek> Reader<R> {
             &sheet_name,
             |d| {
                 XlFabrix::transform_data(d, is_column_wised, has_header)
-                    .map_err(|_| fabrix_xl::XlError::new_common_error("invalid transform"))
+                    .map_err(|e| fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
                 helper.store(d);

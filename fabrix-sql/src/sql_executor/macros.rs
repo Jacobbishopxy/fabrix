@@ -91,7 +91,7 @@
 ///                     None => Ok(Value::Null),
 ///                 }
 ///             }
-///             _ => Err(SqlError::new_common_error(MISMATCHED_SQL_ROW)),
+///             _ => Err(SqlError::MismatchedSqlRow),
 ///         }
 ///     }
 ///
@@ -105,7 +105,7 @@
 ///                 let v: Option<RDecimal> = r.try_get(idx)?;
 ///                 Ok(v.map(|v| v.into()))
 ///             }
-///             _ => Err(SqlError::new_common_error(MISMATCHED_SQL_ROW)),
+///             _ => Err(SqlError::MismatchedSqlRow),
 ///         }
 ///     }
 /// }
@@ -137,7 +137,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::new_common_error($residual))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
                     )?
                 }
             }
@@ -151,7 +151,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::new_common_error($residual))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
                     )?
                 }
             }
@@ -183,7 +183,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::new_common_error($residual))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
                     )?
                 }
             }
@@ -197,7 +197,7 @@ macro_rules! impl_sql_type_tag_marker {
                         },
                     )*
                     $(
-                        _ => Err($crate::SqlError::new_common_error($residual))
+                        _ => Err($crate::SqlError::MismatchedSqlRow($residual.to_owned()))
                     )?
                 }
             }
@@ -219,9 +219,7 @@ pub(crate) use tmap_pair;
 macro_rules! conn_e_err {
     ($pool:expr) => {
         if $pool.is_some() {
-            return Err($crate::SqlError::new_common_error(
-                "connection has already been established",
-            ));
+            return Err($crate::SqlError::ConnectionAlreadyEstablished);
         }
     };
 }
@@ -230,9 +228,7 @@ macro_rules! conn_e_err {
 macro_rules! conn_n_err {
     ($pool:expr) => {
         if $pool.is_none() {
-            return Err($crate::SqlError::new_common_error(
-                "connection has not been established yet",
-            ));
+            return Err($crate::SqlError::ConnectionNotEstablished);
         }
     };
 }

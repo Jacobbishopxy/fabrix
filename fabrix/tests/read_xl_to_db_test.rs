@@ -33,7 +33,7 @@ async fn test_xl2db_async_no_index() {
                 xl2db
                     .convertor
                     .convert_row_wised(d, ())
-                    .map_err(|e| XlError::new_common_error(e.to_string()))
+                    .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
                 Box::pin(async {
@@ -44,7 +44,7 @@ async fn test_xl2db_async_no_index() {
                         .replace_existing_table(SQL_TABLE_NAME, d, true)
                         // .append_table("test_table", d)
                         .await
-                        .map_err(|e| XlError::new_common_error(e.to_string()))
+                        .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
                 })
             },
         )
@@ -102,7 +102,7 @@ async fn test_xl2db_async_with_index_row_wised() {
                 xl2db
                     .convertor
                     .convert_row_wised(d, 0)
-                    .map_err(|e| XlError::new_common_error(e.to_string()))
+                    .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
                 Box::pin(async {
@@ -112,7 +112,7 @@ async fn test_xl2db_async_with_index_row_wised() {
                         .await
                         .replace_existing_table(SQL_TABLE_NAME, d, false)
                         .await
-                        .map_err(|e| XlError::new_common_error(e.to_string()))
+                        .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
                 })
             },
         )
@@ -137,7 +137,7 @@ async fn test_xl2db_async_with_index_col_wised() {
                 xl2db
                     .convertor
                     .convert_col_wised(d, "id")
-                    .map_err(|e| XlError::new_common_error(e.to_string()))
+                    .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
                 Box::pin(async {
@@ -147,7 +147,7 @@ async fn test_xl2db_async_with_index_col_wised() {
                         .await
                         .replace_existing_table(SQL_TABLE_NAME, d, false)
                         .await
-                        .map_err(|e| XlError::new_common_error(e.to_string()))
+                        .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
                 })
             },
         )

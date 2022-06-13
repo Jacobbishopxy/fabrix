@@ -209,13 +209,7 @@ where
                         }
                         // exits the loop when reaching end of file
                         Ok(Event::Eof) => break,
-                        Err(e) => {
-                            return Err(XlError::new_common_error(format!(
-                                "Error at position {}: {:?}",
-                                reader.buffer_position(),
-                                e
-                            )))
-                        }
+                        Err(e) => return Err(XlError::Xml(e)),
                         // There are several other `Event`s we do not consider here
                         _ => (),
                     }
@@ -289,13 +283,7 @@ where
                             sheets.sheets_by_num.push(Some(ws));
                         }
                         Ok(Event::Eof) => break,
-                        Err(e) => {
-                            return Err(XlError::new_common_error(format!(
-                                "Error at position {}: {:?}",
-                                reader.buffer_position(),
-                                e
-                            )))
-                        }
+                        Err(e) => return Err(XlError::Xml(e)),
                         _ => (),
                     }
                     buf.clear();
@@ -370,8 +358,8 @@ where
         let target = match self.xls.by_name(zip_target) {
             Ok(ws) => ws,
             Err(_) => {
-                return Err(XlError::new_common_error(format!(
-                    "Could not find worksheet: {}",
+                return Err(XlError::SourceNotFound(format!(
+                    "worksheet: {}",
                     zip_target
                 )))
             }
@@ -431,13 +419,7 @@ fn strings<READER: Read + Seek>(zip_file: &mut ZipArchive<READER>) -> XlResult<V
                         this_string = String::new();
                     }
                     Ok(Event::Eof) => break,
-                    Err(e) => {
-                        return Err(XlError::new_common_error(format!(
-                            "Error at position {}: {:?}",
-                            reader.buffer_position(),
-                            e,
-                        )))
-                    }
+                    Err(e) => return Err(XlError::Xml(e)),
                     _ => (),
                 }
                 buf.clear();
@@ -488,13 +470,7 @@ fn find_styles<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> XlResult<V
                 }
             }
             Ok(Event::Eof) => break,
-            Err(e) => {
-                return Err(XlError::new_common_error(format!(
-                    "Error at position {}: {:?}",
-                    reader.buffer_position(),
-                    e
-                )))
-            }
+            Err(e) => return Err(XlError::Xml(e)),
             _ => (),
         }
         buf.clear();
@@ -564,18 +540,12 @@ fn get_date_system<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> XlResu
                         break Ok(DateSystem::V1900);
                     }
                     Ok(Event::Eof) => break Ok(DateSystem::V1900),
-                    Err(e) => {
-                        return Err(XlError::new_common_error(format!(
-                            "Error at position {}: {:?}",
-                            reader.buffer_position(),
-                            e
-                        )))
-                    }
+                    Err(e) => return Err(XlError::Xml(e)),
                     _ => (),
                 }
                 buf.clear();
             }
         }
-        Err(_) => Err(XlError::new_common_error("Could not find xl/workbook.xml")),
+        Err(_) => Err(XlError::SourceNotFound("xl/workbook.xml".to_owned())),
     }
 }

@@ -11,42 +11,6 @@ use thiserror::Error;
 
 pub type SqlResult<T> = Result<T, SqlError>;
 
-#[derive(Debug)]
-pub enum CommonError {
-    Str(&'static str),
-    String(String),
-}
-
-impl AsRef<str> for CommonError {
-    fn as_ref(&self) -> &str {
-        match self {
-            CommonError::Str(s) => s,
-            CommonError::String(s) => s.as_str(),
-        }
-    }
-}
-
-impl std::fmt::Display for CommonError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CommonError::Str(v) => write!(f, "{:?}", v),
-            CommonError::String(v) => write!(f, "{:?}", v),
-        }
-    }
-}
-
-impl From<&'static str> for CommonError {
-    fn from(v: &'static str) -> Self {
-        CommonError::Str(v)
-    }
-}
-
-impl From<String> for CommonError {
-    fn from(v: String) -> Self {
-        CommonError::String(v)
-    }
-}
-
 // ================================================================================================
 // Nom error
 // ================================================================================================
@@ -80,11 +44,50 @@ impl<T: AsRef<str>> ParseError<T> for NomError {
 
 #[derive(Error, Debug)]
 pub enum SqlError {
-    #[error("common error {0}")]
-    Common(CommonError),
+    #[error("invalid builder {0}")]
+    InvalidBuilder(String),
+
+    #[error("conversion error {0} to {1}")]
+    Conversion(String, String),
+
+    #[error("unsupported sea-query type")]
+    UnsupportedSeaQueryType,
+
+    #[error("invalid type {0}")]
+    InvalidType(String),
+
+    #[error("invalid constraint")]
+    InvalidConstraint,
+
+    #[error("invalid index type {0}")]
+    InvalidIndex(String),
+
+    #[error("invalid connection string {0}")]
+    InvalidConnStr(String),
+
+    #[error("connection has already been established")]
+    ConnectionAlreadyEstablished,
+
+    #[error("connection has not been established")]
+    ConnectionNotEstablished,
+
+    #[error("unsupported database operation {0}")]
+    UnsupportedDatabaseOperation(String),
+
+    #[error("source {0} not found")]
+    SourceNotFound(String),
+
+    #[error("source {0} already exists")]
+    SourceAlreadyExists(String),
+
+    #[error("content {0} is empty")]
+    EmptyContent(String),
+
+    #[error("mismatched sql row {0}")]
+    MismatchedSqlRow(String),
 
     #[error(transparent)]
-    CORE(#[from] CoreError),
+    Core(#[from] CoreError),
 
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
@@ -100,13 +103,6 @@ pub enum SqlError {
 }
 
 impl SqlError {
-    pub fn new_common_error<T>(msg: T) -> SqlError
-    where
-        T: Into<CommonError>,
-    {
-        SqlError::Common(msg.into())
-    }
-
     pub fn turn_into_sqlx_decode_error(self) -> sqlx::Error {
         match self {
             SqlError::Sqlx(se) => se,

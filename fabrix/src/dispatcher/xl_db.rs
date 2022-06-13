@@ -473,7 +473,9 @@ mod test_xl_reader {
                 |d| {
                     convertor
                         .convert_col_wised(d, XlIndexSelection::None)
-                        .map_err(|_| fabrix_xl::XlError::new_common_error("invalid convert"))
+                        .map_err(|e| {
+                            fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e))
+                        })
                 },
                 |d| {
                     Box::pin(async {
@@ -481,7 +483,9 @@ mod test_xl_reader {
                         let mut lk = am.lock().await;
                         lk.replace_existing_table("test_table", d, true)
                             .await
-                            .map_err(|_| fabrix_xl::XlError::new_common_error("invalid consume"))
+                            .map_err(|e| {
+                                fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e))
+                            })
                             .map(|_| ())
                     })
                 },
@@ -512,7 +516,9 @@ mod test_xl_reader {
                     xl2db
                         .convertor
                         .convert_col_wised(d, XlIndexSelection::None)
-                        .map_err(|_| fabrix_xl::XlError::new_common_error("invalid convert"))
+                        .map_err(|e| {
+                            fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e))
+                        })
                 },
                 |d| {
                     Box::pin(async {
@@ -522,7 +528,9 @@ mod test_xl_reader {
                             .await
                             .replace_existing_table("test_table", d, true)
                             .await
-                            .map_err(|_| fabrix_xl::XlError::new_common_error("invalid consume"))
+                            .map_err(|e| {
+                                fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e))
+                            })
                             .map(|_| ())
                     })
                 },
