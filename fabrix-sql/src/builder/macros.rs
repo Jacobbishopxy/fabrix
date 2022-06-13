@@ -4,7 +4,7 @@ macro_rules! statement {
         match $builder {
             $crate::SqlBuilder::Mysql => $statement.to_string(sea_query::MysqlQueryBuilder),
             $crate::SqlBuilder::Postgres => $statement.to_string(sea_query::PostgresQueryBuilder),
-            $crate::SqlBuilder::Sqlite => $crate::sql_builder::macros::sqlite_str_replace(
+            $crate::SqlBuilder::Sqlite => $crate::builder::macros::sqlite_str_replace(
                 $statement.to_string(sea_query::SqliteQueryBuilder),
             ),
         }

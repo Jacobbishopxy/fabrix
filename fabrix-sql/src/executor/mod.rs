@@ -8,13 +8,13 @@ use nom::bytes::complete::{tag, take_until1};
 use nom::character::complete::{alpha1, alphanumeric1, digit1};
 use nom::sequence::separated_pair;
 
-pub mod executor;
+pub mod ec;
 pub mod loader;
 pub mod macros;
 pub mod processor;
 pub mod types;
 
-pub use executor::{SqlEngine, SqlExecutor, SqlHelper};
+pub use ec::{SqlEngine, SqlExecutor, SqlHelper};
 pub use loader::*;
 pub(crate) use macros::*;
 pub(crate) use processor::SqlRowProcessor;

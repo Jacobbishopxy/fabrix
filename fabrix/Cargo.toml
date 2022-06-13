@@ -7,8 +7,8 @@ edition = "2021"
 [dependencies]
 # Self-contained dependencies
 fabrix-core = { path = "../fabrix-core" }
-fabrix-sql = { path = "../fabrix-sql" }
-fabrix-xl = { path = "../fabrix-xl" }
+fabrix-sql = { path = "../fabrix-sql", optional = true }
+fabrix-xl = { path = "../fabrix-xl", optional = true }
 
 # General dependencies
 async-trait = "0"
@@ -31,8 +31,8 @@ uuid = { version = "0", features = ["serde", "v4"] }
 
 [features]
 default = ["sql", "xl", "csv", "parquet", "json", "bson", "mongo"]
-sql = []
-xl = []
+sql = ["dep:fabrix-sql"]
+xl = ["dep:fabrix-xl"]
 csv = []
 parquet = []
 json = []

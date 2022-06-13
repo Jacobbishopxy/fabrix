@@ -122,7 +122,6 @@ There are three main parts in this crate:
 
 ## Todo
 
-- all packages' error handling
 - sql dynamic connection pool helper
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
