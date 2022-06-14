@@ -2,17 +2,26 @@
 //!
 //! Used for maintaining dynamic connections of different sources, such as databases, files, etc.
 
+pub mod error;
+
 use std::hash::Hash;
 use std::sync::Arc;
 
+use dashmap::iter::Iter;
+use dashmap::mapref::one::{Ref, RefMut};
 use dashmap::DashMap;
+
+// TODO:
+// 1. make DynConn as a trait
+// 2. impl custom logic for K & V
+// 3. test case use actix-web (https://actix.rs/docs/application/)
 
 #[derive(Default)]
 pub struct DynConn<K, V>
 where
     K: Eq + Hash,
 {
-    store: Arc<DashMap<K, V>>,
+    pub store: Arc<DashMap<K, V>>,
 }
 
 impl<K, V> DynConn<K, V>
@@ -25,18 +34,36 @@ where
         }
     }
 
-    // pub fn get(&self, key: &K) -> Option<&V> {
-    //     let foo = self.store.get(key);
-    //     let bar = foo.as_ref().map(|v| v.value());
-    //     bar
-    // }
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.store.contains_key(key)
+    }
 
-    // pub fn list_all(&self) -> Vec<(&K, &V)> {
-    //     self.store.iter().map(|c| c.pair()).collect()
-    // }
+    pub fn get(&self, key: &K) -> Option<Ref<K, V>> {
+        self.store.get(key)
+    }
+
+    pub fn get_mut(&self, key: &K) -> Option<RefMut<K, V>> {
+        self.store.get_mut(key)
+    }
+
+    pub fn try_get(&self, key: &K) -> Option<Ref<K, V>> {
+        self.store.try_get(key).try_unwrap()
+    }
+
+    pub fn try_get_mut(&self, key: &K) -> Option<RefMut<K, V>> {
+        self.store.try_get_mut(key).try_unwrap()
+    }
+
+    pub fn iter(&self) -> Iter<K, V> {
+        self.store.iter()
+    }
 
     pub fn insert(&mut self, key: K, value: V) {
         self.store.insert(key, value);
+    }
+
+    pub fn remove(&mut self, key: &K) {
+        self.store.remove(key);
     }
 }
 
