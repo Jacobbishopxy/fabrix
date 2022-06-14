@@ -5,6 +5,7 @@ members=[
   "fabrix-mg",
   "fabrix-sql",
   "fabrix-xl",
+  "fabrix-dyn-conn",
 ]
 exclude=[
   "examples",

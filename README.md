@@ -53,6 +53,8 @@ There are three main parts in this crate:
 |
 ├── fabrix-mg                          // MongoDB utility
 |
+├── fabrix-dyn-conn                    // Dynamic connection package for Database & MongoDB
+|
 ├── fabrix                             // Fabrix
 │   │
 │   ├── sources                        // Fabrix source

@@ -160,7 +160,7 @@ where
     async fn begin_transaction(&self) -> SqlResult<LoaderTransaction<'_>>;
 }
 
-pub trait DatabaseType: Send + Sync
+pub trait DatabaseType: Send + Sync + 'static
 where
     Self: Sized,
 {
@@ -178,6 +178,10 @@ where
 
     fn get_pool(&self) -> LoaderPool;
 
+    fn get_conn_size(&self) -> usize;
+
+    fn get_conn_idle(&self) -> usize;
+
     fn get_driver() -> SqlBuilder;
 }
 
@@ -190,6 +194,14 @@ impl DatabaseType for DatabaseMysql {
 
     fn get_pool(&self) -> LoaderPool {
         LoaderPool::Mysql(&self.0)
+    }
+
+    fn get_conn_size(&self) -> usize {
+        self.0.size() as usize
+    }
+
+    fn get_conn_idle(&self) -> usize {
+        self.0.num_idle()
     }
 
     fn get_driver() -> SqlBuilder {
@@ -208,6 +220,14 @@ impl DatabaseType for DatabasePg {
         LoaderPool::Pg(&self.0)
     }
 
+    fn get_conn_size(&self) -> usize {
+        self.0.size() as usize
+    }
+
+    fn get_conn_idle(&self) -> usize {
+        self.0.num_idle()
+    }
+
     fn get_driver() -> SqlBuilder {
         SqlBuilder::Postgres
     }
@@ -222,6 +242,14 @@ impl DatabaseType for DatabaseSqlite {
 
     fn get_pool(&self) -> LoaderPool {
         LoaderPool::Sqlite(&self.0)
+    }
+
+    fn get_conn_size(&self) -> usize {
+        self.0.size() as usize
+    }
+
+    fn get_conn_idle(&self) -> usize {
+        self.0.num_idle()
     }
 
     fn get_driver() -> SqlBuilder {

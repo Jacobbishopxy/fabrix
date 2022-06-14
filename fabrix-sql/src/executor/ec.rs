@@ -4,7 +4,7 @@
 //! SqlEngine: general sql functions trait
 //! SqlExecutor: sql executor
 
-use std::str::FromStr;
+use std::{any::Any, str::FromStr};
 
 use async_trait::async_trait;
 use fabrix_core::{D1Value, Fabrix, Series, Value, ValueType};
@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait SqlHelper {
+pub trait SqlHelper: Send + Sync {
     // ================================================================================================
     // Query
     // ================================================================================================
@@ -85,7 +85,7 @@ pub trait SqlHelper {
 
 /// An engin is an interface to describe sql executor's business logic
 #[async_trait]
-pub trait SqlEngine: SqlHelper {
+pub trait SqlEngine: SqlHelper + Send + Sync {
     /// connect to the database
     async fn connect(&mut self) -> SqlResult<()>;
 
@@ -116,6 +116,8 @@ pub trait SqlEngine: SqlHelper {
 
     /// get data from db. If the table has primary key, DataFrame's index will be the primary key
     async fn select(&self, select: &sql_adt::Select) -> SqlResult<Fabrix>;
+
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// Executor is the core struct of db mod.
@@ -140,6 +142,10 @@ where
             conn_str: conn_info.to_string(),
             pool: None,
         }
+    }
+
+    pub fn get_conn_str(&self) -> &str {
+        &self.conn_str
     }
 }
 
@@ -541,6 +547,10 @@ where
         df.set_column_names(&select.columns_name())?;
 
         Ok(df)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

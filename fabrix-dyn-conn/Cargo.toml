@@ -1,0 +1,16 @@
+[package]
+name = "fabrix-dyn-conn"
+authors = ["JacobX <jacobbishopxy@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+dashmap = "5"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+fabrix-core = { path = "../fabrix-core" }
+fabrix-sql = { path = "../fabrix-sql" }
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "0", features = ["serde", "v4"] }
