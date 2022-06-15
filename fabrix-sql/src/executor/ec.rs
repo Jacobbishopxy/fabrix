@@ -1,10 +1,11 @@
 //! Database executor
 //!
+//! SqlInfo: info functions trait
 //! SqlHelper: helper functions trait
 //! SqlEngine: general sql functions trait
 //! SqlExecutor: sql executor
 
-use std::str::FromStr;
+use std::{any::Any, str::FromStr};
 
 use async_trait::async_trait;
 use fabrix_core::{D1Value, Fabrix, Series, Value, ValueType};
@@ -20,7 +21,25 @@ use crate::{
 };
 
 #[async_trait]
-pub trait SqlHelper {
+pub trait SqlMeta: Send + Sync {
+    /// get the database type
+    fn get_driver(&self) -> &SqlBuilder;
+
+    /// get the connection string
+    fn get_conn_str(&self) -> &str;
+
+    /// connect to the database
+    async fn connect(&mut self) -> SqlResult<()>;
+
+    /// disconnect from the database
+    async fn disconnect(&mut self) -> SqlResult<()>;
+
+    /// check if the database is closed
+    fn is_connected(&self) -> bool;
+}
+
+#[async_trait]
+pub trait SqlHelper: Send + Sync {
     // ================================================================================================
     // Query
     // ================================================================================================
@@ -46,8 +65,8 @@ pub trait SqlHelper {
     /// get column index from a table
     async fn get_column_index(&self, table_name: &str) -> SqlResult<Vec<sql_adt::ColumnIndex>>;
 
-    /// list all tables
-    async fn list_tables(&self) -> SqlResult<Vec<String>>;
+    /// get all tables name
+    async fn get_tables_name(&self) -> SqlResult<Vec<String>>;
 
     /// get primary key from a table
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String>;
@@ -85,13 +104,7 @@ pub trait SqlHelper {
 
 /// An engin is an interface to describe sql executor's business logic
 #[async_trait]
-pub trait SqlEngine: SqlHelper {
-    /// connect to the database
-    async fn connect(&mut self) -> SqlResult<()>;
-
-    /// disconnect from the database
-    async fn disconnect(&mut self) -> SqlResult<()>;
-
+pub trait SqlEngine: SqlMeta + SqlHelper + Send + Sync {
     /// insert data into a table, dataframe index is the primary key
     async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
 
@@ -116,6 +129,8 @@ pub trait SqlEngine: SqlHelper {
 
     /// get data from db. If the table has primary key, DataFrame's index will be the primary key
     async fn select(&self, select: &sql_adt::Select) -> SqlResult<Fabrix>;
+
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// Executor is the core struct of db mod.
@@ -141,6 +156,10 @@ where
             pool: None,
         }
     }
+
+    pub fn get_conn_str(&self) -> &str {
+        &self.conn_str
+    }
 }
 
 impl<T> FromStr for SqlExecutor<T>
@@ -161,6 +180,36 @@ where
             conn_str: s.to_string(),
             pool: None,
         })
+    }
+}
+
+#[async_trait]
+impl<T> SqlMeta for SqlExecutor<T>
+where
+    T: DatabaseType,
+{
+    fn get_driver(&self) -> &SqlBuilder {
+        &self.driver
+    }
+
+    fn get_conn_str(&self) -> &str {
+        &self.conn_str
+    }
+
+    async fn connect(&mut self) -> SqlResult<()> {
+        conn_e_err!(self.pool);
+        self.pool = Some(T::connect(&self.conn_str).await?);
+        Ok(())
+    }
+
+    async fn disconnect(&mut self) -> SqlResult<()> {
+        conn_n_err!(self.pool);
+        self.pool.as_ref().unwrap().disconnect().await;
+        Ok(())
+    }
+
+    fn is_connected(&self) -> bool {
+        self.pool.as_ref().unwrap().is_connected()
     }
 }
 
@@ -299,7 +348,7 @@ where
         Ok(res)
     }
 
-    async fn list_tables(&self) -> SqlResult<Vec<String>> {
+    async fn get_tables_name(&self) -> SqlResult<Vec<String>> {
         conn_n_err!(self.pool);
         let que = self.driver.list_tables();
         let schema = [ValueType::String];
@@ -401,18 +450,6 @@ impl<T> SqlEngine for SqlExecutor<T>
 where
     T: DatabaseType,
 {
-    async fn connect(&mut self) -> SqlResult<()> {
-        conn_e_err!(self.pool);
-        self.pool = Some(T::connect(&self.conn_str).await?);
-        Ok(())
-    }
-
-    async fn disconnect(&mut self) -> SqlResult<()> {
-        conn_n_err!(self.pool);
-        self.pool.as_ref().unwrap().disconnect().await;
-        Ok(())
-    }
-
     async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.insert(table_name, data)?;
@@ -541,6 +578,10 @@ where
         df.set_column_names(&select.columns_name())?;
 
         Ok(df)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

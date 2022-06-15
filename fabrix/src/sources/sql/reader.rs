@@ -5,7 +5,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use fabrix_sql::{sql_adt, DatabaseType, SqlConnInfo, SqlEngine, SqlError, SqlExecutor};
+use fabrix_sql::{sql_adt, DatabaseType, SqlConnInfo, SqlEngine, SqlError, SqlExecutor, SqlMeta};
 
 use crate::{Fabrix, FabrixError, FabrixResult, FromSource, ReadOptions};
 

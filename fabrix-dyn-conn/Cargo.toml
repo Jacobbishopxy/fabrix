@@ -1,19 +1,19 @@
 [package]
-name = "fabrix-core"
+name = "fabrix-dyn-conn"
 authors = ["JacobX <jacobbishopxy@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
 
+
 [dependencies]
-chrono = { version = "0", features = ["serde"] }
-itertools = "0"
-polars = { version = "0", features = [
-    "bigidx",
-    "strings",
-    "dtype-full",
-    "object",
-] }
-rust_decimal = "1"
+fabrix-core = { path = "../fabrix-core" }
+fabrix-sql = { path = "../fabrix-sql" }
+
+async-trait = "0"
+dashmap = "5"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
 uuid = { version = "0", features = ["serde", "v4"] }

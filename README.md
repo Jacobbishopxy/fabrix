@@ -24,9 +24,9 @@ There are three main parts in this crate:
 |
 ├── fabrix-sql                         // SQL package
 │   │
-│   ├── sql_builder                    // SQL builder
+│   ├── builder                        // SQL builder
 │   │   ├── sql_adt.rs                 // algebraic data type
-│   │   ├── builder.rs                 // builder functions
+│   │   ├── bd.rs                      // builder functions
 │   │   ├── interface.rs               // SQL builder & ddl/dml logic interface
 │   │   ├── query_ddl.rs               // ddl query: check table or schema
 │   │   ├── query_dml.rs               // dml query: select and etc
@@ -34,11 +34,11 @@ There are three main parts in this crate:
 │   │   ├── mutation_dml.rs            // dml mutation: insert/update/delete data
 │   │   └── macros.rs                  // Macros for SQL builder
 │   │
-│   ├── sql_executor                   // SQL executor
+│   ├── executor                       // SQL executor
 │   │   ├── types.rs                   // Conversion between Sql data type and Fabrix `Value`
 │   │   ├── processor.rs               // Sql row process, turn raw sql row into `Vec<Value>` or `Row`
 │   │   ├── loader.rs                  // Database loader, CRUD logic implementation
-│   │   ├── executor.rs                // Sql executor, business logic implementation
+│   │   ├── ec.rs                      // Sql executor, business logic implementation
 │   │   └── macros.rs                  // Macros for sql executor
 │   │
 │   └── error.rs                       // Sql error
@@ -52,6 +52,8 @@ There are three main parts in this crate:
 │   └── error.rs                       // Xl error
 |
 ├── fabrix-mg                          // MongoDB utility
+|
+├── fabrix-dyn-conn                    // Dynamic connection package for Database & MongoDB
 |
 ├── fabrix                             // Fabrix
 │   │
@@ -122,7 +124,7 @@ There are three main parts in this crate:
 
 ## Todo
 
-- sql dynamic connection pool helper
+- fabrix-dyn-conn example
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support

@@ -104,6 +104,9 @@ where
     /// disconnect from the current database
     async fn disconnect(&self);
 
+    /// check if the database is connected
+    fn is_connected(&self) -> bool;
+
     /// fetch all and return 2d Value Vec
     async fn fetch_all(&self, query: &str) -> SqlResult<D2Value>;
 
@@ -160,23 +163,27 @@ where
     async fn begin_transaction(&self) -> SqlResult<LoaderTransaction<'_>>;
 }
 
-pub trait DatabaseType: Send + Sync
+pub trait DatabaseType: Send + Sync + 'static
 where
     Self: Sized,
 {
-    fn new_mysql_pool(_pool: MySqlPool) -> Self {
+    fn new_mysql_pool(_: MySqlPool) -> Self {
         unimplemented!()
     }
 
-    fn new_pg_pool(_pool: PgPool) -> Self {
+    fn new_pg_pool(_: PgPool) -> Self {
         unimplemented!()
     }
 
-    fn new_sqlite_pool(_pool: SqlitePool) -> Self {
+    fn new_sqlite_pool(_: SqlitePool) -> Self {
         unimplemented!()
     }
 
     fn get_pool(&self) -> LoaderPool;
+
+    fn get_conn_size(&self) -> usize;
+
+    fn get_conn_idle(&self) -> usize;
 
     fn get_driver() -> SqlBuilder;
 }
@@ -190,6 +197,14 @@ impl DatabaseType for DatabaseMysql {
 
     fn get_pool(&self) -> LoaderPool {
         LoaderPool::Mysql(&self.0)
+    }
+
+    fn get_conn_size(&self) -> usize {
+        self.0.size() as usize
+    }
+
+    fn get_conn_idle(&self) -> usize {
+        self.0.num_idle()
     }
 
     fn get_driver() -> SqlBuilder {
@@ -208,6 +223,14 @@ impl DatabaseType for DatabasePg {
         LoaderPool::Pg(&self.0)
     }
 
+    fn get_conn_size(&self) -> usize {
+        self.0.size() as usize
+    }
+
+    fn get_conn_idle(&self) -> usize {
+        self.0.num_idle()
+    }
+
     fn get_driver() -> SqlBuilder {
         SqlBuilder::Postgres
     }
@@ -222,6 +245,14 @@ impl DatabaseType for DatabaseSqlite {
 
     fn get_pool(&self) -> LoaderPool {
         LoaderPool::Sqlite(&self.0)
+    }
+
+    fn get_conn_size(&self) -> usize {
+        self.0.size() as usize
+    }
+
+    fn get_conn_idle(&self) -> usize {
+        self.0.num_idle()
     }
 
     fn get_driver() -> SqlBuilder {
@@ -278,6 +309,14 @@ where
             LoaderPool::Mysql(pool) => pool.close().await,
             LoaderPool::Pg(pool) => pool.close().await,
             LoaderPool::Sqlite(pool) => pool.close().await,
+        }
+    }
+
+    fn is_connected(&self) -> bool {
+        match self.get_pool() {
+            LoaderPool::Mysql(pool) => !pool.is_closed(),
+            LoaderPool::Pg(pool) => !pool.is_closed(),
+            LoaderPool::Sqlite(pool) => !pool.is_closed(),
         }
     }
 
