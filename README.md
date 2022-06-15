@@ -124,7 +124,7 @@ There are three main parts in this crate:
 
 ## Todo
 
-- sql dynamic connection pool helper
+- fabrix-dyn-conn example
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support
