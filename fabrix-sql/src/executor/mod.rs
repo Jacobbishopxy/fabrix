@@ -14,7 +14,7 @@ pub mod macros;
 pub mod processor;
 pub mod types;
 
-pub use ec::{SqlEngine, SqlExecutor, SqlHelper};
+pub use ec::{SqlEngine, SqlExecutor, SqlHelper, SqlInfo};
 pub use loader::*;
 pub(crate) use macros::*;
 pub(crate) use processor::SqlRowProcessor;

@@ -1,5 +1,6 @@
 //! Database executor
 //!
+//! SqlInfo: info functions trait
 //! SqlHelper: helper functions trait
 //! SqlEngine: general sql functions trait
 //! SqlExecutor: sql executor
@@ -18,6 +19,12 @@ use super::{
 use crate::{
     sql_adt, DdlMutation, DdlQuery, DmlMutation, DmlQuery, SqlBuilder, SqlError, SqlResult,
 };
+
+pub trait SqlInfo: Send + Sync {
+    fn get_driver(&self) -> &SqlBuilder;
+
+    fn get_conn_str(&self) -> &str;
+}
 
 #[async_trait]
 pub trait SqlHelper: Send + Sync {
@@ -85,12 +92,15 @@ pub trait SqlHelper: Send + Sync {
 
 /// An engin is an interface to describe sql executor's business logic
 #[async_trait]
-pub trait SqlEngine: SqlHelper + Send + Sync {
+pub trait SqlEngine: SqlInfo + SqlHelper + Send + Sync {
     /// connect to the database
     async fn connect(&mut self) -> SqlResult<()>;
 
     /// disconnect from the database
     async fn disconnect(&mut self) -> SqlResult<()>;
+
+    /// check if the database is closed
+    fn is_connected(&self) -> bool;
 
     /// insert data into a table, dataframe index is the primary key
     async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
@@ -167,6 +177,19 @@ where
             conn_str: s.to_string(),
             pool: None,
         })
+    }
+}
+
+impl<T> SqlInfo for SqlExecutor<T>
+where
+    T: DatabaseType,
+{
+    fn get_driver(&self) -> &SqlBuilder {
+        &self.driver
+    }
+
+    fn get_conn_str(&self) -> &str {
+        &self.conn_str
     }
 }
 
@@ -417,6 +440,10 @@ where
         conn_n_err!(self.pool);
         self.pool.as_ref().unwrap().disconnect().await;
         Ok(())
+    }
+
+    fn is_connected(&self) -> bool {
+        self.pool.as_ref().unwrap().is_connected()
     }
 
     async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {

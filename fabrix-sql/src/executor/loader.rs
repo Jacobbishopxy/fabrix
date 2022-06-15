@@ -104,6 +104,9 @@ where
     /// disconnect from the current database
     async fn disconnect(&self);
 
+    /// check if the database is connected
+    fn is_connected(&self) -> bool;
+
     /// fetch all and return 2d Value Vec
     async fn fetch_all(&self, query: &str) -> SqlResult<D2Value>;
 
@@ -164,15 +167,15 @@ pub trait DatabaseType: Send + Sync + 'static
 where
     Self: Sized,
 {
-    fn new_mysql_pool(_pool: MySqlPool) -> Self {
+    fn new_mysql_pool(_: MySqlPool) -> Self {
         unimplemented!()
     }
 
-    fn new_pg_pool(_pool: PgPool) -> Self {
+    fn new_pg_pool(_: PgPool) -> Self {
         unimplemented!()
     }
 
-    fn new_sqlite_pool(_pool: SqlitePool) -> Self {
+    fn new_sqlite_pool(_: SqlitePool) -> Self {
         unimplemented!()
     }
 
@@ -306,6 +309,14 @@ where
             LoaderPool::Mysql(pool) => pool.close().await,
             LoaderPool::Pg(pool) => pool.close().await,
             LoaderPool::Sqlite(pool) => pool.close().await,
+        }
+    }
+
+    fn is_connected(&self) -> bool {
+        match self.get_pool() {
+            LoaderPool::Mysql(pool) => !pool.is_closed(),
+            LoaderPool::Pg(pool) => !pool.is_closed(),
+            LoaderPool::Sqlite(pool) => !pool.is_closed(),
         }
     }
 

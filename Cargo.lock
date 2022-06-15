@@ -588,10 +588,12 @@ dependencies = [
 name = "fabrix-dyn-conn"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dashmap",
  "fabrix-core",
  "fabrix-sql",
  "serde",
+ "thiserror",
  "tokio",
  "uuid",
 ]
