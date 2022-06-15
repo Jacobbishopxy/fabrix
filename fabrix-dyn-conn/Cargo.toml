@@ -6,6 +6,7 @@ edition = "2021"
 
 
 [dependencies]
+fabrix-core = { path = "../fabrix-core" }
 fabrix-sql = { path = "../fabrix-sql" }
 
 async-trait = "0"
@@ -14,6 +15,5 @@ serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 
 [dev-dependencies]
-fabrix-core = { path = "../fabrix-core" }
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "0", features = ["serde", "v4"] }

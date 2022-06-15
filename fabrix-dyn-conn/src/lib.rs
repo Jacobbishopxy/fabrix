@@ -37,7 +37,7 @@ mod dyn_conn_tests {
 
     use std::str::FromStr;
 
-    use fabrix_sql::{DatabasePg, DatabaseSqlite, SqlEngine, SqlExecutor, SqlHelper};
+    use fabrix_sql::{DatabasePg, DatabaseSqlite, SqlEngine, SqlExecutor, SqlHelper, SqlMeta};
     use uuid::Uuid;
 
     use super::*;
@@ -96,7 +96,7 @@ mod dyn_conn_tests {
                 .downcast_ref::<SqlExecutor<DatabasePg>>()
                 .unwrap();
 
-            p1.list_tables().await
+            p1.get_tables_name().await
         };
 
         let task2 = async move {
@@ -106,7 +106,7 @@ mod dyn_conn_tests {
                 .downcast_ref::<SqlExecutor<DatabaseSqlite>>()
                 .unwrap();
 
-            p1.list_tables().await
+            p1.get_tables_name().await
         };
 
         let (res1, res2) = tokio::join!(task1, task2);

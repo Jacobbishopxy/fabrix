@@ -20,10 +20,22 @@ use crate::{
     sql_adt, DdlMutation, DdlQuery, DmlMutation, DmlQuery, SqlBuilder, SqlError, SqlResult,
 };
 
-pub trait SqlInfo: Send + Sync {
+#[async_trait]
+pub trait SqlMeta: Send + Sync {
+    /// get the database type
     fn get_driver(&self) -> &SqlBuilder;
 
+    /// get the connection string
     fn get_conn_str(&self) -> &str;
+
+    /// connect to the database
+    async fn connect(&mut self) -> SqlResult<()>;
+
+    /// disconnect from the database
+    async fn disconnect(&mut self) -> SqlResult<()>;
+
+    /// check if the database is closed
+    fn is_connected(&self) -> bool;
 }
 
 #[async_trait]
@@ -53,8 +65,8 @@ pub trait SqlHelper: Send + Sync {
     /// get column index from a table
     async fn get_column_index(&self, table_name: &str) -> SqlResult<Vec<sql_adt::ColumnIndex>>;
 
-    /// list all tables
-    async fn list_tables(&self) -> SqlResult<Vec<String>>;
+    /// get all tables name
+    async fn get_tables_name(&self) -> SqlResult<Vec<String>>;
 
     /// get primary key from a table
     async fn get_primary_key(&self, table_name: &str) -> SqlResult<String>;
@@ -92,16 +104,7 @@ pub trait SqlHelper: Send + Sync {
 
 /// An engin is an interface to describe sql executor's business logic
 #[async_trait]
-pub trait SqlEngine: SqlInfo + SqlHelper + Send + Sync {
-    /// connect to the database
-    async fn connect(&mut self) -> SqlResult<()>;
-
-    /// disconnect from the database
-    async fn disconnect(&mut self) -> SqlResult<()>;
-
-    /// check if the database is closed
-    fn is_connected(&self) -> bool;
-
+pub trait SqlEngine: SqlMeta + SqlHelper + Send + Sync {
     /// insert data into a table, dataframe index is the primary key
     async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64>;
 
@@ -180,7 +183,8 @@ where
     }
 }
 
-impl<T> SqlInfo for SqlExecutor<T>
+#[async_trait]
+impl<T> SqlMeta for SqlExecutor<T>
 where
     T: DatabaseType,
 {
@@ -190,6 +194,22 @@ where
 
     fn get_conn_str(&self) -> &str {
         &self.conn_str
+    }
+
+    async fn connect(&mut self) -> SqlResult<()> {
+        conn_e_err!(self.pool);
+        self.pool = Some(T::connect(&self.conn_str).await?);
+        Ok(())
+    }
+
+    async fn disconnect(&mut self) -> SqlResult<()> {
+        conn_n_err!(self.pool);
+        self.pool.as_ref().unwrap().disconnect().await;
+        Ok(())
+    }
+
+    fn is_connected(&self) -> bool {
+        self.pool.as_ref().unwrap().is_connected()
     }
 }
 
@@ -328,7 +348,7 @@ where
         Ok(res)
     }
 
-    async fn list_tables(&self) -> SqlResult<Vec<String>> {
+    async fn get_tables_name(&self) -> SqlResult<Vec<String>> {
         conn_n_err!(self.pool);
         let que = self.driver.list_tables();
         let schema = [ValueType::String];
@@ -430,22 +450,6 @@ impl<T> SqlEngine for SqlExecutor<T>
 where
     T: DatabaseType,
 {
-    async fn connect(&mut self) -> SqlResult<()> {
-        conn_e_err!(self.pool);
-        self.pool = Some(T::connect(&self.conn_str).await?);
-        Ok(())
-    }
-
-    async fn disconnect(&mut self) -> SqlResult<()> {
-        conn_n_err!(self.pool);
-        self.pool.as_ref().unwrap().disconnect().await;
-        Ok(())
-    }
-
-    fn is_connected(&self) -> bool {
-        self.pool.as_ref().unwrap().is_connected()
-    }
-
     async fn insert(&self, table_name: &str, data: Fabrix) -> SqlResult<u64> {
         conn_n_err!(self.pool);
         let que = self.driver.insert(table_name, data)?;

@@ -5,6 +5,7 @@
 use std::{fmt::Display, hash::Hash, ops::Deref};
 
 use async_trait::async_trait;
+use fabrix_core::{D1Value, Series};
 use fabrix_sql::{sql_adt, SqlBuilder, SqlEngine};
 
 use crate::{DynConn, DynConnError, DynConnResult};
@@ -22,6 +23,12 @@ where
 
     fn get_conn_str(&self, key: &K) -> DynConnResult<String>;
 
+    async fn connect(&mut self, key: &K) -> DynConnResult<()>;
+
+    async fn disconnect(&mut self, key: &K) -> DynConnResult<()>;
+
+    fn is_connected(&self, key: &K) -> DynConnResult<bool>;
+
     // ================================================================================================
     // SqlHelper
     // ================================================================================================
@@ -34,17 +41,59 @@ where
         table: &str,
     ) -> DynConnResult<Vec<sql_adt::TableSchema>>;
 
-    // TODO: the rest of the methods
+    async fn get_table_constraint(
+        &self,
+        key: &K,
+        table: &str,
+    ) -> DynConnResult<Vec<sql_adt::TableConstraint>>;
+
+    async fn get_column_constraint(
+        &self,
+        key: &K,
+        table: &str,
+    ) -> DynConnResult<Vec<sql_adt::ColumnConstraint>>;
+
+    async fn get_column_index(
+        &self,
+        key: &K,
+        table_name: &str,
+    ) -> DynConnResult<Vec<sql_adt::ColumnIndex>>;
+
+    async fn get_tables_name(&self, key: &K) -> DynConnResult<Vec<String>>;
+
+    async fn get_primary_key(&self, key: &K, table: &str) -> DynConnResult<String>;
+
+    async fn get_existing_ids(
+        &self,
+        key: &K,
+        table_name: &str,
+        ids: &Series,
+    ) -> DynConnResult<D1Value>;
+
+    async fn drop_table(&self, key: &K, table: &str) -> DynConnResult<()>;
+
+    async fn rename_table(&self, key: &K, from: &str, to: &str) -> DynConnResult<()>;
+
+    async fn truncate_table(&self, key: &K, table: &str) -> DynConnResult<()>;
+
+    async fn create_index(
+        &self,
+        key: &K,
+        table: &str,
+        column: &str,
+        index: Option<&str>,
+    ) -> DynConnResult<()>;
+
+    async fn drop_index(&self, key: &K, table: &str, index: &str) -> DynConnResult<()>;
 
     // ================================================================================================
     // SqlEngine
     // ================================================================================================
 
-    fn check_connection(&self, key: &K) -> DynConnResult<bool>;
-
     // TODO: the rest of the methods
 }
 
+/// used for getting the SqlExecutor for a given key
 macro_rules! gv {
     ($self:expr, $key:expr) => {{
         let v = $self.store.try_get($key);
@@ -71,6 +120,18 @@ where
         Ok(gv!(self, key).get_conn_str().to_string())
     }
 
+    async fn connect(&mut self, key: &K) -> DynConnResult<()> {
+        todo!()
+    }
+
+    async fn disconnect(&mut self, key: &K) -> DynConnResult<()> {
+        todo!()
+    }
+
+    fn is_connected(&self, key: &K) -> DynConnResult<bool> {
+        Ok(gv!(self, key).is_connected())
+    }
+
     async fn get_table_exists(&self, key: &K, table: &str) -> DynConnResult<bool> {
         Ok(gv!(self, key).get_table_exists(table).await)
     }
@@ -83,8 +144,71 @@ where
         Ok(gv!(self, key).get_table_schema(table).await?)
     }
 
-    fn check_connection(&self, key: &K) -> DynConnResult<bool> {
-        Ok(gv!(self, key).is_connected())
+    async fn get_table_constraint(
+        &self,
+        key: &K,
+        table: &str,
+    ) -> DynConnResult<Vec<sql_adt::TableConstraint>> {
+        Ok(gv!(self, key).get_table_constraint(table).await?)
+    }
+
+    async fn get_column_constraint(
+        &self,
+        key: &K,
+        table: &str,
+    ) -> DynConnResult<Vec<sql_adt::ColumnConstraint>> {
+        Ok(gv!(self, key).get_column_constraint(table).await?)
+    }
+
+    async fn get_column_index(
+        &self,
+        key: &K,
+        table_name: &str,
+    ) -> DynConnResult<Vec<sql_adt::ColumnIndex>> {
+        Ok(gv!(self, key).get_column_index(table_name).await?)
+    }
+
+    async fn get_tables_name(&self, key: &K) -> DynConnResult<Vec<String>> {
+        Ok(gv!(self, key).get_tables_name().await?)
+    }
+
+    async fn get_primary_key(&self, key: &K, table: &str) -> DynConnResult<String> {
+        Ok(gv!(self, key).get_primary_key(table).await?)
+    }
+
+    async fn get_existing_ids(
+        &self,
+        key: &K,
+        table_name: &str,
+        ids: &Series,
+    ) -> DynConnResult<D1Value> {
+        Ok(gv!(self, key).get_existing_ids(table_name, ids).await?)
+    }
+
+    async fn drop_table(&self, key: &K, table: &str) -> DynConnResult<()> {
+        Ok(gv!(self, key).drop_table(table).await?)
+    }
+
+    async fn rename_table(&self, key: &K, from: &str, to: &str) -> DynConnResult<()> {
+        Ok(gv!(self, key).rename_table(from, to).await?)
+    }
+
+    async fn truncate_table(&self, key: &K, table: &str) -> DynConnResult<()> {
+        Ok(gv!(self, key).truncate_table(table).await?)
+    }
+
+    async fn create_index(
+        &self,
+        key: &K,
+        table: &str,
+        column: &str,
+        index: Option<&str>,
+    ) -> DynConnResult<()> {
+        Ok(gv!(self, key).create_index(table, column, index).await?)
+    }
+
+    async fn drop_index(&self, key: &K, table: &str, index: &str) -> DynConnResult<()> {
+        Ok(gv!(self, key).drop_index(table, index).await?)
     }
 }
 
@@ -94,7 +218,7 @@ mod dyn_conn_for_sql_tests {
 
     use super::*;
 
-    use fabrix_sql::{DatabasePg, DatabaseSqlite, SqlExecutor};
+    use fabrix_sql::{DatabasePg, DatabaseSqlite, SqlExecutor, SqlMeta};
     use uuid::Uuid;
 
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
