@@ -5,6 +5,8 @@
 pub mod error;
 pub mod sql;
 
+use dashmap::mapref::entry::Entry;
+use dashmap::mapref::one::{Ref, RefMut};
 pub use error::*;
 pub use sql::*;
 
@@ -12,6 +14,8 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use dashmap::DashMap;
+
+// TODO: more features & functionalities are required
 
 #[derive(Default)]
 pub struct DynConn<K, V>
@@ -29,6 +33,30 @@ where
         Self {
             store: Arc::new(DashMap::new()),
         }
+    }
+
+    pub fn try_get(&self, key: &K) -> DynConnResult<Ref<K, V>> {
+        let rf = self.store.try_get(key);
+
+        if rf.is_locked() {
+            return Err(DynConnError::Locked);
+        }
+
+        rf.try_unwrap().ok_or(DynConnError::Absent)
+    }
+
+    pub fn try_get_mut(&self, key: &K) -> DynConnResult<RefMut<K, V>> {
+        let rfm = self.store.try_get_mut(key);
+
+        if rfm.is_locked() {
+            return Err(DynConnError::Locked);
+        }
+
+        rfm.try_unwrap().ok_or(DynConnError::Absent)
+    }
+
+    pub fn try_entry(&self, key: K) -> Option<Entry<K, V>> {
+        self.store.try_entry(key)
     }
 }
 

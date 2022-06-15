@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use fabrix_core::{D1Value, Fabrix, Series};
 use fabrix_sql::{sql_adt, SqlBuilder, SqlEngine};
 
-use crate::{DynConn, DynConnError, DynConnResult};
+use crate::{DynConn, DynConnResult};
 
 #[async_trait]
 pub trait DynConnForSql<K>
@@ -114,26 +114,14 @@ where
 /// getting a reference of SqlExecutor by a given key
 macro_rules! gv {
     ($self:expr, $key:expr) => {{
-        let v = $self.store.try_get($key);
-
-        if v.is_locked() {
-            return Err(DynConnError::Locked);
-        }
-
-        v.try_unwrap().ok_or(DynConnError::Absent)?.value()
+        $self.try_get($key)?.value()
     }};
 }
 
 /// getting a mutable ref SqlExecutor by a given key
 macro_rules! gmv {
     ($self:expr, $key:expr) => {{
-        let v = $self.store.try_get_mut($key);
-
-        if v.is_locked() {
-            return Err(DynConnError::Locked);
-        }
-
-        v.try_unwrap().ok_or(DynConnError::Absent)?.value_mut()
+        $self.try_get_mut($key)?.value_mut()
     }};
 }
 
@@ -284,7 +272,7 @@ mod dyn_conn_for_sql_tests {
     const CONN3: &str = "sqlite://dev.sqlite";
 
     #[tokio::test]
-    async fn dyn_conn_for_sql_creation() {
+    async fn dyn_conn_for_sql_async() {
         let dc = DynConn::<Uuid, Box<dyn SqlEngine>>::new();
 
         let db1 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();

@@ -12,7 +12,7 @@ There are three main parts in this crate:
 
 ```txt
 ├── fabrix-core                        // Core package
-|   |
+│   │
 │   ├── value.rs                       // the smallest data unit
 │   ├── series.rs                      // series of value
 │   ├── fabrix.rs                      // dataframe holder
@@ -21,7 +21,7 @@ There are three main parts in this crate:
 │   ├── util.rs                        // utility functions
 │   ├── error.rs                       // error handling for core
 │   └── macros.rs                      // macros for core
-|
+│
 ├── fabrix-sql                         // SQL package
 │   │
 │   ├── builder                        // SQL builder
@@ -42,7 +42,7 @@ There are three main parts in this crate:
 │   │   └── macros.rs                  // Macros for sql executor
 │   │
 │   └── error.rs                       // Sql error
-|
+│
 ├── fabrix-xl                          // Excel package
 │   │
 │   ├── util.rs                        // Excel utility
@@ -50,48 +50,51 @@ There are three main parts in this crate:
 │   ├── workbook.rs                    // Excel workbook
 │   ├── executor.rs                    // Excel executor, business logic implementation
 │   └── error.rs                       // Xl error
-|
+│
 ├── fabrix-mg                          // MongoDB utility
-|
+│
 ├── fabrix-dyn-conn                    // Dynamic connection package for Database & MongoDB
-|
+│   │
+│   ├── sql.rs                         // DynConn for Sql
+│   └── error.rs                       // DynConn error
+│
 ├── fabrix                             // Fabrix
 │   │
 │   ├── sources                        // Fabrix source
-|   |   │
-|   |   ├── sql                        // Sql data source
-|   |   │   ├── reader.rs              // Sql reader
-|   |   │   └── writer.rs              // Sql writer
-|   |   │
-|   |   ├── xl                         // Excel data source
-|   |   │   └── reader.rs              // Excel reader
-|   |   │
-|   |   ├── csv                        // CSV data source
-|   |   │   ├── reader.rs              // CSV reader
-|   |   │   └── writer.rs              // CSV writer
-|   |   │
-|   |   ├── parquet                    // Parquet data source
-|   |   │   ├── reader.rs              // Parquet reader
-|   |   │   └── writer.rs              // Parquet writer
-|   |   │
-|   |   ├── json                       // JSON data source
-|   |   │   ├── reader.rs              // JSON reader
-|   |   │   └── writer.rs              // JSON writer
-|   |   │
-|   |   ├── bson                       // BSON data source
-|   |   │
-|   |   └── mongo                      // MongoDB data source
-│   |
-|   ├── dispatcher                     // dispatcher for different data source
-|   |   │
-|   |   ├── ds.rs                      // dispatcher and source traits
-|   |   ├── xl_db.rs                   // Excel -> Database
-|   |   └── xl_json.rs                 // Excel -> JSON
-│   |
-|   ├── errors.rs                      // error handling
-|   ├── prelude.rs                     // prelude of this crate
-|   └── lib.rs
-|
+│   │   │
+│   │   ├── sql                        // Sql data source
+│   │   │   ├── reader.rs              // Sql reader
+│   │   │   └── writer.rs              // Sql writer
+│   │   │
+│   │   ├── xl                         // Excel data source
+│   │   │   └── reader.rs              // Excel reader
+│   │   │
+│   │   ├── csv                        // CSV data source
+│   │   │   ├── reader.rs              // CSV reader
+│   │   │   └── writer.rs              // CSV writer
+│   │   │
+│   │   ├── parquet                    // Parquet data source
+│   │   │   ├── reader.rs              // Parquet reader
+│   │   │   └── writer.rs              // Parquet writer
+│   │   │
+│   │   ├── json                       // JSON data source
+│   │   │   ├── reader.rs              // JSON reader
+│   │   │   └── writer.rs              // JSON writer
+│   │   │
+│   │   ├── bson                       // BSON data source
+│   │   │
+│   │   └── mongo                      // MongoDB data source
+│   │
+│   ├── dispatcher                     // dispatcher for different data source
+│   │   │
+│   │   ├── ds.rs                      // dispatcher and source traits
+│   │   ├── xl_db.rs                   // Excel -> Database
+│   │   └── xl_json.rs                 // Excel -> JSON
+│   │
+│   ├── errors.rs                      // error handling
+│   ├── prelude.rs                     // prelude of this crate
+│   └── lib.rs
+│
 └── LICENSE
 ```
 

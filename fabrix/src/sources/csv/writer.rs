@@ -64,11 +64,11 @@ impl<W: Write> Writer<W> {
         self
     }
 
-    pub fn with_timestamp_format(&mut self, format: &str) -> &mut Self {
+    pub fn with_datetime_format(&mut self, format: &str) -> &mut Self {
         self.csv_writer = self
             .csv_writer
             .take()
-            .map(|r| r.with_timestamp_format(Some(format.to_owned())));
+            .map(|r| r.with_datetime(Some(format.to_owned())));
         self
     }
 
@@ -125,7 +125,7 @@ pub struct CsvWriteOptions<'a> {
     pub delimiter: Option<u8>,
     pub date_format: Option<&'a str>,
     pub time_format: Option<&'a str>,
-    pub timestamp_format: Option<&'a str>,
+    pub datetime_format: Option<&'a str>,
     pub quoting_char: Option<u8>,
 }
 
@@ -167,8 +167,8 @@ where
         if let Some(time_format) = options.time_format {
             self.with_time_format(time_format);
         }
-        if let Some(timestamp_format) = options.timestamp_format {
-            self.with_timestamp_format(timestamp_format);
+        if let Some(datetime_format) = options.datetime_format {
+            self.with_datetime_format(datetime_format);
         }
         if let Some(quoting_char) = options.quoting_char {
             self.with_quoting_char(quoting_char);
