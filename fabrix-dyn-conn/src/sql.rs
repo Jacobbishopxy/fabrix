@@ -281,8 +281,7 @@ where
         self.iter()
             .map(|i| {
                 let key = i.key().clone();
-                let engine = i.value();
-                let info = DynConnSqlInfo::from(engine);
+                let info = DynConnSqlInfo::from(i.value());
                 (key, info)
             })
             .collect()

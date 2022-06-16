@@ -125,6 +125,10 @@ There are three main parts in this crate:
 
    - select data from database and download a parquet file. [code](./examples/dispatcher_service/src/db2parquet.rs)
 
+1. [Dynamic connection service](./examples/dync_service/src/main.rs):
+
+   - a dynamic connection pool service for database.
+
 ## Todo
 
 - fabrix-dyn-conn example

@@ -1,8 +1,8 @@
 # Examples
 
-## xl_process_service
+## file_process_service
 
-check [main.rs](./xl_process_service/src/main.rs)
+check [main.rs](./file_process_service/src/main.rs)
 
 ## dispatch_service
 
@@ -69,3 +69,7 @@ check [main.rs](./dispatch_service/src/main.rs)
   ```
 
 - [**POST**] `http://localhost:8080/api/db/to_parquet`: download a parquet file by selecting data from a table. json body see above.
+
+## dync_service
+
+check [main.rs](./dync_service/src/main.rs)
