@@ -1,6 +1,6 @@
 //! DynConnForSql
 //!
-//! sql
+//! Sql
 
 use std::{
     fmt::Display,
@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use fabrix_core::{D1Value, Fabrix, Series};
 use fabrix_sql::{sql_adt, SqlBuilder, SqlEngine};
 
-use crate::{DynConn, DynConnResult};
+use crate::{DynConn, DynConnInfo, DynConnResult};
 
 #[async_trait]
 pub trait DynConnForSql<K>
@@ -259,6 +259,51 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct DynConnSqlInfo {
+    pub driver: SqlBuilder,
+    pub conn_str: String,
+}
+
+impl From<&Box<dyn SqlEngine>> for DynConnSqlInfo {
+    fn from(engine: &Box<dyn SqlEngine>) -> Self {
+        DynConnSqlInfo {
+            driver: engine.get_driver().clone(),
+            conn_str: engine.get_conn_str().to_string(),
+        }
+    }
+}
+
+impl Display for DynConnSqlInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "driver: {:#?}\nconn_str: {:#?}",
+            self.driver, self.conn_str
+        )
+    }
+}
+
+impl<K> DynConnInfo<K, Box<dyn SqlEngine>, DynConnSqlInfo> for DynConn<K, Box<dyn SqlEngine>>
+where
+    K: Clone + Eq + Hash + Send + Sync,
+{
+    fn list_all(&self) -> Vec<(K, DynConnSqlInfo)> {
+        self.iter()
+            .map(|i| {
+                let key = i.key().clone();
+                let engine = i.value();
+                let info = DynConnSqlInfo::from(engine);
+                (key, info)
+            })
+            .collect()
+    }
+
+    fn get_info(&self, key: &K) -> Option<DynConnSqlInfo> {
+        self.get(key).map(|i| DynConnSqlInfo::from(i.value()))
+    }
+}
+
 #[cfg(test)]
 mod dyn_conn_for_sql_tests {
     use std::{str::FromStr, sync::Arc};
@@ -279,9 +324,9 @@ mod dyn_conn_for_sql_tests {
         let db2 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
 
         let k1 = Uuid::new_v4();
-        dc.store.insert(k1, Box::new(db1));
+        dc.insert(k1, Box::new(db1));
         let k2 = Uuid::new_v4();
-        dc.store.insert(k1, Box::new(db2));
+        dc.insert(k2, Box::new(db2));
 
         let arc_dc = Arc::new(dc);
 
@@ -302,5 +347,25 @@ mod dyn_conn_for_sql_tests {
 
         println!("{:?}", res1);
         println!("{:?}", res2);
+    }
+
+    #[test]
+    fn dyn_conn_for_sql_info() {
+        let dc = DynConn::<Uuid, Box<dyn SqlEngine>>::new();
+
+        let db1 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        let db2 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+
+        let k1 = Uuid::new_v4();
+        dc.insert(k1, Box::new(db1));
+        let k2 = Uuid::new_v4();
+        dc.insert(k2, Box::new(db2));
+
+        let info1 = dc.get_info(&k1).unwrap();
+        println!("{:?}", info1);
+
+        for i in dc.list_all() {
+            println!("{:?}", i);
+        }
     }
 }

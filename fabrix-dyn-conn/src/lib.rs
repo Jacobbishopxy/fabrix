@@ -5,17 +5,17 @@
 pub mod error;
 pub mod sql;
 
+use dashmap::iter::{Iter, IterMut};
 use dashmap::mapref::entry::Entry;
 use dashmap::mapref::one::{Ref, RefMut};
 pub use error::*;
 pub use sql::*;
 
+use std::fmt::Display;
 use std::hash::Hash;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-
-// TODO: more features & functionalities are required
 
 #[derive(Default)]
 pub struct DynConn<K, V>
@@ -35,6 +35,25 @@ where
         }
     }
 
+    pub fn init<I>(data: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+    {
+        let store = DashMap::new();
+        for (key, value) in data {
+            store.insert(key, value);
+        }
+
+        Self {
+            store: Arc::new(store),
+        }
+    }
+
+    // May deadlock if called when holding a mutable reference into the map
+    pub fn get(&self, key: &K) -> Option<Ref<K, V>> {
+        self.store.get(key)
+    }
+
     pub fn try_get(&self, key: &K) -> DynConnResult<Ref<K, V>> {
         let rf = self.store.try_get(key);
 
@@ -43,6 +62,11 @@ where
         }
 
         rf.try_unwrap().ok_or(DynConnError::Absent)
+    }
+
+    // May deadlock if called when holding a mutable reference into the map
+    pub fn get_mut(&self, key: &K) -> Option<RefMut<K, V>> {
+        self.store.get_mut(key)
     }
 
     pub fn try_get_mut(&self, key: &K) -> DynConnResult<RefMut<K, V>> {
@@ -55,9 +79,45 @@ where
         rfm.try_unwrap().ok_or(DynConnError::Absent)
     }
 
-    pub fn try_entry(&self, key: K) -> Option<Entry<K, V>> {
-        self.store.try_entry(key)
+    // May deadlock if called when holding a mutable reference into the map
+    pub fn entry(&self, key: K) -> Entry<K, V> {
+        self.store.entry(key)
     }
+
+    pub fn try_entry(&self, key: K) -> DynConnResult<Entry<K, V>> {
+        self.store.try_entry(key).ok_or(DynConnError::Locked)
+    }
+
+    // May deadlock if called when holding a mutable reference into the map
+    pub fn iter(&self) -> Iter<K, V> {
+        self.store.iter()
+    }
+
+    // May deadlock if called when holding a mutable reference into the map
+    pub fn iter_mut(&self) -> IterMut<K, V> {
+        self.store.iter_mut()
+    }
+
+    // May deadlock if called when holding a mutable reference into the map
+    pub fn insert(&self, key: K, value: V) -> Option<V> {
+        self.store.insert(key, value)
+    }
+
+    // May deadlock if called when holding a mutable reference into the map
+    pub fn remove(&self, key: &K) -> Option<(K, V)> {
+        self.store.remove(key)
+    }
+}
+
+pub trait DynConnInfo<K, V, Info>
+where
+    K: Clone + Send + Sync,
+    V: Send + Sync,
+    for<'a> Info: Display + From<&'a V> + Send + Sync,
+{
+    fn list_all(&self) -> Vec<(K, Info)>;
+
+    fn get_info(&self, key: &K) -> Option<Info>;
 }
 
 #[cfg(test)]
@@ -85,10 +145,10 @@ mod dyn_conn_tests {
         let k1 = Uuid::new_v4();
         let k2 = Uuid::new_v4();
 
-        dc.store.insert(k1, Box::new(db1));
-        dc.store.insert(k2, Box::new(db2));
+        dc.insert(k1, Box::new(db1));
+        dc.insert(k2, Box::new(db2));
 
-        let foo = dc.store.get(&k2).unwrap();
+        let foo = dc.get(&k2).unwrap();
         let s = foo
             .value()
             .as_any()
