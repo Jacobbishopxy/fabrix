@@ -3,7 +3,6 @@
 //! Sql
 
 use std::{
-    fmt::Display,
     hash::Hash,
     ops::{Deref, DerefMut},
 };
@@ -17,7 +16,7 @@ use crate::{DynConn, DynConnInfo, DynConnResult};
 #[async_trait]
 pub trait DynConnForSql<K>
 where
-    K: Display + Eq + Hash + Send + Sync,
+    K: Eq + Hash + Send + Sync,
 {
     // ================================================================================================
     // SqlInfo
@@ -128,7 +127,7 @@ macro_rules! gmv {
 #[async_trait]
 impl<K, V> DynConnForSql<K> for DynConn<K, V>
 where
-    K: Display + Eq + Hash + Send + Sync,
+    K: Eq + Hash + Send + Sync,
     V: Deref<Target = dyn SqlEngine>,
     V: DerefMut<Target = dyn SqlEngine>,
     V: Send + Sync,
@@ -274,16 +273,6 @@ impl From<&Box<dyn SqlEngine>> for DynConnSqlInfo {
     }
 }
 
-impl Display for DynConnSqlInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "driver: {:#?}\nconn_str: {:#?}",
-            self.driver, self.conn_str
-        )
-    }
-}
-
 impl<K> DynConnInfo<K, Box<dyn SqlEngine>, DynConnSqlInfo> for DynConn<K, Box<dyn SqlEngine>>
 where
     K: Clone + Eq + Hash + Send + Sync,
@@ -310,9 +299,10 @@ mod dyn_conn_for_sql_tests {
 
     use super::*;
 
-    use fabrix_sql::{DatabasePg, DatabaseSqlite, SqlExecutor};
+    use fabrix_sql::{DatabaseMysql, DatabasePg, DatabaseSqlite, SqlExecutor};
     use uuid::Uuid;
 
+    const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
     const CONN3: &str = "sqlite://dev.sqlite";
 
@@ -353,13 +343,16 @@ mod dyn_conn_for_sql_tests {
     fn dyn_conn_for_sql_info() {
         let dc = DynConn::<Uuid, Box<dyn SqlEngine>>::new();
 
-        let db1 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
-        let db2 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        let db1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        let db2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        let db3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
 
         let k1 = Uuid::new_v4();
         dc.insert(k1, Box::new(db1));
         let k2 = Uuid::new_v4();
         dc.insert(k2, Box::new(db2));
+        let k3 = Uuid::new_v4();
+        dc.insert(k3, Box::new(db3));
 
         let info1 = dc.get_info(&k1).unwrap();
         println!("{:?}", info1);

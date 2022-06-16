@@ -11,7 +11,6 @@ use dashmap::mapref::one::{Ref, RefMut};
 pub use error::*;
 pub use sql::*;
 
-use std::fmt::Display;
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -109,11 +108,14 @@ where
     }
 }
 
+/// DynConnInfo
+///
+/// Lets you get information from the underlying store of a DynConn
 pub trait DynConnInfo<K, V, Info>
 where
     K: Clone + Send + Sync,
     V: Send + Sync,
-    for<'a> Info: Display + From<&'a V> + Send + Sync,
+    for<'a> Info: From<&'a V> + Send + Sync,
 {
     fn list_all(&self) -> Vec<(K, Info)>;
 
@@ -125,28 +127,33 @@ mod dyn_conn_tests {
 
     use std::str::FromStr;
 
-    use fabrix_sql::{DatabasePg, DatabaseSqlite, SqlEngine, SqlExecutor, SqlHelper, SqlMeta};
+    use fabrix_sql::{
+        DatabaseMysql, DatabasePg, DatabaseSqlite, SqlEngine, SqlExecutor, SqlHelper, SqlMeta,
+    };
     use uuid::Uuid;
 
     use super::*;
 
-    // const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
+    const CONN1: &str = "mysql://root:secret@localhost:3306/dev";
     const CONN2: &str = "postgres://root:secret@localhost:5432/dev";
     const CONN3: &str = "sqlite://dev.sqlite";
 
     #[tokio::test]
     async fn dyn_conn_creation() {
         // as an example, we won't need to establish real connections
-        let db1 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
-        let db2 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
+        let db1 = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
+        let db2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
+        let db3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
 
         let dc = DynConn::<Uuid, Box<dyn SqlEngine>>::new();
 
         let k1 = Uuid::new_v4();
         let k2 = Uuid::new_v4();
+        let k3 = Uuid::new_v4();
 
         dc.insert(k1, Box::new(db1));
         dc.insert(k2, Box::new(db2));
+        dc.insert(k3, Box::new(db3));
 
         let foo = dc.get(&k2).unwrap();
         let s = foo
