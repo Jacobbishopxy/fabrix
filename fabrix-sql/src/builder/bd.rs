@@ -8,6 +8,7 @@ use sea_query::{
     Cond, ConditionExpression, DeleteStatement, Expr, Func, JoinType as SJoinType, SelectStatement,
     Value as SValue,
 };
+use serde::{Deserialize, Serialize};
 
 use super::{alias, sql_adt, sv_2_v};
 use crate::{SqlError, SqlResult};
@@ -19,7 +20,7 @@ use crate::{SqlError, SqlResult};
 /// SqlBuilder
 ///
 /// Used to categorize database types
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum SqlBuilder {
     Mysql,
     Postgres,

@@ -12,6 +12,9 @@ pub use fabrix_sql::*;
 #[cfg(feature = "xl")]
 pub use fabrix_xl::*;
 
+#[cfg(feature = "dync")]
+pub use fabrix_dyn_conn::*;
+
 // sources: db
 #[cfg(feature = "sql")]
 pub use crate::sources::sql::*;

@@ -131,6 +131,7 @@ There are three main parts in this crate:
 
 ## Todo
 
+- fabrix-dyn-conn se/de
 - fabrix-dyn-conn example
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
