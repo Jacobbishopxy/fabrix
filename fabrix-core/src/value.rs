@@ -58,6 +58,12 @@ pub struct Uuid(pub uuid::Uuid);
 
 impl_custom_value_inner!(Uuid, UUID);
 
+impl Uuid {
+    pub fn new(uuid: uuid::Uuid) -> Self {
+        Uuid(uuid)
+    }
+}
+
 /// Custom Value: Bytes
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
 pub struct Bytes(pub Vec<u8>);

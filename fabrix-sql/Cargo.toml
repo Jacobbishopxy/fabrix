@@ -1,9 +1,9 @@
 [package]
 name = "fabrix-sql"
+authors = ["JacobX <jacobbishopxy@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 fabrix-core = { path = "../fabrix-core" }
@@ -37,7 +37,7 @@ sqlx = { version = "0", features = [
     "uuid"
 ]}
 nom = "7"
-uuid = { version = "0", features = ["serde", "v4"] }
+uuid = { version = "1", features = ["serde", "v4"] }
 
 [dev-dependencies]
 anyhow = "1"
