@@ -13,8 +13,6 @@ use dashmap::DashMap;
 
 use crate::{DynConnError, DynConnResult};
 
-// TODO: serde se/de
-
 #[derive(Default)]
 pub struct DynConn<K, V>
 where

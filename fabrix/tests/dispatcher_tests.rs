@@ -5,7 +5,7 @@
 use std::fs::File;
 use std::path::Path;
 
-use fabrix::{
+use ::fabrix::{
     sql_adt, CsvReadOptions, CsvReader, CsvWriteOptions, CsvWriter, DatabaseSqlite, Dispatcher,
     ParquetWriteOptions, ParquetWriter, SqlEngine, SqlReadOptions, SqlReader, SqlWriteOptions,
     SqlWriter,

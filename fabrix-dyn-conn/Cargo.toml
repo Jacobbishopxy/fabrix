@@ -7,13 +7,18 @@ edition = "2021"
 
 [dependencies]
 fabrix-core = { path = "../fabrix-core" }
-fabrix-sql = { path = "../fabrix-sql" }
+fabrix-sql = { path = "../fabrix-sql", optional = true }
+fabrix-mg = { path = "../fabrix-mg", optional = true }
 
 async-trait = "0"
 dashmap = "5"
-serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "0", features = ["serde", "v4"] }
+
+[features]
+default = ["sql"]
+sql = ["dep:fabrix-sql"]
+mongo = ["dep:fabrix-mg"]

@@ -438,27 +438,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bzip2"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6afcd980b5f3a45017c57e57a2fcccbb351cc43a356ce117ef760ef8052b89b0"
-dependencies = [
- "bzip2-sys",
- "libc",
-]
-
-[[package]]
-name = "bzip2-sys"
-version = "0.1.11+1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "736a955f3fa7875102d57c82b8cac37ec45224a07fd32d58f9f7a186b6cd4cdc"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -797,9 +776,7 @@ dependencies = [
  "chrono",
  "fabrix-core",
  "fabrix-dyn-conn",
- "fabrix-mg",
  "fabrix-sql",
- "fabrix-xl",
  "itertools",
  "polars",
  "serde_json",
@@ -829,13 +806,8 @@ dependencies = [
  "dashmap",
  "fabrix-core",
  "fabrix-sql",
- "serde",
  "thiserror",
 ]
-
-[[package]]
-name = "fabrix-mg"
-version = "0.1.0"
 
 [[package]]
 name = "fabrix-sql"
@@ -854,20 +826,6 @@ dependencies = [
  "sqlx",
  "thiserror",
  "uuid",
-]
-
-[[package]]
-name = "fabrix-xl"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "fabrix-core",
- "futures",
- "lazy_static",
- "quick-xml",
- "thiserror",
- "zip",
 ]
 
 [[package]]
@@ -2051,16 +2009,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quick-xml"
-version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9279fbdacaad3baf559d8cabe0acc3d06e30ea14931af31af79578ac0946decc"
-dependencies = [
- "memchr",
- "serde",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3065,20 +3013,6 @@ name = "zeroize"
 version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94693807d016b2f2d2e14420eb3bfcca689311ff775dcf113d74ea624b7cdf07"
-
-[[package]]
-name = "zip"
-version = "0.5.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93ab48844d61251bb3835145c521d88aa4031d7139e8485990f60ca911fa0815"
-dependencies = [
- "byteorder",
- "bzip2",
- "crc32fast",
- "flate2",
- "thiserror",
- "time 0.1.44",
-]
 
 [[package]]
 name = "zstd"

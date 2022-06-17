@@ -5,8 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fabrix = { path = "../../fabrix" }
-fabrix-xl = { path = "../../fabrix-xl" }
+fabrix = { path = "../../fabrix", features = ["xl"] }
 
 actix-multipart = "0"
 actix-web = { version = "4", default-features = false, features = ["cookies", "macros"]}

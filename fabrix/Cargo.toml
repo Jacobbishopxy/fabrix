@@ -32,7 +32,7 @@ uuid = { version = "0", features = ["serde", "v4"] }
 
 
 [features]
-default = ["sql", "xl", "csv", "parquet", "json", "bson", "mongo", "dync"]
+default = ["csv", "parquet", "json"]
 sql = ["dep:fabrix-sql"]
 xl = ["dep:fabrix-xl"]
 csv = []
@@ -41,3 +41,16 @@ json = []
 bson = ["dep:fabrix-mg"]
 mongo = ["dep:fabrix-mg"]
 dync = ["dep:fabrix-dyn-conn"]
+
+
+[[test]]
+name = "dispatcher_tests"
+path = "tests/dispatcher_tests.rs"
+required-features = ["sql", "xl"]
+
+[[test]]
+name = "read_xl_to_db_test"
+path = "tests/read_xl_to_db_test.rs"
+required-features = ["sql", "xl"]
+
+

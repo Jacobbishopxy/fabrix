@@ -17,8 +17,7 @@ use futures_util::TryStreamExt;
 use serde::Deserialize;
 use uuid::Uuid;
 
-use fabrix::{dispatcher::xl_json, FabrixError};
-use fabrix_xl::XlWorkbook;
+use fabrix::{dispatcher::xl_json, FabrixError, XlWorkbook};
 
 const TMP_DIR: &str = "./tmp";
 const XL_FILE_TYPE: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

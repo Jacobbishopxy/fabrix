@@ -8,6 +8,18 @@ There are three main parts in this crate:
 - sources: defines the data sources, such as Sql, CSV, Excel, Parquet, BSON/JSON, etc.
 - dispatcher: a compositional data source dispatcher, which is capable to dispatch data from one source to another. Additionally, it can process data as a streaming pipeline.
 
+## Features
+
+- `default`: [`csv`, `parquet`, `json`]
+- `sql`: Mysql, Postgres, Sqlite sources
+- `xl`: Excel source
+- `csv`: Csv source
+- `parquet`: Parquet source
+- `json`: Json source
+- `bson`: Bson source
+- `mongo`: MongoDB source
+- `dync`: dynamic connections management
+
 ## Structure
 
 ```txt
@@ -131,8 +143,6 @@ There are three main parts in this crate:
 
 ## Todo
 
-- fabrix-dyn-conn se/de
-- fabrix-dyn-conn example
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support
