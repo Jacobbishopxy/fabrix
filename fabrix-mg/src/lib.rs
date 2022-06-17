@@ -1,14 +1,7 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//! Fabrix MongoDB
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod ec;
+pub mod error;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use ec::*;
+pub use error::*;
