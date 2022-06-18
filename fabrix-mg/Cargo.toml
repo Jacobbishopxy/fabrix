@@ -5,11 +5,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+fabrix-core = { path = "../fabrix-core" }
 fabrix-mg-derive = { path = "../fabrix-mg-derive", optional = true }
 
 bson = "2"
 mongodb = "2"
 serde = { version = "1", features = ["derive"] }
+thiserror = "1.0.31"
+futures = "0.3.21"
+async-trait = "0.1.56"
 
 
 
