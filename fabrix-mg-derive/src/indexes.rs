@@ -1,6 +1,6 @@
-//！ Indexes
-//！
-//！ Single
+//! Indexes
+//!
+//! Single
 
 use std::str::FromStr;
 

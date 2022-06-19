@@ -63,7 +63,15 @@ There are three main parts in this crate:
 │   ├── executor.rs                    // Excel executor, business logic implementation
 │   └── error.rs                       // Xl error
 │
-├── fabrix-mg                          // MongoDB utility
+├── fabrix-mg-derive                   // MongoDB procedural macro
+│   │
+│   ├── dr.rs                          // derive macro
+│   └── indexes.rs                     // mongo indexes methods
+│
+├── fabrix-mg                          // MongoDB package
+│   │
+│   ├── ec.rs                          // MongoDB executor
+│   └── error.rs                       // MongoError
 │
 ├── fabrix-dyn-conn                    // Dynamic connection package for Database & MongoDB
 │   │
