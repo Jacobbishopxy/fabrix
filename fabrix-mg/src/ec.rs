@@ -112,4 +112,20 @@ impl MongoExecutor {
         self.schema::<Document>().drop_indexes(None).await?;
         Ok(())
     }
+
+    /// drop current database
+    pub async fn drop_database(&self) -> MgResult<()> {
+        self.client.database(&self.database).drop(None).await?;
+        Ok(())
+    }
+
+    /// drop collection
+    pub async fn drop_collection(&self, collection_name: &str) -> MgResult<()> {
+        self.client
+            .database(&self.database)
+            .collection::<Document>(collection_name)
+            .drop(None)
+            .await?;
+        Ok(())
+    }
 }
