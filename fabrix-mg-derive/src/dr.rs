@@ -348,19 +348,18 @@ pub(crate) fn impl_crud(input: &DeriveInput) -> proc_macro2::TokenStream {
                 self.#id = None;
             }
 
-            fn mutate_id(&mut self, oid: bson::oid::ObjectId) -> anyhow::Result<()> {
+            fn mutate_id(&mut self, oid: bson::oid::ObjectId) {
                 self.#id = Some(oid);
-                Ok(())
             }
 
-            fn show_indexes() -> crud::IndexOptions {
+            fn show_indexes() -> crate::IndexOptions {
                 #io
             }
         }
 
         // impl `MongoCRUD`
         #[async_trait::async_trait]
-        impl MongoCRUD<#name> for crud::MongoClient {}
+        impl MongoCRUD<#name> for crate::MongoExecutor {}
     };
 
     expanded

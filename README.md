@@ -155,3 +155,5 @@ There are three main parts in this crate:
 - sources: from remote (use `reqwest` crate)
 - BSON support
 - MongoDB support
+  - [x] compile time verification
+  - [] runtime verification

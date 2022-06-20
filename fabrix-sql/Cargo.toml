@@ -26,7 +26,7 @@ sea-query = { version = "0", features = [
     "with-uuid"
 ]}
 serde = { version = "1", features = ["derive"] }
-sqlx = { version = "0", features = [
+sqlx = { version = "0.6.0", features = [
     "runtime-tokio-native-tls",
     "postgres",
     "mysql",
@@ -37,7 +37,8 @@ sqlx = { version = "0", features = [
     "uuid"
 ]}
 nom = "7"
-uuid = { version = "1", features = ["serde", "v4"] }
+uuid = "1"
+
 
 [dev-dependencies]
 anyhow = "1"

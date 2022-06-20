@@ -117,50 +117,7 @@ impl_sql_type_tag_marker!(NaiveDate, Date; [Mysql, Pg], "NaiveDate");
 impl_sql_type_tag_marker!(NaiveTime, Time; [Mysql, Pg], "NaiveTime");
 impl_sql_type_tag_marker!(NaiveDateTime, DateTime; [Mysql, Pg, Sqlite]);
 impl_sql_type_tag_marker!(Decimal <= rust_decimal::Decimal, Decimal; [Mysql, Pg], "Decimal");
-// impl_sql_type_tag_marker!(Uuid <= uuid::Uuid, Uuid; [Pg], "Uuid");
-
-// temporary conversion method for Uuid (although they are the same)
-fn cvt_uuid(v: sqlx::types::Uuid) -> uuid::Uuid {
-    uuid::Uuid::parse_str(&v.to_string()).unwrap()
-}
-
-impl SqlTypeTagMarker for SqlTypeTag<Uuid> {
-    fn to_str(&self) -> &str {
-        self.0
-    }
-
-    fn to_dtype(&self) -> fabrix_core::ValueType {
-        fabrix_core::ValueType::Uuid
-    }
-
-    fn extract_value(&self, sql_row: &SqlRow, idx: usize) -> crate::SqlResult<fabrix_core::Value> {
-        match sql_row {
-            SqlRow::Pg(r) => {
-                let v: Option<sqlx::types::Uuid> = r.try_get(idx)?;
-                match v {
-                    Some(r) => Ok(fabrix_core::value!(cvt_uuid(r))),
-                    None => Ok(fabrix_core::Value::Null),
-                }
-            }
-            _ => Err(crate::SqlError::MismatchedSqlRow("Uuid")),
-        }
-    }
-
-    fn extract_optional_value(
-        &self,
-        sql_row: &SqlRow,
-        idx: usize,
-    ) -> SqlResult<Option<fabrix_core::Value>> {
-        match sql_row {
-            SqlRow::Pg(r) => {
-                let v: Option<sqlx::types::Uuid> = r.try_get(idx)?;
-                Ok(v.map(|v| fabrix_core::value!(cvt_uuid(v))))
-            }
-            _ => Err(crate::SqlError::MismatchedSqlRow("Uuid")),
-        }
-    }
-}
-
+impl_sql_type_tag_marker!(Uuid <= uuid::Uuid, Uuid; [Pg], "Uuid");
 impl_sql_type_tag_marker!(Bytes <= Vec<u8>, Bytes; [Mysql, Pg, Sqlite]);
 
 // ================================================================================================

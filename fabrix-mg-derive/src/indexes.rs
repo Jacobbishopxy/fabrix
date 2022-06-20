@@ -24,14 +24,14 @@ impl Default for Dir {
     }
 }
 
-/// `crud_derive::Dir` -> `crud::Dir`
+/// `crud_derive::Dir` -> `crate::Dir`
 impl ToTokens for Dir {
     // since `crud_derive::Dir` is not a public API (cannot be exported in a proc-macro crate),
     // we need to convert it to a public API (defined in `crud` crate).
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(match self {
-            Dir::Asc => quote! { crud::Dir::Asc },
-            Dir::Desc => quote! { crud::Dir::Desc },
+            Dir::Asc => quote! { crate::Dir::Asc },
+            Dir::Desc => quote! { crate::Dir::Desc },
         })
     }
 }
@@ -101,7 +101,7 @@ impl SingleIndex {
 #[derive(Debug, Clone)]
 pub struct SingleIndexOptions(pub Vec<SingleIndex>);
 
-/// `crud_derive::IndexOptions` -> `crud::IndexOptions`
+/// `crud_derive::IndexOptions` -> `crate::IndexOptions`
 impl ToTokens for SingleIndex {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let name = &self.key.0;
@@ -109,17 +109,17 @@ impl ToTokens for SingleIndex {
         let unique = &self.unique;
         let text = &self.text;
         tokens.extend(quote! {
-            crud::SingleIndex::new((#name.to_string(), #dir), #unique, #text)
+            crate::SingleIndex::new((#name.to_string(), #dir), #unique, #text)
         })
     }
 }
 
-/// `crud_derive::IndexOptionsCollection` -> `Vec<crud::IndexOptions>`
+/// `crud_derive::IndexOptionsCollection` -> `Vec<crate::IndexOptions>`
 impl ToTokens for SingleIndexOptions {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let d = &self.0;
         tokens.extend(quote! {
-            crud::IndexOptions::Single(crud::SingleIndexOptions(vec![#(#d),*]))
+            crate::IndexOptions::Single(crate::SingleIndexOptions(vec![#(#d),*]))
         })
     }
 }
@@ -154,7 +154,7 @@ impl ToTokens for CompoundIndexOptions {
         let unique = &self.unique;
         let text = &self.text;
         tokens.extend(quote! {
-            crud::IndexOptions::Compound(crud::CompoundIndexOptions {
+            crate::IndexOptions::Compound(crate::CompoundIndexOptions {
                 keys: vec![#(#keys),*],
                 unique: #unique,
                 text: #text,
@@ -175,7 +175,7 @@ impl ToTokens for IndexOptions {
         match self {
             IndexOptions::Single(v) => v.to_tokens(tokens),
             IndexOptions::Compound(v) => v.to_tokens(tokens),
-            IndexOptions::None => tokens.extend(quote! { crud::IndexOptions::None }),
+            IndexOptions::None => tokens.extend(quote! { crate::IndexOptions::None }),
         }
     }
 }
