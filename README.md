@@ -70,6 +70,7 @@ There are three main parts in this crate:
 │
 ├── fabrix-mg                          // MongoDB package
 │   │
+│   ├── bd.rs                          // BSON conversion and util
 │   ├── dr.rs                          // MongoDB traits for derived macro
 │   ├── indexes.rs                     // MongoDB index
 │   ├── ec.rs                          // MongoDB executor
