@@ -20,4 +20,4 @@ serde_yaml = "0"
 
 [dev-dependencies]
 anyhow = "1"
-sqlx = "0"
+sqlx = { version = "0", features = ["runtime-tokio-native-tls", "sqlite"]}
