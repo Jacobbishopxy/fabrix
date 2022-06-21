@@ -5,58 +5,7 @@ use bson::{doc, oid::ObjectId, to_document};
 use futures::TryStreamExt;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{IndexOptions, MgError, MgResult, MongoExecutor};
-
-pub trait MongoEc: Send + Sync {
-    /// get database
-    fn database(&self) -> &str;
-
-    /// set database
-    fn set_database(&mut self, database: &str);
-
-    /// get collection
-    fn collection(&self) -> &str;
-
-    /// set collection
-    fn set_collection(&mut self, collection: &str);
-
-    /// get typed collection
-    fn schema<T>(&self) -> mongodb::Collection<T>;
-}
-
-impl MongoEc for MongoExecutor {
-    fn database(&self) -> &str {
-        &self.database
-    }
-
-    fn set_database(&mut self, database: &str) {
-        self.database = database.to_string();
-    }
-
-    fn collection(&self) -> &str {
-        &self.collection
-    }
-
-    fn set_collection(&mut self, collection: &str) {
-        self.collection = collection.to_string();
-    }
-
-    fn schema<T>(&self) -> mongodb::Collection<T> {
-        self.client
-            .database(&self.database)
-            .collection(&self.collection)
-    }
-}
-
-pub trait MongoClientFactory {
-    fn client(&self) -> &MongoExecutor;
-}
-
-impl MongoClientFactory for MongoExecutor {
-    fn client(&self) -> &MongoExecutor {
-        self
-    }
-}
+use crate::{IndexOptions, MgError, MgResult, MongoEc};
 
 /// BaseCRUD trait
 ///
@@ -173,7 +122,7 @@ mod tests {
     use serde::Deserialize;
 
     use super::*;
-    use crate::CRUD;
+    use crate::{MongoExecutor, CRUD};
 
     const CONN: &str = "mongodb://root:secret@localhost:27017";
     const DB: &str = "dev";

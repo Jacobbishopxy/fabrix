@@ -6,7 +6,7 @@ use bson::Document;
 use futures::TryStreamExt;
 use mongodb::IndexModel as MongoIndexModel;
 
-use crate::{BaseCRUD, MgResult, MongoEc};
+use crate::{BaseCRUD, MgResult};
 
 /// MongoDB client
 #[derive(Clone)]
@@ -127,5 +127,46 @@ impl MongoExecutor {
             .drop(None)
             .await?;
         Ok(())
+    }
+}
+
+pub trait MongoEc: Send + Sync {
+    /// get database
+    fn database(&self) -> &str;
+
+    /// set database
+    fn set_database(&mut self, database: &str);
+
+    /// get collection
+    fn collection(&self) -> &str;
+
+    /// set collection
+    fn set_collection(&mut self, collection: &str);
+
+    /// get typed collection
+    fn schema<T>(&self) -> mongodb::Collection<T>;
+}
+
+impl MongoEc for MongoExecutor {
+    fn database(&self) -> &str {
+        &self.database
+    }
+
+    fn set_database(&mut self, database: &str) {
+        self.database = database.to_string();
+    }
+
+    fn collection(&self) -> &str {
+        &self.collection
+    }
+
+    fn set_collection(&mut self, collection: &str) {
+        self.collection = collection.to_string();
+    }
+
+    fn schema<T>(&self) -> mongodb::Collection<T> {
+        self.client
+            .database(&self.database)
+            .collection(&self.collection)
     }
 }

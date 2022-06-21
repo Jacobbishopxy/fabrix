@@ -11,6 +11,12 @@ pub enum MgError {
     #[error("object id not found")]
     OidNotFound,
 
+    #[error("result not found")]
+    ResultNotFound,
+
+    #[error("cursor error")]
+    CursorError,
+
     #[error("invalid argument: {0}")]
     InvalidArgument(&'static str),
 
