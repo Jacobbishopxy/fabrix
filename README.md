@@ -154,6 +154,7 @@ There are three main parts in this crate:
 
 ## Todo
 
+- custom se/de for `Series`, including `ObjectType`
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support

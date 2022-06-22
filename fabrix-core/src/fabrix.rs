@@ -132,9 +132,7 @@ impl IntoIndexTag for String {
     }
 }
 
-// TODO:
-// se/de
-
+/// redesign se/de for `DataFrame`
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "DataFrame")]
 pub struct DataFrameDef {
@@ -631,7 +629,7 @@ impl From<DataFrame> for Fabrix {
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{fx, series, Fabrix, FieldInfo, ValueType};
+    use crate::{date, datetime, fx, series, time, Fabrix, FieldInfo, ValueType};
 
     #[test]
     fn serialize_and_deserialize_success() {
@@ -651,6 +649,31 @@ mod test_fabrix_dataframe {
         let bar: Fabrix = serde_json::from_str(foo_str).unwrap();
         println!("{:?}", bar);
         assert_eq!(bar, df);
+    }
+
+    // TODO:
+    // `time` Series se/de failed. Because polars-core doesn't provide yet
+    #[test]
+    fn serialize_and_deserialize_success_r() {
+        let df = fx![
+            "id";
+            "id" => [1, 2, 3],
+            "name" => ["a", "b", "c"],
+            "date" => [date!(2020,1,1), date!(2020,1,2), date!(2020,1,3)],
+            "time" => [time!(12,0,0), time!(12,0,1), time!(12,0,2)],
+            "datetime" => [datetime!(2020,1,1,12,0,0), datetime!(2020,1,1,12,0,1), datetime!(2020,1,1,12,0,2)],
+        ]
+        .unwrap();
+
+        let foo = serde_json::to_string(&df);
+        println!("{:?}", foo);
+
+        let foo_str = "{\"data\":[{\"name\":\"id\",\"datatype\":\"Int32\",\"values\":[1,2,3]},{\"name\":\"name\",\"datatype\":\"Utf8\",\"values\":[\"a\",\"b\",\"c\"]},{\"name\":\"date\",\"datatype\":\"Date\",\"values\":[18262,18263,18264]},{\"name\":\"time\",\"datatype\":\"Int32\",\"values\":[null,null,null]},{\"name\":\"datetime\",\"datatype\":\"Datetime\",\"values\":[1577880000000000,1577880001000000,1577880002000000]}],\"index_tag\":{\"loc\":0,\"name\":\"id\",\"data_type\":\"I32\"}}";
+        assert_eq!(foo.unwrap(), foo_str);
+
+        let bar: Fabrix = serde_json::from_str(foo_str).unwrap();
+        println!("{:?}", bar);
+        // assert_eq!(bar, df);
     }
 
     #[test]

@@ -56,6 +56,10 @@ use super::{
 };
 use crate::{series, value, Bytes, CoreResult, Decimal, Uuid, Value, ValueType};
 
+// ================================================================================================
+// Series constructor traits
+// ================================================================================================
+
 pub trait FabrixSeriesNamedFromRef<T, P: ?Sized>: NamedFrom<T, P> {
     fn from_ref(name: &str, _: T) -> Self;
 }
@@ -140,7 +144,7 @@ impl<T: AsRef<[NaiveDate]>> NamedFrom<T, [NaiveDate]> for Series {
             .map(|i| i.num_days_from_ce() - DAYS19700101)
             .collect::<Vec<_>>();
         let ca = Int32Chunked::from_slice(name, v.as_ref());
-        let polars_series = DateChunked::from(ca).into_series();
+        let polars_series = ca.into_date().into_series();
         Series(polars_series)
     }
 }
@@ -152,7 +156,7 @@ impl<T: AsRef<[Option<NaiveDate>]>> NamedFrom<T, [Option<NaiveDate>]> for Series
             .map(|oi| oi.map(|i| i.num_days_from_ce() - DAYS19700101))
             .collect::<Vec<_>>();
         let ca = Int32Chunked::from_slice_options(name, v.as_ref());
-        let polars_series = DateChunked::from(ca).into_series();
+        let polars_series = ca.into_date().into_series();
         Series(polars_series)
     }
 }
@@ -177,7 +181,7 @@ impl<T: AsRef<[NaiveTime]>> NamedFrom<T, [NaiveTime]> for Series {
             .map(|i| i.num_seconds_from_midnight() as i64 * NANO10E9)
             .collect::<Vec<_>>();
         let ca = Int64Chunked::from_slice(name, v.as_ref());
-        let polars_series = TimeChunked::from(ca).into_series();
+        let polars_series = ca.into_time().into_series();
         Series(polars_series)
     }
 }
@@ -189,7 +193,7 @@ impl<T: AsRef<[Option<NaiveTime>]>> NamedFrom<T, [Option<NaiveTime>]> for Series
             .map(|oi| oi.map(|i| i.num_seconds_from_midnight() as i64 * NANO10E9))
             .collect::<Vec<_>>();
         let ca = Int64Chunked::from_slice_options(name, v.as_ref());
-        let polars_series = TimeChunked::from(ca).into_series();
+        let polars_series = ca.into_time().into_series();
         Series(polars_series)
     }
 }
@@ -861,13 +865,13 @@ mod test_fabrix_series {
     use crate::{date, datetime, series, time, uuid, value};
 
     #[test]
-    fn test_series_from_ref() {
+    fn series_from_ref_success() {
         let s = Series::from_ref("idx", &[1, 2, 3, 4, 5]);
         println!("{:?}", s);
     }
 
     #[test]
-    fn test_series_creation() {
+    fn series_creation_success() {
         let s = Series::from_integer_default_name(10u32);
         assert!(s.is_ok());
 
@@ -926,7 +930,7 @@ mod test_fabrix_series {
     }
 
     #[test]
-    fn make_sure_series_iteration_is_correct() {
+    fn series_iteration_success() {
         let s = series!([
             date!(2016, 1, 8),
             date!(2017, 1, 7),
@@ -990,10 +994,57 @@ mod test_fabrix_series {
                 println!("{:?}", foo.format("%Y-%m-%d %H:%M:%S").to_string());
             }
         }
+
+        // ==========================
+
+        let s = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
+        let mut iter = s.into_iter();
+
+        assert_eq!(iter.next().unwrap(), value!("Jacob"));
+        assert_eq!(iter.next().unwrap(), value!("Sam"));
+        assert_eq!(iter.next().unwrap(), value!("James"));
+        assert_eq!(iter.next().unwrap(), value!("April"));
+        assert_eq!(iter.next().unwrap(), value!("Julia"));
+        assert_eq!(iter.next().unwrap(), value!("Jack"));
+        assert_eq!(iter.next().unwrap(), value!("Henry"));
+        assert!(iter.next().is_none());
     }
 
     #[test]
-    fn test_series_new() {
+    fn series_se_and_de() {
+        // let s1 = series!([
+        //     date!(2016, 1, 8),
+        //     date!(2017, 1, 7),
+        //     date!(2018, 1, 6),
+        //     date!(2019, 1, 5),
+        //     date!(2020, 1, 4),
+        //     date!(2021, 1, 3),
+        // ]);
+        // println!("{:?}", serde_json::to_string(&s1.0));
+
+        let s2 = series!([
+            time!(9, 10, 11),
+            time!(9, 10, 12),
+            time!(9, 10, 13),
+            time!(9, 10, 14),
+            time!(9, 10, 15),
+            time!(9, 10, 16),
+        ]);
+        println!("{:?}", serde_json::to_string(&s2.0));
+
+        // let s3 = series!([
+        //     datetime!(2016, 1, 8, 9, 10, 11),
+        //     datetime!(2017, 1, 7, 9, 10, 11),
+        //     datetime!(2018, 1, 6, 9, 10, 11),
+        //     datetime!(2019, 1, 5, 9, 10, 11),
+        //     datetime!(2020, 1, 4, 9, 10, 11),
+        //     datetime!(2021, 1, 3, 9, 10, 11),
+        // ]);
+        // println!("{:?}", serde_json::to_string(&s3.0));
+    }
+
+    #[test]
+    fn series_new_success() {
         let s = Series::new(
             "date",
             &[
@@ -1010,7 +1061,7 @@ mod test_fabrix_series {
     }
 
     #[test]
-    fn test_series_props() {
+    fn series_props_success() {
         let s = series!("yes" => [Some(1), None, Some(2)]);
         assert!(s.has_null());
 
@@ -1050,7 +1101,7 @@ mod test_fabrix_series {
     }
 
     #[test]
-    fn test_series_get() {
+    fn series_get_success() {
         let s = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
 
         assert_eq!(s.head(None).unwrap().get(0).unwrap(), value!("Jacob"));
@@ -1067,7 +1118,7 @@ mod test_fabrix_series {
     }
 
     #[test]
-    fn test_series_op() {
+    fn series_op_success() {
         let s = series!("dollars" => ["Jacob", "Sam", "James", "April"]);
 
         let flt = series!("cmp" => ["Jacob", "Bob"]);
@@ -1078,19 +1129,7 @@ mod test_fabrix_series {
 
         let s = series!([uuid!(), uuid!(), uuid!(), uuid!()]);
         assert_eq!(s.take(&[0, 2]).unwrap().len(), 2);
-    }
 
-    #[test]
-    fn test_series_concat() {
-        let mut s1 = series!("dollars" => ["Jacob", "Sam", "James", "April"]);
-        let s2 = series!("other" => ["Julia", "Jack", "John"]);
-
-        s1.concat(s2).unwrap();
-        assert_eq!(s1.len(), 7);
-    }
-
-    #[test]
-    fn test_series_op1() {
         let mut s1 = series!("dollars" => ["Jacob", "Sam", "James", "April"]);
 
         let v1 = value!("Julia");
@@ -1114,10 +1153,7 @@ mod test_fabrix_series {
 
         s1.remove(3).unwrap();
         assert_eq!(s1.len(), 8);
-    }
 
-    #[test]
-    fn test_series_op2() {
         let mut s1 = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Merry", "Justin"]);
 
         assert_eq!(s1.slice(3, 4).len(), 4);
@@ -1132,22 +1168,7 @@ mod test_fabrix_series {
     }
 
     #[test]
-    fn test_series_iteration() {
-        let s = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
-        let mut iter = s.into_iter();
-
-        assert_eq!(iter.next().unwrap(), value!("Jacob"));
-        assert_eq!(iter.next().unwrap(), value!("Sam"));
-        assert_eq!(iter.next().unwrap(), value!("James"));
-        assert_eq!(iter.next().unwrap(), value!("April"));
-        assert_eq!(iter.next().unwrap(), value!("Julia"));
-        assert_eq!(iter.next().unwrap(), value!("Jack"));
-        assert_eq!(iter.next().unwrap(), value!("Henry"));
-        assert!(iter.next().is_none());
-    }
-
-    #[test]
-    fn test_series_apply() {
+    fn polars_series_apply_success() {
         use polars::prelude::ChunkApply;
         use std::borrow::Cow;
 

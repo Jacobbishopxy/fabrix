@@ -870,7 +870,25 @@ impl Value2ChronoHelper {
 mod test_value {
 
     use super::*;
-    use crate::{bytes, date, decimal, time, uuid, value, Value, ValueType};
+    use crate::{bytes, date, datetime, decimal, time, uuid, value, Value, ValueType};
+
+    #[test]
+    fn value_se_and_de() {
+        let v = date!(2020, 1, 1);
+        println!("{:?}", serde_json::to_string(&v));
+        let cv = value!(v);
+        println!("{:?}", serde_json::to_string(&cv));
+
+        let v = time!(12, 0, 0);
+        println!("{:?}", serde_json::to_string(&v));
+        let cv = value!(v);
+        println!("{:?}", serde_json::to_string(&cv));
+
+        let v = datetime!(2020, 1, 1, 12, 0, 0);
+        println!("{:?}", serde_json::to_string(&v));
+        let cv = value!(v);
+        println!("{:?}", serde_json::to_string(&cv));
+    }
 
     #[test]
     fn test_conversion() {
