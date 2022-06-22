@@ -12,8 +12,12 @@ polars = { version = "0", features = [
     "strings",
     "dtype-full",
     "object",
+    "serde",
 ] }
 rust_decimal = "1"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
+
+[dev-dependencies]
+serde_json = "1"

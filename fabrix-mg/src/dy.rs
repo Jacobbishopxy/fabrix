@@ -14,8 +14,12 @@ use serde::Serialize;
 
 use crate::{MgError, MgResult, MongoEc, MongoExecutor};
 
+// TODO:
+// 1. `Ec` replace `query` by mongo_query_adt
+// 1. `Ec` replace `doc` by `Fabrix`
+
 #[async_trait(?Send)]
-pub trait Ec: MongoEc {
+pub trait RawEc: MongoEc {
     async fn delete_one(&self, query: Document) -> MgResult<DeleteResult>;
 
     async fn delete_many(&self, query: Document) -> MgResult<DeleteResult>;
@@ -87,7 +91,7 @@ pub trait Ec: MongoEc {
 }
 
 #[async_trait(?Send)]
-impl Ec for MongoExecutor {
+impl RawEc for MongoExecutor {
     async fn delete_one(&self, query: Document) -> MgResult<DeleteResult> {
         Ok(self.schema::<Document>().delete_one(query, None).await?)
     }
@@ -212,5 +216,42 @@ impl Ec for MongoExecutor {
         T: Serialize,
     {
         Ok(self.schema::<T>().replace_one(query, replace, None).await?)
+    }
+}
+
+#[cfg(test)]
+mod dy_tests {
+    use super::*;
+
+    use bson::doc;
+    use fabrix_core::{fx, Fabrix};
+
+    const CONN: &str = "mongodb://root:secret@localhost:27017";
+    const DB: &str = "dev";
+    const CL: &str = "dev";
+
+    #[tokio::test]
+    async fn insert_one_and_find_one_success() {
+        let ec = MongoExecutor::new(CONN, DB, CL)
+            .await
+            .expect("connection failed");
+
+        let df = fx![
+            "ord";
+            "names" => ["Jacob", "Sam", "Jason"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)]
+        ]
+        .unwrap();
+
+        let foo = ec.insert_one::<Fabrix>(&df).await;
+        assert!(foo.is_ok());
+
+        let id = foo.unwrap().inserted_id;
+        println!("{:?}", id);
+
+        let bar = ec.find_one::<Fabrix>(doc! {"_id": id}).await;
+        assert!(bar.is_ok());
+        println!("{:?}", bar.unwrap());
     }
 }

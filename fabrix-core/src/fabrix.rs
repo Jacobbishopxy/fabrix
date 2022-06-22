@@ -48,8 +48,9 @@
 use itertools::Itertools;
 use polars::{
     datatypes::IdxCa,
-    prelude::{BooleanChunked, DataFrame, Field, IntoVec, NewChunkedArray},
+    prelude::{BooleanChunked, DataFrame, Field, IntoVec, NewChunkedArray, Series as PSeries},
 };
+use serde::{Deserialize, Serialize};
 
 use super::{
     cis_err, idl_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX,
@@ -59,7 +60,7 @@ use crate::{CoreResult, D2Value, Value, ValueType};
 /// IndexTag
 ///
 /// Used in Fabrix in order to identify the index of a DataFrame.
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug, Default)]
 pub struct IndexTag {
     pub loc: usize,
     pub name: String,
@@ -131,11 +132,28 @@ impl IntoIndexTag for String {
     }
 }
 
+// TODO:
+// se/de
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "DataFrame")]
+pub struct DataFrameDef {
+    #[serde(getter = "DataFrame::get_columns")]
+    data: Vec<PSeries>,
+}
+
+impl From<DataFrameDef> for DataFrame {
+    fn from(def: DataFrameDef) -> Self {
+        DataFrame::new(def.data).unwrap()
+    }
+}
+
 /// Fabrix
 ///
 /// A data structure used in Fabrix crate, it wrapped `polars` DataFrame as data.
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Fabrix {
+    #[serde(with = "DataFrameDef", flatten)]
     pub data: DataFrame,
     pub index_tag: Option<IndexTag>,
 }
@@ -613,7 +631,27 @@ impl From<DataFrame> for Fabrix {
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{fx, series, FieldInfo, ValueType};
+    use crate::{fx, series, Fabrix, FieldInfo, ValueType};
+
+    #[test]
+    fn serialize_and_deserialize_success() {
+        let df = fx![
+            "names" => ["Jacob", "Sam", "Jason"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)]
+        ]
+        .unwrap();
+
+        let foo = serde_json::to_string(&df);
+        println!("{:?}", foo);
+
+        let foo_str = "{\"data\":[{\"name\":\"names\",\"datatype\":\"Utf8\",\"values\":[\"Jacob\",\"Sam\",\"Jason\"]},{\"name\":\"ord\",\"datatype\":\"Int32\",\"values\":[1,2,3]},{\"name\":\"val\",\"datatype\":\"Int32\",\"values\":[10,null,8]}],\"index_tag\":null}";
+        assert_eq!(foo.unwrap(), foo_str);
+
+        let bar: Fabrix = serde_json::from_str(foo_str).unwrap();
+        println!("{:?}", bar);
+        assert_eq!(bar, df);
+    }
 
     #[test]
     fn test_df_new1() {
