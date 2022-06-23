@@ -83,14 +83,6 @@ pub struct Bytes(pub Vec<u8>);
 
 impl_custom_value_outer!(Bytes, BYTES);
 
-impl TryFrom<Vec<u32>> for Bytes {
-    type Error = CoreError;
-
-    fn try_from(value: Vec<u32>) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
 impl From<Vec<u8>> for Bytes {
     fn from(v: Vec<u8>) -> Self {
         Bytes(v)

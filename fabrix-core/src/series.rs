@@ -811,12 +811,50 @@ impl<'a> Iterator for SeriesIterator<'a> {
 pub(crate) struct SeriesRef<'a>(pub(crate) &'a PolarsSeries);
 
 impl<'a> SeriesRef<'a> {
+    pub fn name(&self) -> &str {
+        self.0.name()
+    }
+
     pub fn dtype(&self) -> &ValueType {
         self.0.dtype().into()
+    }
+
+    pub fn iter(&self) -> SeriesIterator {
+        self.into_iter()
     }
 }
 
 impl<'a> IntoIterator for SeriesRef<'a> {
+    type Item = Value;
+    type IntoIter = SeriesIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self.dtype() {
+            ValueType::Bool => si!(self.0.bool(), Bool),
+            ValueType::U8 => si!(self.0.u8(), U8),
+            ValueType::U16 => si!(self.0.u16(), U16),
+            ValueType::U32 => si!(self.0.u32(), U32),
+            ValueType::U64 => si!(self.0.u64(), U64),
+            ValueType::I8 => si!(self.0.i8(), I8),
+            ValueType::I16 => si!(self.0.i16(), I16),
+            ValueType::I32 => si!(self.0.i32(), I32),
+            ValueType::I64 => si!(self.0.i64(), I64),
+            ValueType::F32 => si!(self.0.f32(), F32),
+            ValueType::F64 => si!(self.0.f64(), F64),
+            ValueType::String => si!(self.0.utf8(), String),
+            ValueType::Date => si!(self.0.date(), Date),
+            ValueType::Time => si!(self.0.time(), Time),
+            ValueType::DateTime => si!(self.0.datetime(), DateTime),
+            ValueType::Decimal => si!(self.0.as_any(), Decimal, Decimal),
+            ValueType::Uuid => si!(self.0.as_any(), Uuid, Uuid),
+            ValueType::Bytes => si!(self.0.as_any(), Bytes, Bytes),
+            // temporary ignore the rest of DataType variants
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a SeriesRef<'a> {
     type Item = Value;
     type IntoIter = SeriesIterator<'a>;
 
@@ -880,6 +918,35 @@ impl<'a> Serialize for SeriesIterator<'a> {
 }
 
 impl Serialize for Series {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.dtype() {
+            ValueType::Bool => se_series!(serializer, self),
+            ValueType::U8 => se_series!(serializer, self),
+            ValueType::U16 => se_series!(serializer, self),
+            ValueType::U32 => se_series!(serializer, self),
+            ValueType::U64 => se_series!(serializer, self),
+            ValueType::I8 => se_series!(serializer, self),
+            ValueType::I16 => se_series!(serializer, self),
+            ValueType::I32 => se_series!(serializer, self),
+            ValueType::I64 => se_series!(serializer, self),
+            ValueType::F32 => se_series!(serializer, self),
+            ValueType::F64 => se_series!(serializer, self),
+            ValueType::Date => se_series!(serializer, self),
+            ValueType::Time => se_series!(serializer, self),
+            ValueType::DateTime => se_series!(serializer, self),
+            ValueType::String => se_series!(serializer, self),
+            ValueType::Decimal => se_series!(serializer, self),
+            ValueType::Uuid => se_series!(serializer, self),
+            ValueType::Bytes => se_series!(serializer, self),
+            ValueType::Null => se_series!(serializer, self),
+        }
+    }
+}
+
+impl<'a> Serialize for SeriesRef<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
