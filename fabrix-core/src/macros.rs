@@ -517,6 +517,54 @@ macro_rules! series {
     }};
 }
 
+/// custom serialize for `SeriesIterator`
+///
+/// for instance:
+/// ```rust
+/// let mut seq = serializer.serialize_seq(Some(self.len()))?;
+/// for e in self.into_iter() {
+///     seq.serialize_element(&e)?;
+/// }
+/// seq.end()
+/// ```
+macro_rules! se_series_iterator {
+    ($sz:expr, $arr:expr, $stp:expr) => {{
+        let mut seq = $sz.serialize_seq(Some($stp.len))?;
+        for e in $arr.into_iter() {
+            seq.serialize_element(&e)?;
+        }
+        seq.end()
+    }};
+}
+
+pub(crate) use se_series_iterator;
+
+/// custom serialize for `Series`
+///
+/// for instance:
+/// ```rust
+/// let mut map = serializer.serialize_map(Some(3))?;
+/// map.serialize_entry("name", self.name())?;
+/// map.serialize_entry("datatype", self.dtype())?;
+/// map.serialize_entry("values", &self.iter())?
+/// map.end()
+/// ```
+macro_rules! se_series {
+    ($sz:expr, $self:expr) => {{
+        let mut map = $sz.serialize_map(Some(3))?;
+        // name:
+        map.serialize_entry("name", $self.name())?;
+        // datatype:
+        map.serialize_entry("datatype", $self.dtype())?;
+        // values:
+        map.serialize_entry("values", &$self.iter())?;
+
+        map.end()
+    }};
+}
+
+pub(crate) use se_series;
+
 /// rows creation macro
 /// Supporting:
 /// 1. rows with default indices

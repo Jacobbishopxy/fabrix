@@ -36,6 +36,9 @@
 //! 1. remove
 //! 1. remove_slice
 
+use std::borrow::Cow;
+use std::fmt::Formatter;
+
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use itertools::Itertools;
 use polars::prelude::{
@@ -48,13 +51,19 @@ use polars::prelude::{
 use polars::prelude::{
     DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PolarsSeries, TimeUnit,
 };
+use serde::de::{MapAccess, Visitor};
+use serde::ser::{SerializeMap, SerializeSeq};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use super::{
     chunked_array_from_values, cis_err, impl_named_from_owned, impl_named_from_ref, oob_err,
     s_fn_next, sc_fn_next, sfv, si, tms_err, FieldInfo, ObjectTypeBytes, ObjectTypeDecimal,
     ObjectTypeUuid, Stepper, BYTES, DAYS19700101, DECIMAL, IDX, NANO10E9, UUID,
 };
-use crate::{series, value, Bytes, CoreResult, Decimal, Uuid, Value, ValueType};
+use crate::{
+    se_series, se_series_iterator, series, value, Bytes, CoreResult, Decimal, Uuid, Value,
+    Value2ChronoHelper, ValueType,
+};
 
 // ================================================================================================
 // Series constructor traits
@@ -253,6 +262,9 @@ impl_named_from_ref!([Option<Decimal>], ObjectTypeDecimal, from_slice_options);
 
 impl_named_from_ref!([Uuid], ObjectTypeUuid, from_slice);
 impl_named_from_ref!([Option<Uuid>], ObjectTypeUuid, from_slice_options);
+
+impl_named_from_ref!([Bytes], ObjectTypeBytes, from_slice);
+impl_named_from_ref!([Option<Bytes>], ObjectTypeBytes, from_slice_options);
 
 // ================================================================================================
 // Series
@@ -783,36 +795,12 @@ impl<'a> Iterator for SeriesIterator<'a> {
             SeriesIterator::F32(arr, s) => s_fn_next!(arr, s),
             SeriesIterator::F64(arr, s) => s_fn_next!(arr, s),
             SeriesIterator::String(arr, s) => s_fn_next!(arr, s),
-            SeriesIterator::Date(arr, s) => {
-                if s.exhausted() {
-                    None
-                } else {
-                    let res = Value::Date(arr.get(s.step).unwrap());
-                    s.forward();
-                    Some(res)
-                }
-            }
-            SeriesIterator::Time(arr, s) => {
-                if s.exhausted() {
-                    None
-                } else {
-                    let res = Value::Time(arr.get(s.step).unwrap());
-                    s.forward();
-                    Some(res)
-                }
-            }
-            SeriesIterator::DateTime(arr, s) => {
-                if s.exhausted() {
-                    None
-                } else {
-                    let res = Value::DateTime(arr.get(s.step).unwrap());
-                    s.forward();
-                    Some(res)
-                }
-            }
-            SeriesIterator::Decimal(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIterator::Uuid(ref arr, s) => sc_fn_next!(arr, s),
-            SeriesIterator::Bytes(ref arr, s) => sc_fn_next!(arr, s),
+            SeriesIterator::Date(arr, s) => s_fn_next!(arr, s),
+            SeriesIterator::Time(arr, s) => s_fn_next!(arr, s),
+            SeriesIterator::DateTime(arr, s) => s_fn_next!(arr, s),
+            SeriesIterator::Decimal(arr, s) => sc_fn_next!(arr, s),
+            SeriesIterator::Uuid(arr, s) => sc_fn_next!(arr, s),
+            SeriesIterator::Bytes(arr, s) => sc_fn_next!(arr, s),
         }
     }
 }
@@ -858,11 +846,237 @@ impl<'a> IntoIterator for SeriesRef<'a> {
     }
 }
 
+// ================================================================================================
+// Serialize & Deserialize
+// ================================================================================================
+
+impl<'a> Serialize for SeriesIterator<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            SeriesIterator::Id(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::Bool(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::U8(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::U16(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::U32(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::U64(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::I8(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::I16(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::I32(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::I64(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::F32(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::F64(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::String(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::Date(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::Time(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::DateTime(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::Decimal(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::Uuid(arr, s) => se_series_iterator!(serializer, arr, s),
+            SeriesIterator::Bytes(arr, s) => se_series_iterator!(serializer, arr, s),
+        }
+    }
+}
+
+impl Serialize for Series {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.dtype() {
+            ValueType::Bool => se_series!(serializer, self),
+            ValueType::U8 => se_series!(serializer, self),
+            ValueType::U16 => se_series!(serializer, self),
+            ValueType::U32 => se_series!(serializer, self),
+            ValueType::U64 => se_series!(serializer, self),
+            ValueType::I8 => se_series!(serializer, self),
+            ValueType::I16 => se_series!(serializer, self),
+            ValueType::I32 => se_series!(serializer, self),
+            ValueType::I64 => se_series!(serializer, self),
+            ValueType::F32 => se_series!(serializer, self),
+            ValueType::F64 => se_series!(serializer, self),
+            ValueType::Date => se_series!(serializer, self),
+            ValueType::Time => se_series!(serializer, self),
+            ValueType::DateTime => se_series!(serializer, self),
+            ValueType::String => se_series!(serializer, self),
+            ValueType::Decimal => se_series!(serializer, self),
+            ValueType::Uuid => se_series!(serializer, self),
+            ValueType::Bytes => se_series!(serializer, self),
+            ValueType::Null => se_series!(serializer, self),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Series {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name", "datatype", "values"];
+
+        struct SeriesVisitor;
+
+        impl<'de> Visitor<'de> for SeriesVisitor {
+            type Value = Series;
+
+            fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+                formatter
+                    .write_str("struct {name: <name>, datatype: <dtype>, values: <values array>}")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut name: Option<Cow<'de, str>> = None;
+                let mut dtype = None;
+                let mut values_set = false;
+                let mut count = 0;
+                while let Some(key) = map.next_key::<Cow<str>>().unwrap() {
+                    count += 1;
+                    match key.as_ref() {
+                        "name" => {
+                            name = match map.next_value::<Cow<str>>() {
+                                Ok(s) => Some(s),
+                                Err(_) => Some(Cow::Owned(map.next_value::<String>()?)),
+                            };
+                        }
+                        "datatype" => {
+                            dtype = Some(map.next_value()?);
+                        }
+                        "values" => {
+                            // we delay calling next_value until we know the dtype
+                            values_set = true;
+                            if count != 3 {
+                                return Err(de::Error::custom(
+                                    "field values should be behind name and datatype",
+                                ));
+                            }
+                            break;
+                        }
+                        fld => return Err(de::Error::unknown_field(fld, FIELDS)),
+                    }
+                }
+                if !values_set {
+                    return Err(de::Error::missing_field("values"));
+                }
+                let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
+                let dtype = dtype.ok_or_else(|| de::Error::missing_field("datatype"))?;
+
+                match dtype {
+                    ValueType::I8 => {
+                        let values: Vec<Option<i8>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::U8 => {
+                        let values: Vec<Option<u8>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::I16 => {
+                        let values: Vec<Option<i16>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::U16 => {
+                        let values: Vec<Option<u16>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::I32 => {
+                        let values: Vec<Option<i32>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::U32 => {
+                        let values: Vec<Option<u32>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::I64 => {
+                        let values: Vec<Option<i64>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::U64 => {
+                        let values: Vec<Option<u64>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::Date => {
+                        let values: Vec<Option<i32>> = map.next_value()?;
+                        let values = values
+                            .into_iter()
+                            .map(|o| o.and_then(Value2ChronoHelper::convert_i32_to_naive_date))
+                            .collect::<Vec<_>>();
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::Time => {
+                        let values: Vec<Option<i64>> = map.next_value()?;
+                        let values = values
+                            .into_iter()
+                            .map(|o| o.and_then(Value2ChronoHelper::convert_i64_to_naive_time))
+                            .collect::<Vec<_>>();
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::DateTime => {
+                        let values: Vec<Option<i64>> = map.next_value()?;
+                        let values = values
+                            .into_iter()
+                            .map(|o| o.and_then(Value2ChronoHelper::convert_i64_to_naive_datetime))
+                            .collect::<Vec<_>>();
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::Bool => {
+                        let values: Vec<Option<bool>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::F32 => {
+                        let values: Vec<Option<f32>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::F64 => {
+                        let values: Vec<Option<f64>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::String => {
+                        let values: Vec<Option<String>> = map.next_value()?;
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::Decimal => {
+                        let values: Vec<Option<String>> = map.next_value()?;
+                        let values = values
+                            .into_iter()
+                            .map(|o| o.and_then(|v| Decimal::from_string(v).ok()))
+                            .collect::<Vec<_>>();
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::Uuid => {
+                        let values: Vec<Option<String>> = map.next_value()?;
+                        let values = values
+                            .into_iter()
+                            .map(|o| o.and_then(|v| Uuid::from_string(v).ok()))
+                            .collect::<Vec<_>>();
+                        Ok(Series::new(&name, values))
+                    }
+                    ValueType::Bytes => {
+                        // TODO:
+                        // fatal runtime error: stack overflow
+                        let values: Vec<Option<Cow<[u8]>>> = map.next_value()?;
+                        let values = values
+                            .into_iter()
+                            .map(|o| o.map(|v| Bytes(v.to_vec())))
+                            .collect::<Vec<_>>();
+                        Ok(Series::new(&name, values))
+                    }
+                    _ => unimplemented!("not implemented"),
+                }
+            }
+        }
+
+        deserializer.deserialize_map(SeriesVisitor)
+    }
+}
+
 #[cfg(test)]
 mod test_fabrix_series {
 
     use super::*;
-    use crate::{date, datetime, series, time, uuid, value};
+    use crate::{bytes, date, datetime, decimal, series, time, uuid, value};
 
     #[test]
     fn series_from_ref_success() {
@@ -1012,17 +1226,20 @@ mod test_fabrix_series {
 
     #[test]
     fn series_se_and_de() {
-        // let s1 = series!([
-        //     date!(2016, 1, 8),
-        //     date!(2017, 1, 7),
-        //     date!(2018, 1, 6),
-        //     date!(2019, 1, 5),
-        //     date!(2020, 1, 4),
-        //     date!(2021, 1, 3),
-        // ]);
-        // println!("{:?}", serde_json::to_string(&s1.0));
+        let s = series!([
+            date!(2016, 1, 8),
+            date!(2017, 1, 7),
+            date!(2018, 1, 6),
+            date!(2019, 1, 5),
+            date!(2020, 1, 4),
+            date!(2021, 1, 3),
+        ]);
+        let se = serde_json::to_string(&s).unwrap();
+        println!("{:?}", se);
+        let de: Series = serde_json::from_str(&se).unwrap();
+        println!("{:?}", de);
 
-        let s2 = series!([
+        let s = series!([
             time!(9, 10, 11),
             time!(9, 10, 12),
             time!(9, 10, 13),
@@ -1030,17 +1247,58 @@ mod test_fabrix_series {
             time!(9, 10, 15),
             time!(9, 10, 16),
         ]);
-        println!("{:?}", serde_json::to_string(&s2.0));
+        let se = serde_json::to_string(&s).unwrap();
+        println!("{:?}", se);
+        let de: Series = serde_json::from_str(&se).unwrap();
+        println!("{:?}", de);
 
-        // let s3 = series!([
-        //     datetime!(2016, 1, 8, 9, 10, 11),
-        //     datetime!(2017, 1, 7, 9, 10, 11),
-        //     datetime!(2018, 1, 6, 9, 10, 11),
-        //     datetime!(2019, 1, 5, 9, 10, 11),
-        //     datetime!(2020, 1, 4, 9, 10, 11),
-        //     datetime!(2021, 1, 3, 9, 10, 11),
+        let s = series!([
+            datetime!(2016, 1, 8, 9, 10, 11),
+            datetime!(2017, 1, 7, 9, 10, 11),
+            datetime!(2018, 1, 6, 9, 10, 11),
+            datetime!(2019, 1, 5, 9, 10, 11),
+            datetime!(2020, 1, 4, 9, 10, 11),
+            datetime!(2021, 1, 3, 9, 10, 11),
+        ]);
+        let se = serde_json::to_string(&s).unwrap();
+        println!("{:?}", se);
+        let de: Series = serde_json::from_str(&se).unwrap();
+        println!("{:?}", de);
+
+        let s = series!([
+            decimal!(0, 1),
+            decimal!(1, 2),
+            decimal!(2, 3),
+            decimal!(3, 4),
+            decimal!(4, 5),
+            decimal!(5, 6),
+        ]);
+        let se = serde_json::to_string(&s).unwrap();
+        println!("{:?}", se);
+        let de: Series = serde_json::from_str(&se).unwrap();
+        println!("{:?}", de);
+
+        let s = series!([uuid!(), uuid!(), uuid!(), uuid!(), uuid!(),]);
+        let se = serde_json::to_string(&s).unwrap();
+        println!("{:?}", se);
+        let de: Series = serde_json::from_str(&se).unwrap();
+        println!("{:?}", de);
+
+        // TODO:
+        // fatal runtime error: stack overflow
+
+        // let s = series!([
+        //     bytes!("Jacob"),
+        //     bytes!("Sam"),
+        //     bytes!("James"),
+        //     bytes!("April"),
+        //     bytes!("Julia"),
+        //     bytes!("Jack"),
         // ]);
-        // println!("{:?}", serde_json::to_string(&s3.0));
+        // let se = serde_json::to_string(&s).unwrap();
+        // println!("{:?}", se);
+        // let de: Series = serde_json::from_str(&se).unwrap();
+        // println!("{:?}", de);
     }
 
     #[test]

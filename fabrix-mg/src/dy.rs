@@ -221,37 +221,37 @@ impl RawEc for MongoExecutor {
 
 #[cfg(test)]
 mod dy_tests {
-    use super::*;
+    // use super::*;
 
-    use bson::doc;
-    use fabrix_core::{fx, Fabrix};
+    // use bson::doc;
+    // use fabrix_core::{fx, Fabrix};
 
-    const CONN: &str = "mongodb://root:secret@localhost:27017";
-    const DB: &str = "dev";
-    const CL: &str = "dev";
+    // const CONN: &str = "mongodb://root:secret@localhost:27017";
+    // const DB: &str = "dev";
+    // const CL: &str = "dev";
 
-    #[tokio::test]
-    async fn insert_one_and_find_one_success() {
-        let ec = MongoExecutor::new(CONN, DB, CL)
-            .await
-            .expect("connection failed");
+    // #[tokio::test]
+    // async fn insert_one_and_find_one_success() {
+    //     let ec = MongoExecutor::new(CONN, DB, CL)
+    //         .await
+    //         .expect("connection failed");
 
-        let df = fx![
-            "ord";
-            "names" => ["Jacob", "Sam", "Jason"],
-            "ord" => [1,2,3],
-            "val" => [Some(10), None, Some(8)]
-        ]
-        .unwrap();
+    //     let df = fx![
+    //         "ord";
+    //         "names" => ["Jacob", "Sam", "Jason"],
+    //         "ord" => [1,2,3],
+    //         "val" => [Some(10), None, Some(8)]
+    //     ]
+    //     .unwrap();
 
-        let foo = ec.insert_one::<Fabrix>(&df).await;
-        assert!(foo.is_ok());
+    //     let foo = ec.insert_one::<Fabrix>(&df).await;
+    //     assert!(foo.is_ok());
 
-        let id = foo.unwrap().inserted_id;
-        println!("{:?}", id);
+    //     let id = foo.unwrap().inserted_id;
+    //     println!("{:?}", id);
 
-        let bar = ec.find_one::<Fabrix>(doc! {"_id": id}).await;
-        assert!(bar.is_ok());
-        println!("{:?}", bar.unwrap());
-    }
+    //     let bar = ec.find_one::<Fabrix>(doc! {"_id": id}).await;
+    //     assert!(bar.is_ok());
+    //     println!("{:?}", bar.unwrap());
+    // }
 }

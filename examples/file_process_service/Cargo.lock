@@ -1551,7 +1551,6 @@ dependencies = [
  "rand_distr",
  "rayon",
  "regex",
- "serde",
  "serde_json",
  "thiserror",
 ]
