@@ -61,8 +61,8 @@ use super::{
     ObjectTypeUuid, Stepper, BYTES, DAYS19700101, DECIMAL, IDX, NANO10E9, UUID,
 };
 use crate::{
-    se_series, se_series_iterator, series, value, Bytes, CoreResult, Decimal, Uuid, Value,
-    Value2ChronoHelper, ValueType,
+    de_series_values, se_series, se_series_iterator, series, value, Bytes, CoreResult, Decimal,
+    Uuid, Value, Value2ChronoHelper, ValueType,
 };
 
 // ================================================================================================
@@ -1032,38 +1032,14 @@ impl<'de> Deserialize<'de> for Series {
                 let dtype = dtype.ok_or_else(|| de::Error::missing_field("datatype"))?;
 
                 match dtype {
-                    ValueType::I8 => {
-                        let values: Vec<Option<i8>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::U8 => {
-                        let values: Vec<Option<u8>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::I16 => {
-                        let values: Vec<Option<i16>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::U16 => {
-                        let values: Vec<Option<u16>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::I32 => {
-                        let values: Vec<Option<i32>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::U32 => {
-                        let values: Vec<Option<u32>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::I64 => {
-                        let values: Vec<Option<i64>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::U64 => {
-                        let values: Vec<Option<u64>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
+                    ValueType::I8 => de_series_values!(map, i8, name),
+                    ValueType::U8 => de_series_values!(map, u8, name),
+                    ValueType::I16 => de_series_values!(map, i16, name),
+                    ValueType::U16 => de_series_values!(map, u16, name),
+                    ValueType::I32 => de_series_values!(map, i32, name),
+                    ValueType::U32 => de_series_values!(map, u32, name),
+                    ValueType::I64 => de_series_values!(map, i64, name),
+                    ValueType::U64 => de_series_values!(map, u64, name),
                     ValueType::Date => {
                         let values: Vec<Option<i32>> = map.next_value()?;
                         let values = values
@@ -1088,22 +1064,10 @@ impl<'de> Deserialize<'de> for Series {
                             .collect::<Vec<_>>();
                         Ok(Series::new(&name, values))
                     }
-                    ValueType::Bool => {
-                        let values: Vec<Option<bool>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::F32 => {
-                        let values: Vec<Option<f32>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::F64 => {
-                        let values: Vec<Option<f64>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
-                    ValueType::String => {
-                        let values: Vec<Option<String>> = map.next_value()?;
-                        Ok(Series::new(&name, values))
-                    }
+                    ValueType::Bool => de_series_values!(map, bool, name),
+                    ValueType::F32 => de_series_values!(map, f32, name),
+                    ValueType::F64 => de_series_values!(map, f64, name),
+                    ValueType::String => de_series_values!(map, String, name),
                     ValueType::Decimal => {
                         let values: Vec<Option<String>> = map.next_value()?;
                         let values = values
@@ -1121,12 +1085,10 @@ impl<'de> Deserialize<'de> for Series {
                         Ok(Series::new(&name, values))
                     }
                     ValueType::Bytes => {
-                        // TODO:
-                        // fatal runtime error: stack overflow
                         let values: Vec<Option<Cow<[u8]>>> = map.next_value()?;
                         let values = values
                             .into_iter()
-                            .map(|o| o.map(|v| Bytes(v.to_vec())))
+                            .map(|o| o.map(Bytes::from))
                             .collect::<Vec<_>>();
                         Ok(Series::new(&name, values))
                     }
@@ -1301,9 +1263,11 @@ mod test_fabrix_series {
             date!(2020, 1, 4),
             date!(2021, 1, 3),
         ]);
-        let se = serde_json::to_string(&s).unwrap();
+        let se = serde_json::to_string(&s);
+        assert!(se.is_ok());
+        let se = se.unwrap();
         println!("{:?}", se);
-        let de: Series = serde_json::from_str(&se).unwrap();
+        let de: Result<Series, serde_json::Error> = serde_json::from_str(&se);
         println!("{:?}", de);
 
         let s = series!([
@@ -1314,9 +1278,11 @@ mod test_fabrix_series {
             time!(9, 10, 15),
             time!(9, 10, 16),
         ]);
-        let se = serde_json::to_string(&s).unwrap();
+        let se = serde_json::to_string(&s);
+        assert!(se.is_ok());
+        let se = se.unwrap();
         println!("{:?}", se);
-        let de: Series = serde_json::from_str(&se).unwrap();
+        let de: Result<Series, serde_json::Error> = serde_json::from_str(&se);
         println!("{:?}", de);
 
         let s = series!([
@@ -1327,9 +1293,11 @@ mod test_fabrix_series {
             datetime!(2020, 1, 4, 9, 10, 11),
             datetime!(2021, 1, 3, 9, 10, 11),
         ]);
-        let se = serde_json::to_string(&s).unwrap();
+        let se = serde_json::to_string(&s);
+        assert!(se.is_ok());
+        let se = se.unwrap();
         println!("{:?}", se);
-        let de: Series = serde_json::from_str(&se).unwrap();
+        let de: Result<Series, serde_json::Error> = serde_json::from_str(&se);
         println!("{:?}", de);
 
         let s = series!([
@@ -1340,32 +1308,36 @@ mod test_fabrix_series {
             decimal!(4, 5),
             decimal!(5, 6),
         ]);
-        let se = serde_json::to_string(&s).unwrap();
+        let se = serde_json::to_string(&s);
+        assert!(se.is_ok());
+        let se = se.unwrap();
         println!("{:?}", se);
-        let de: Series = serde_json::from_str(&se).unwrap();
+        let de: Result<Series, serde_json::Error> = serde_json::from_str(&se);
         println!("{:?}", de);
 
         let s = series!([uuid!(), uuid!(), uuid!(), uuid!(), uuid!(),]);
-        let se = serde_json::to_string(&s).unwrap();
+        let se = serde_json::to_string(&s);
+        assert!(se.is_ok());
+        let se = se.unwrap();
         println!("{:?}", se);
-        let de: Series = serde_json::from_str(&se).unwrap();
+        let de: Result<Series, serde_json::Error> = serde_json::from_str(&se);
         println!("{:?}", de);
 
-        // TODO:
-        // fatal runtime error: stack overflow
+        let s = series!([
+            bytes!("Jacob"),
+            bytes!("Sam"),
+            bytes!("James"),
+            bytes!("April"),
+            bytes!("Julia"),
+            bytes!("Jack"),
+        ]);
 
-        // let s = series!([
-        //     bytes!("Jacob"),
-        //     bytes!("Sam"),
-        //     bytes!("James"),
-        //     bytes!("April"),
-        //     bytes!("Julia"),
-        //     bytes!("Jack"),
-        // ]);
-        // let se = serde_json::to_string(&s).unwrap();
-        // println!("{:?}", se);
-        // let de: Series = serde_json::from_str(&se).unwrap();
-        // println!("{:?}", de);
+        let se = serde_json::to_string(&s);
+        assert!(se.is_ok());
+        let se = se.unwrap();
+        println!("{:?}", se);
+        let de: Result<Series, serde_json::Error> = serde_json::from_str(&se);
+        println!("{:?}", de.unwrap());
     }
 
     #[test]

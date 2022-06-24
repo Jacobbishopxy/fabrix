@@ -55,13 +55,13 @@ macro_rules! impl_custom_value_outer {
     ($dtype:ty, $name:expr) => {
         impl Debug for $dtype {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self)
+                write!(f, "{:?}", self.0)
             }
         }
 
         impl Display for $dtype {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self)
+                write!(f, "{:?}", self.0)
             }
         }
 
@@ -564,6 +564,22 @@ macro_rules! se_series {
 }
 
 pub(crate) use se_series;
+
+/// custom deserialize for `Series`'s values
+///
+/// for instance:
+/// ```rust
+/// let values: Vec<Option<u8>> = map.next_value()?;
+/// Ok(Series::new(&name, values))
+/// ```
+macro_rules! de_series_values {
+    ($m:expr, $t:ty, $n:expr) => {{
+        let values: Vec<Option<$t>> = $m.next_value()?;
+        Ok($crate::Series::new(&$n, values))
+    }};
+}
+
+pub(crate) use de_series_values;
 
 /// rows creation macro
 /// Supporting:

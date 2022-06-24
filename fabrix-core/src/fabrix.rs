@@ -155,11 +155,7 @@ fn dataframe_serialize<S>(fx: &DataFrame, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let series = fx
-        .get_columns()
-        .into_iter()
-        .map(|e| SeriesRef(e))
-        .collect::<Vec<_>>();
+    let series = fx.get_columns().iter().map(SeriesRef).collect::<Vec<_>>();
     let mut seq = s.serialize_seq(Some(series.len()))?;
     for e in series {
         seq.serialize_element(&e)?;
@@ -190,8 +186,8 @@ where
                 polars_series.push(e.0);
             }
 
-            return DataFrame::new(polars_series)
-                .map_err(|_| de::Error::invalid_length(0, &"must have at least one series"));
+            DataFrame::new(polars_series)
+                .map_err(|_| de::Error::invalid_length(0, &"must have at least one series"))
         }
     }
 

@@ -7,6 +7,7 @@
 //! 1. Decimal
 
 use std::any::Any;
+use std::borrow::Cow;
 use std::fmt::{Debug, Display};
 use std::str::FromStr;
 
@@ -82,6 +83,12 @@ impl Uuid {
 pub struct Bytes(pub Vec<u8>);
 
 impl_custom_value_outer!(Bytes, BYTES);
+
+impl<'a> From<Cow<'a, [u8]>> for Bytes {
+    fn from(v: Cow<[u8]>) -> Self {
+        Bytes(v.to_vec())
+    }
+}
 
 impl From<Vec<u8>> for Bytes {
     fn from(v: Vec<u8>) -> Self {
