@@ -154,10 +154,13 @@ There are three main parts in this crate:
 
 ## Todo
 
-- custom se/de for `Series`, including `ObjectType`
+- `fabrix-mg`: unit tests
+- `fabrix`: Mongo reader/writer
+- `fabrix-sql`: wait until `sea-query` uuid update to `^1`
+- `fabrix` sources: csv/json needs new de/se impl for their read/write
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support
 - MongoDB support
   - [x] compile time verification
-  - [] runtime verification
+  - [x] runtime verification

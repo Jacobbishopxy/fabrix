@@ -5,7 +5,9 @@
 use std::borrow::Borrow;
 
 use async_trait::async_trait;
-use bson::{Bson, Document};
+use bson::oid::ObjectId;
+use bson::{doc, Bson, Document};
+use fabrix_core::Fabrix;
 use futures::{StreamExt, TryStreamExt};
 use mongodb::options::UpdateModifications;
 use mongodb::results::{DeleteResult, InsertManyResult, InsertOneResult, UpdateResult};
@@ -13,10 +15,6 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::{MgError, MgResult, MongoEc, MongoExecutor};
-
-// TODO:
-// 1. `Ec` replace `query` by mongo_query_adt
-// 1. `Ec` replace `doc` by `Fabrix`
 
 #[async_trait(?Send)]
 pub trait RawEc: MongoEc {
@@ -219,39 +217,114 @@ impl RawEc for MongoExecutor {
     }
 }
 
+#[async_trait(?Send)]
+pub trait Ec: RawEc {
+    async fn delete_by_id<I>(&self, id: I) -> MgResult<()>
+    where
+        I: TryInto<ObjectId, Error = MgError>,
+    {
+        self.find_one_and_delete(doc! {"_id": id.try_into()?})
+            .await?;
+        Ok(())
+    }
+
+    async fn delete_by_ids<I, E>(&self, ids: I) -> MgResult<()>
+    where
+        I: IntoIterator<Item = E>,
+        E: TryInto<ObjectId, Error = MgError>,
+    {
+        let ids = ids
+            .into_iter()
+            .map(|e| -> MgResult<ObjectId> { e.try_into() })
+            .collect::<MgResult<Vec<_>>>()?;
+        self.delete_many(doc! {"_id": { "$in": ids }}).await?;
+
+        Ok(())
+    }
+
+    async fn update_by_id<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
+    where
+        I: TryInto<ObjectId, Error = MgError>,
+    {
+        let d = bson::to_document(data)?;
+        self.find_one_and_update(
+            doc! {"_id": id.try_into()?},
+            UpdateModifications::Document(d),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn find_by_id<I>(&self, id: I) -> MgResult<Fabrix>
+    where
+        I: TryInto<ObjectId, Error = MgError>,
+    {
+        self.find_one::<Fabrix>(doc! {"_id": id.try_into()?}).await
+    }
+
+    async fn find_by_ids<I, E>(&self, ids: I) -> MgResult<Vec<Fabrix>>
+    where
+        I: IntoIterator<Item = E>,
+        E: TryInto<ObjectId, Error = MgError>,
+    {
+        let ids = ids
+            .into_iter()
+            .map(|e| -> MgResult<ObjectId> { e.try_into() })
+            .collect::<MgResult<Vec<_>>>()?;
+        self.find_many(doc! {"_id": { "$in": ids }}).await
+    }
+
+    async fn replace_by_id<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
+    where
+        I: TryInto<ObjectId, Error = MgError>,
+    {
+        let d = bson::to_document(data)?;
+        self.find_one_and_replace(doc! {"_id": id.try_into()?}, d)
+            .await?;
+        Ok(())
+    }
+}
+
+#[async_trait(?Send)]
+impl Ec for MongoExecutor {}
+
 #[cfg(test)]
 mod dy_tests {
-    // use super::*;
+    use super::*;
 
-    // use bson::doc;
-    // use fabrix_core::{fx, Fabrix};
+    use bson::doc;
+    use fabrix_core::{fx, Fabrix};
 
-    // const CONN: &str = "mongodb://root:secret@localhost:27017";
-    // const DB: &str = "dev";
-    // const CL: &str = "dev";
+    const CONN: &str = "mongodb://root:secret@localhost:27017";
+    const DB: &str = "dev";
+    const CL: &str = "dev";
 
-    // #[tokio::test]
-    // async fn insert_one_and_find_one_success() {
-    //     let ec = MongoExecutor::new(CONN, DB, CL)
-    //         .await
-    //         .expect("connection failed");
+    #[tokio::test]
+    async fn insert_one_and_find_one_by_raw_ec_success() {
+        let ec = MongoExecutor::new(CONN, DB, CL)
+            .await
+            .expect("connection failed");
 
-    //     let df = fx![
-    //         "ord";
-    //         "names" => ["Jacob", "Sam", "Jason"],
-    //         "ord" => [1,2,3],
-    //         "val" => [Some(10), None, Some(8)]
-    //     ]
-    //     .unwrap();
+        let df = fx![
+            "ord";
+            "names" => ["Jacob", "Sam", "Jason"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)]
+        ]
+        .unwrap();
 
-    //     let foo = ec.insert_one::<Fabrix>(&df).await;
-    //     assert!(foo.is_ok());
+        let foo = ec.insert_one::<Fabrix>(&df).await;
+        assert!(foo.is_ok());
 
-    //     let id = foo.unwrap().inserted_id;
-    //     println!("{:?}", id);
+        let id = foo.unwrap().inserted_id;
+        println!("{:?}", id);
 
-    //     let bar = ec.find_one::<Fabrix>(doc! {"_id": id}).await;
-    //     assert!(bar.is_ok());
-    //     println!("{:?}", bar.unwrap());
-    // }
+        let bar = ec.find_one::<Fabrix>(doc! {"_id": id}).await;
+        assert!(bar.is_ok());
+        println!("{:?}", bar.unwrap());
+    }
+
+    // TODO:
+    // test `Ec` methods
 }

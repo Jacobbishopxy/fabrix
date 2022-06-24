@@ -11,6 +11,9 @@ pub enum MgError {
     #[error("object id not found")]
     OidNotFound,
 
+    #[error("parse object id failed")]
+    OidParseFailed,
+
     #[error("result not found")]
     ResultNotFound,
 
@@ -28,6 +31,12 @@ pub enum MgError {
 
     #[error(transparent)]
     FuturesIO(#[from] futures::io::Error),
+
+    #[error(transparent)]
+    BsonSe(#[from] bson::ser::Error),
+
+    #[error(transparent)]
+    BsonDe(#[from] bson::de::Error),
 
     #[error(transparent)]
     Mongo(#[from] mongodb::error::Error),
