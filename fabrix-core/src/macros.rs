@@ -55,13 +55,13 @@ macro_rules! impl_custom_value_outer {
     ($dtype:ty, $name:expr) => {
         impl Debug for $dtype {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self)
+                write!(f, "{:?}", self.0)
             }
         }
 
         impl Display for $dtype {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self)
+                write!(f, "{:?}", self.0)
             }
         }
 
@@ -416,7 +416,7 @@ macro_rules! value {
 #[macro_export]
 macro_rules! date {
     ($year:expr, $month:expr, $day:expr) => {
-        chrono::NaiveDate::from_ymd($year, $month, $day)
+        $crate::chrono::NaiveDate::from_ymd($year, $month, $day)
     };
 }
 
@@ -424,7 +424,7 @@ macro_rules! date {
 #[macro_export]
 macro_rules! time {
     ($hour:expr, $minute:expr, $second:expr) => {
-        chrono::NaiveTime::from_hms($hour, $minute, $second)
+        $crate::chrono::NaiveTime::from_hms($hour, $minute, $second)
     };
 }
 
@@ -432,7 +432,7 @@ macro_rules! time {
 #[macro_export]
 macro_rules! datetime {
     ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
-        chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second)
+        $crate::chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second)
     };
 }
 
@@ -516,6 +516,70 @@ macro_rules! series {
         // $crate::Series::new($name, $slice)
     }};
 }
+
+/// custom serialize for `SeriesIterator`
+///
+/// for instance:
+/// ```rust
+/// let mut seq = serializer.serialize_seq(Some(self.len()))?;
+/// for e in self.into_iter() {
+///     seq.serialize_element(&e)?;
+/// }
+/// seq.end()
+/// ```
+macro_rules! se_series_iterator {
+    ($sz:expr, $arr:expr, $stp:expr) => {{
+        let mut seq = $sz.serialize_seq(Some($stp.len))?;
+        for e in $arr.into_iter() {
+            seq.serialize_element(&e)?;
+        }
+        seq.end()
+    }};
+}
+
+pub(crate) use se_series_iterator;
+
+/// custom serialize for `Series`
+///
+/// for instance:
+/// ```rust
+/// let mut map = serializer.serialize_map(Some(3))?;
+/// map.serialize_entry("name", self.name())?;
+/// map.serialize_entry("datatype", self.dtype())?;
+/// map.serialize_entry("values", &self.iter())?
+/// map.end()
+/// ```
+macro_rules! se_series {
+    ($sz:expr, $self:expr) => {{
+        let mut map = $sz.serialize_map(Some(3))?;
+        // name:
+        map.serialize_entry("name", $self.name())?;
+        // datatype:
+        map.serialize_entry("datatype", $self.dtype())?;
+        // values:
+        map.serialize_entry("values", &$self.iter())?;
+
+        map.end()
+    }};
+}
+
+pub(crate) use se_series;
+
+/// custom deserialize for `Series`'s values
+///
+/// for instance:
+/// ```rust
+/// let values: Vec<Option<u8>> = map.next_value()?;
+/// Ok(Series::new(&name, values))
+/// ```
+macro_rules! de_series_values {
+    ($m:expr, $t:ty, $n:expr) => {{
+        let values: Vec<Option<$t>> = $m.next_value()?;
+        Ok($crate::Series::new(&$n, values))
+    }};
+}
+
+pub(crate) use de_series_values;
 
 /// rows creation macro
 /// Supporting:

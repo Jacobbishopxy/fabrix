@@ -5,7 +5,6 @@
 use std::error::Error as StdError;
 use std::fmt::Display;
 
-use fabrix_core::CoreError;
 use nom::error::{ErrorKind, ParseError};
 use thiserror::Error;
 
@@ -87,7 +86,7 @@ pub enum SqlError {
     MismatchedSqlRow(&'static str),
 
     #[error(transparent)]
-    Core(#[from] CoreError),
+    Core(#[from] fabrix_core::CoreError),
 
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),

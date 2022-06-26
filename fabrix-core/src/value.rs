@@ -7,14 +7,16 @@
 //! 1. Decimal
 
 use std::any::Any;
+use std::borrow::Cow;
 use std::fmt::{Debug, Display};
+use std::str::FromStr;
 
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use polars::chunked_array::object::PolarsObjectSafe;
 use polars::prelude::{AnyValue, DataType, Field, ObjectType, PolarsObject, TimeUnit};
 use serde::{Deserialize, Serialize};
 
-use crate::CoreError;
+use crate::{CoreError, CoreResult};
 
 use super::{
     impl_custom_value_inner, impl_custom_value_outer, impl_try_from_value, impl_value_from, BYTES,
@@ -50,6 +52,12 @@ impl Decimal {
     pub fn new(num: i64, scale: u32) -> Self {
         Decimal(rust_decimal::Decimal::new(num, scale))
     }
+
+    pub fn from_string(value: String) -> CoreResult<Self> {
+        let d = rust_decimal::Decimal::from_str(&value)
+            .map_err(|_| CoreError::Parse(value, "Decimal".to_owned()))?;
+        Ok(Decimal(d))
+    }
 }
 
 /// Custom Value: Uuid
@@ -58,11 +66,35 @@ pub struct Uuid(pub uuid::Uuid);
 
 impl_custom_value_inner!(Uuid, UUID);
 
+impl Uuid {
+    pub fn new(uuid: uuid::Uuid) -> Self {
+        Uuid(uuid)
+    }
+
+    pub fn from_string(value: String) -> CoreResult<Self> {
+        let u =
+            uuid::Uuid::from_str(&value).map_err(|_| CoreError::Parse(value, "Uuid".to_owned()))?;
+        Ok(Uuid(u))
+    }
+}
+
 /// Custom Value: Bytes
 #[derive(Clone, PartialEq, Serialize, Deserialize, Eq, Hash, Default)]
 pub struct Bytes(pub Vec<u8>);
 
 impl_custom_value_outer!(Bytes, BYTES);
+
+impl<'a> From<Cow<'a, [u8]>> for Bytes {
+    fn from(v: Cow<[u8]>) -> Self {
+        Bytes(v.to_vec())
+    }
+}
+
+impl From<Vec<u8>> for Bytes {
+    fn from(v: Vec<u8>) -> Self {
+        Bytes(v)
+    }
+}
 
 impl From<&str> for Bytes {
     fn from(v: &str) -> Self {
@@ -832,9 +864,21 @@ impl_try_from_value!(Bytes, Option<Bytes>, "Option<Bytes>");
 pub struct Value2ChronoHelper;
 
 impl Value2ChronoHelper {
+    pub fn convert_i32_to_naive_date(value: i32) -> Option<NaiveDate> {
+        NaiveDate::from_num_days_from_ce_opt(value + DAYS19700101)
+    }
+
+    pub fn convert_i64_to_naive_time(value: i64) -> Option<NaiveTime> {
+        NaiveTime::from_num_seconds_from_midnight_opt((value / NANO10E9) as u32, 0)
+    }
+
+    pub fn convert_i64_to_naive_datetime(value: i64) -> Option<NaiveDateTime> {
+        NaiveDateTime::from_timestamp_opt(value / NANO10E9, 0)
+    }
+
     pub fn convert_value_to_naive_date(value: Value) -> Result<NaiveDate, CoreError> {
         if let Value::Date(v) = value {
-            NaiveDate::from_num_days_from_ce_opt(v + DAYS19700101)
+            Self::convert_i32_to_naive_date(v)
                 .ok_or_else(|| CoreError::new_parse_info_error(value, "NaiveDate"))
         } else {
             Err(CoreError::new_parse_info_error(value, "NaiveDate"))
@@ -843,7 +887,7 @@ impl Value2ChronoHelper {
 
     pub fn convert_value_to_naive_time(value: Value) -> Result<NaiveTime, CoreError> {
         if let Value::Time(v) = value {
-            NaiveTime::from_num_seconds_from_midnight_opt((v / NANO10E9) as u32, 0)
+            Self::convert_i64_to_naive_time(v)
                 .ok_or_else(|| CoreError::new_parse_info_error(value, "NaiveTime"))
         } else {
             Err(CoreError::new_parse_info_error(value, "NaiveTime"))
@@ -852,7 +896,7 @@ impl Value2ChronoHelper {
 
     pub fn convert_value_to_naive_datetime(value: Value) -> Result<NaiveDateTime, CoreError> {
         if let Value::DateTime(v) = value {
-            NaiveDateTime::from_timestamp_opt(v / NANO10E9, 0)
+            Self::convert_i64_to_naive_datetime(v)
                 .ok_or_else(|| CoreError::new_parse_info_error(value, "NaiveDateTime"))
         } else {
             Err(CoreError::new_parse_info_error(value, "NaiveDateTime"))
@@ -864,7 +908,25 @@ impl Value2ChronoHelper {
 mod test_value {
 
     use super::*;
-    use crate::{bytes, date, decimal, time, uuid, value, Value, ValueType};
+    use crate::{bytes, date, datetime, decimal, time, uuid, value, Value, ValueType};
+
+    #[test]
+    fn value_se_and_de() {
+        let v = date!(2020, 1, 1);
+        println!("{:?}", serde_json::to_string(&v));
+        let cv = value!(v);
+        println!("{:?}", serde_json::to_string(&cv));
+
+        let v = time!(12, 0, 0);
+        println!("{:?}", serde_json::to_string(&v));
+        let cv = value!(v);
+        println!("{:?}", serde_json::to_string(&cv));
+
+        let v = datetime!(2020, 1, 1, 12, 0, 0);
+        println!("{:?}", serde_json::to_string(&v));
+        let cv = value!(v);
+        println!("{:?}", serde_json::to_string(&cv));
+    }
 
     #[test]
     fn test_conversion() {

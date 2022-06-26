@@ -81,8 +81,10 @@ async fn use_fn_mut_test() {
     println!("{:?}", res2);
 }
 
+type CsmFn = Box<dyn Fn(&[u8]) -> BoxFuture<usize> + Send + Sync>;
+
 struct Qux {
-    consume_fn: Box<dyn Fn(&[u8]) -> BoxFuture<usize> + Send + Sync>,
+    consume_fn: CsmFn,
 }
 
 struct Zot;

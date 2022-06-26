@@ -182,6 +182,7 @@ lazy_static::lazy_static! {
             tmap_pair!("DATE", NaiveDate),
             tmap_pair!("TIME", NaiveTime),
             tmap_pair!("NUMERIC", Decimal),
+            tmap_pair!("UUID", Uuid),
             tmap_pair!("BYTEA", Bytes),
         ])
     };
@@ -463,6 +464,9 @@ mod test_types {
 
         let t = PG_TMAP.get("NUMERIC").unwrap();
         assert_eq!(t.to_dtype(), ValueType::Decimal);
+
+        let t = PG_TMAP.get("UUID").unwrap();
+        assert_eq!(t.to_dtype(), ValueType::Uuid);
 
         let t = PG_TMAP.get("BYTEA").unwrap();
         assert_eq!(t.to_dtype(), ValueType::Bytes);

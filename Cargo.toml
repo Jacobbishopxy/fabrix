@@ -3,6 +3,7 @@ members=[
   "fabrix",
   "fabrix-core",
   "fabrix-mg",
+  "fabrix-mg-derive",
   "fabrix-sql",
   "fabrix-xl",
   "fabrix-dyn-conn",

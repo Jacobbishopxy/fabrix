@@ -63,7 +63,18 @@ There are three main parts in this crate:
 │   ├── executor.rs                    // Excel executor, business logic implementation
 │   └── error.rs                       // Xl error
 │
-├── fabrix-mg                          // MongoDB utility
+├── fabrix-mg-derive                   // MongoDB procedural macro
+│   │
+│   ├── dr.rs                          // derive macro
+│   └── indexes.rs                     // mongo indexes methods
+│
+├── fabrix-mg                          // MongoDB package
+│   │
+│   ├── bd.rs                          // BSON conversion and util
+│   ├── dr.rs                          // MongoDB traits for derived macro
+│   ├── indexes.rs                     // MongoDB index
+│   ├── ec.rs                          // MongoDB executor
+│   └── error.rs                       // MongoError
 │
 ├── fabrix-dyn-conn                    // Dynamic connection package for Database & MongoDB
 │   │
@@ -143,7 +154,14 @@ There are three main parts in this crate:
 
 ## Todo
 
+- `fabrix-mg`: unit tests
+- `fabrix`: alternative se/de method (row wised: `Row`)
+- `fabrix`: Mongo reader/writer
+- `fabrix-sql`: wait until `sea-query` uuid update to `^1`
+- `fabrix` sources: csv/json needs new de/se impl for their read/write
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
 - BSON support
 - MongoDB support
+  - [x] compile time verification
+  - [x] runtime verification
