@@ -2,11 +2,29 @@
 //!
 //! mongodb
 
-use bson::Document;
+use bson::{oid::ObjectId, Bson, Document};
 use futures::TryStreamExt;
 use mongodb::IndexModel as MongoIndexModel;
 
-use crate::{BaseCRUD, MgResult};
+use crate::{BaseCRUD, MgError, MgResult};
+
+pub struct Oid(ObjectId);
+
+impl TryFrom<Bson> for Oid {
+    type Error = MgError;
+
+    fn try_from(value: Bson) -> Result<Self, Self::Error> {
+        value.as_object_id().ok_or(MgError::OidParseFailed).map(Oid)
+    }
+}
+
+impl TryFrom<Oid> for ObjectId {
+    type Error = MgError;
+
+    fn try_from(value: Oid) -> Result<Self, Self::Error> {
+        Ok(value.0)
+    }
+}
 
 /// MongoDB client
 #[derive(Clone)]

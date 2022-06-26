@@ -416,7 +416,7 @@ macro_rules! value {
 #[macro_export]
 macro_rules! date {
     ($year:expr, $month:expr, $day:expr) => {
-        chrono::NaiveDate::from_ymd($year, $month, $day)
+        $crate::chrono::NaiveDate::from_ymd($year, $month, $day)
     };
 }
 
@@ -424,7 +424,7 @@ macro_rules! date {
 #[macro_export]
 macro_rules! time {
     ($hour:expr, $minute:expr, $second:expr) => {
-        chrono::NaiveTime::from_hms($hour, $minute, $second)
+        $crate::chrono::NaiveTime::from_hms($hour, $minute, $second)
     };
 }
 
@@ -432,7 +432,7 @@ macro_rules! time {
 #[macro_export]
 macro_rules! datetime {
     ($year:expr, $month:expr, $day:expr, $hour:expr, $minute:expr, $second:expr) => {
-        chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second)
+        $crate::chrono::NaiveDate::from_ymd($year, $month, $day).and_hms($hour, $minute, $second)
     };
 }
 

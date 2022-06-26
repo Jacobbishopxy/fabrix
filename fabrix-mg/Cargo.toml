@@ -9,6 +9,7 @@ fabrix-core = { path = "../fabrix-core" }
 fabrix-mg-derive = { path = "../fabrix-mg-derive", optional = true }
 
 bson = "2"
+# chrono = { version = "0", features = ["serde"] }
 mongodb = "2"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"

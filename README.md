@@ -155,6 +155,7 @@ There are three main parts in this crate:
 ## Todo
 
 - `fabrix-mg`: unit tests
+- `fabrix`: alternative se/de method (row wised: `Row`)
 - `fabrix`: Mongo reader/writer
 - `fabrix-sql`: wait until `sea-query` uuid update to `^1`
 - `fabrix` sources: csv/json needs new de/se impl for their read/write

@@ -3,6 +3,7 @@
 //! query & mutation
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use bson::oid::ObjectId;
@@ -219,7 +220,7 @@ impl RawEc for MongoExecutor {
 
 #[async_trait(?Send)]
 pub trait Ec: RawEc {
-    async fn delete_by_id<I>(&self, id: I) -> MgResult<()>
+    async fn delete_fx<I>(&self, id: I) -> MgResult<()>
     where
         I: TryInto<ObjectId, Error = MgError>,
     {
@@ -228,7 +229,7 @@ pub trait Ec: RawEc {
         Ok(())
     }
 
-    async fn delete_by_ids<I, E>(&self, ids: I) -> MgResult<()>
+    async fn delete_fxs<I, E>(&self, ids: I) -> MgResult<()>
     where
         I: IntoIterator<Item = E>,
         E: TryInto<ObjectId, Error = MgError>,
@@ -242,7 +243,9 @@ pub trait Ec: RawEc {
         Ok(())
     }
 
-    async fn update_by_id<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
+    // TODO:
+    // update operation should based on `Fabrix` index; if index is `None`, call replace method
+    async fn update_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
     where
         I: TryInto<ObjectId, Error = MgError>,
     {
@@ -256,14 +259,14 @@ pub trait Ec: RawEc {
         Ok(())
     }
 
-    async fn find_by_id<I>(&self, id: I) -> MgResult<Fabrix>
+    async fn find_fx<I>(&self, id: I) -> MgResult<Fabrix>
     where
         I: TryInto<ObjectId, Error = MgError>,
     {
         self.find_one::<Fabrix>(doc! {"_id": id.try_into()?}).await
     }
 
-    async fn find_by_ids<I, E>(&self, ids: I) -> MgResult<Vec<Fabrix>>
+    async fn find_fxs<I, E>(&self, ids: I) -> MgResult<Vec<Fabrix>>
     where
         I: IntoIterator<Item = E>,
         E: TryInto<ObjectId, Error = MgError>,
@@ -275,7 +278,7 @@ pub trait Ec: RawEc {
         self.find_many(doc! {"_id": { "$in": ids }}).await
     }
 
-    async fn replace_by_id<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
+    async fn replace_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
     where
         I: TryInto<ObjectId, Error = MgError>,
     {
@@ -284,6 +287,16 @@ pub trait Ec: RawEc {
             .await?;
         Ok(())
     }
+
+    async fn insert_fx(&self, fx: &Fabrix) -> MgResult<Bson> {
+        self.insert_one::<Fabrix>(fx).await.map(|r| r.inserted_id)
+    }
+
+    async fn insert_fxs(&self, fxs: &[Fabrix]) -> MgResult<HashMap<usize, Bson>> {
+        self.insert_many::<Fabrix>(fxs)
+            .await
+            .map(|r| r.inserted_ids)
+    }
 }
 
 #[async_trait(?Send)]
@@ -291,10 +304,12 @@ impl Ec for MongoExecutor {}
 
 #[cfg(test)]
 mod dy_tests {
+    use crate::Oid;
+
     use super::*;
 
     use bson::doc;
-    use fabrix_core::{fx, Fabrix};
+    use fabrix_core::{date, datetime, fx, time, Fabrix};
 
     const CONN: &str = "mongodb://root:secret@localhost:27017";
     const DB: &str = "dev";
@@ -325,6 +340,30 @@ mod dy_tests {
         println!("{:?}", bar.unwrap());
     }
 
-    // TODO:
-    // test `Ec` methods
+    #[tokio::test]
+    async fn insert_one_and_find_by_id_success() {
+        let ec = MongoExecutor::new(CONN, DB, CL)
+            .await
+            .expect("connection failed");
+
+        let df = fx![
+            "idx";
+            "idx" => [1,2,3],
+            "names" => ["Jacob", "Sam", "Jason"],
+            "val" => [Some(10), None, Some(8)],
+            "date" => [date!(2020,1,1), date!(2020,1,2), date!(2020,1,3)],
+            "time" => [time!(12,0,0), time!(12,0,1), time!(12,0,2)],
+            "datetime" => [datetime!(2020,1,1,12,0,0), datetime!(2020,1,1,12,0,1), datetime!(2020,1,1,12,0,2)],
+        ]
+        .unwrap();
+
+        let foo = ec.insert_fx(&df).await;
+        assert!(foo.is_ok());
+
+        let oid = Oid::try_from(foo.unwrap()).unwrap();
+        let bar = ec.find_fx(oid).await;
+        assert!(bar.is_ok());
+
+        assert_eq!(df, bar.unwrap());
+    }
 }

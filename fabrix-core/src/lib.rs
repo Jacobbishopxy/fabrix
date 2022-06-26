@@ -22,6 +22,7 @@ pub use schema::*;
 pub use series::*;
 pub use value::*;
 
+pub use chrono::{self, *};
 pub(crate) use macros::*;
 pub use util::IDX;
 pub(crate) use util::*;
