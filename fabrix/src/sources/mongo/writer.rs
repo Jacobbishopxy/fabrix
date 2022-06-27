@@ -6,10 +6,11 @@
 // Mongo Writer
 // ================================================================================================
 
+use async_trait::async_trait;
 use fabrix_core::Fabrix;
 use fabrix_mg::{Ec, MongoExecutor};
 
-use crate::FabrixResult;
+use crate::{FabrixResult, IntoSource, WriteOptions};
 
 pub struct Writer<'a> {
     mg_reader: MongoExecutor,
@@ -59,3 +60,57 @@ impl<'a> Writer<'a> {
 // ================================================================================================
 // Mongo write options & FromSource impl
 // ================================================================================================
+
+#[derive(Default)]
+pub struct MongoWriteOptions<'a> {
+    pub database: Option<&'a str>,
+    pub collection: Option<&'a str>,
+    pub id: Option<&'a str>,
+}
+
+impl<'a> WriteOptions for MongoWriteOptions<'a> {
+    fn source_type() -> &'static str {
+        "mongo"
+    }
+}
+
+#[async_trait]
+impl<'a> IntoSource<'a, MongoWriteOptions<'a>> for Writer<'a> {
+    async fn async_write<'o>(
+        &mut self,
+        fabrix: Fabrix,
+        options: &'o MongoWriteOptions,
+    ) -> FabrixResult<()>
+    where
+        'o: 'a,
+    {
+        let MongoWriteOptions {
+            database,
+            collection,
+            id,
+        } = options;
+
+        if let Some(database) = database {
+            self.with_database(database);
+        }
+        if let Some(collection) = collection {
+            self.with_collection(collection);
+        }
+        if let Some(id) = id {
+            self.with_id(id);
+        }
+
+        self.finish(fabrix).await
+    }
+
+    fn sync_write<'o>(
+        &mut self,
+        _fabrix: Fabrix,
+        _options: &'o MongoWriteOptions,
+    ) -> FabrixResult<()>
+    where
+        'o: 'a,
+    {
+        unimplemented!("sync_write is not allowed in mongo writer")
+    }
+}

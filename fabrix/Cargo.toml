@@ -38,9 +38,18 @@ xl = ["dep:fabrix-xl"]
 csv = []
 parquet = []
 json = []
-bson = ["dep:fabrix-mg"]
 mongo = ["dep:fabrix-mg"]
 dync = ["dep:fabrix-dyn-conn"]
+
+full = [
+    "sql",
+    "xl",
+    "csv",
+    "parquet",
+    "json",
+    "mongo",
+    "dync",
+]
 
 
 [[test]]

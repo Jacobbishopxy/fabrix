@@ -176,6 +176,7 @@ where
 }
 
 #[cfg(test)]
+#[cfg(all(feature = "csv", feature = "json", feature = "parquet"))]
 mod dispatcher_tests {
     use std::fs::File;
 

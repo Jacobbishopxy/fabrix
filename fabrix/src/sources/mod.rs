@@ -1,7 +1,5 @@
 //! Fabrix sources
 
-#[cfg(feature = "bson")]
-pub mod bson;
 #[cfg(feature = "csv")]
 pub mod csv;
 #[cfg(feature = "json")]

@@ -1,11 +1,11 @@
 # Fabrix
 
-Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Series and DataFrame as fundamental data structures, and is capable to communicate among different data sources, such as Database (MySql/Postgres/Sqlite), File, BSON/JSON and etc. Furthermore, ETL process among different sources are provided as well, and additionally, manipulation or operation on data itself is enhanced.
+Fabrix is a lib crate, who uses [Polars](https://github.com/pola-rs/polars) Series and DataFrame as fundamental data structures, and is capable to communicate among different data sources, such as Database (MySql/Postgres/Sqlite), File, JSON, MongoDB and etc. Furthermore, ETL process among different sources are provided as well, and additionally, manipulation or operation on data itself is enhanced.
 
 There are three main parts in this crate:
 
 - core: defines the fundamental data structures and provides the basic functions to manipulate them. `Value`, `Series`, `DataFrame` and `Row` represent unit data, 1D, 2D and cross-sectional data respectively.
-- sources: defines the data sources, such as Sql, CSV, Excel, Parquet, BSON/JSON, etc.
+- sources: defines the data sources, such as Sql, CSV, Excel, Parquet, JSON, MongoDB etc.
 - dispatcher: a compositional data source dispatcher, which is capable to dispatch data from one source to another. Additionally, it can process data as a streaming pipeline.
 
 ## Features
@@ -16,7 +16,6 @@ There are three main parts in this crate:
 - `csv`: Csv source
 - `parquet`: Parquet source
 - `json`: Json source
-- `bson`: Bson source
 - `mongo`: MongoDB source
 - `dync`: dynamic connections management
 
@@ -104,9 +103,9 @@ There are three main parts in this crate:
 │   │   │   ├── reader.rs              // JSON reader
 │   │   │   └── writer.rs              // JSON writer
 │   │   │
-│   │   ├── bson                       // BSON data source
-│   │   │
 │   │   └── mongo                      // MongoDB data source
+│   │       ├── reader.rs              // MongoDB reader
+│   │       └── writer.rs              // MongoDB writer
 │   │
 │   ├── dispatcher                     // dispatcher for different data source
 │   │   │
@@ -154,9 +153,9 @@ There are three main parts in this crate:
 
 ## Todo
 
-- `fabrix-mg`: unit tests
+- `examples/dispatcher_service`: add mongo demo
+- `fabrix-dyn-conn`: add `DynConnForMongo`
 - `fabrix`: alternative se/de method (row wised: `Row`)
-- `fabrix`: Mongo reader/writer
 - `fabrix-sql`: wait until `sea-query` uuid update to `^1`
 - `fabrix` sources: csv/json needs new de/se impl for their read/write
 - core: series/df `apply` method
