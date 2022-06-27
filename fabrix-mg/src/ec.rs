@@ -10,6 +10,12 @@ use crate::{BaseCRUD, MgError, MgResult};
 
 pub struct Oid(ObjectId);
 
+impl Oid {
+    pub fn id(&self) -> &ObjectId {
+        &self.0
+    }
+}
+
 impl TryFrom<Bson> for Oid {
     type Error = MgError;
 

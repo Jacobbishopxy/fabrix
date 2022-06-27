@@ -34,9 +34,10 @@ impl<'a, T> Reader<'a, T>
 where
     T: DatabaseType,
 {
-    pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(
-        conn: C,
-    ) -> FabrixResult<Reader<'a, T>> {
+    pub async fn new<C>(conn: C) -> FabrixResult<Reader<'a, T>>
+    where
+        C: TryInto<SqlConnInfo, Error = SqlError>,
+    {
         let conn = conn.try_into()?;
         let mut sql_reader = SqlExecutor::new(conn);
         sql_reader.connect().await?;
@@ -73,10 +74,10 @@ where
         })
     }
 
-    pub async fn new_reader<C: TryInto<SqlConnInfo, Error = SqlError>>(
-        &mut self,
-        conn: C,
-    ) -> FabrixResult<Reader<'a, T>> {
+    pub async fn new_reader<C>(&mut self, conn: C) -> FabrixResult<Reader<'a, T>>
+    where
+        C: TryInto<SqlConnInfo, Error = SqlError>,
+    {
         self.sql_reader.disconnect().await?;
         let conn = conn.try_into()?;
         let mut sql_reader = SqlExecutor::new(conn);

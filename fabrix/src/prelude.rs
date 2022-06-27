@@ -31,13 +31,17 @@ pub use crate::sources::parquet::*;
 #[cfg(feature = "xl")]
 pub use crate::sources::xl::*;
 
-// sources: bson
+// sources: json
 #[cfg(feature = "json")]
 pub use crate::sources::json::*;
 
 // sources: bson
 #[cfg(feature = "bson")]
 pub use crate::sources::bson::*;
+
+/// sources: mongo
+#[cfg(feature = "mongo")]
+pub use crate::sources::mongo::*;
 
 // dispatcher
 #[cfg(all(feature = "xl", feature = "json"))]

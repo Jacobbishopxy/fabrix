@@ -99,9 +99,9 @@ pub enum FabrixError {
     Xl(#[from] fabrix_xl::XlError),
 
     // Mongo errors
-    // #[cfg(feature = "mongo")]
-    // #[error(transparent)]
-    // Mg(#[from] MongoError),
+    #[cfg(feature = "mongo")]
+    #[error(transparent)]
+    Mg(#[from] fabrix_mg::MgError),
 
     // Tokio lock error
     #[error(transparent)]

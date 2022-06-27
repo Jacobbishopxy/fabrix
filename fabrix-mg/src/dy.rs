@@ -15,7 +15,7 @@ use mongodb::results::{DeleteResult, InsertManyResult, InsertOneResult, UpdateRe
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::{MgError, MgResult, MongoEc, MongoExecutor};
+use crate::{MgError, MgResult, MongoEc, MongoExecutor, Oid};
 
 #[async_trait]
 pub trait RawEc: MongoEc {
@@ -226,9 +226,9 @@ impl RawEc for MongoExecutor {
 pub trait Ec: RawEc {
     async fn delete_fx<I>(&self, id: I) -> MgResult<()>
     where
-        I: TryInto<ObjectId, Error = MgError> + Send,
+        I: TryInto<Oid, Error = MgError> + Send,
     {
-        self.find_one_and_delete(doc! {"_id": id.try_into()?})
+        self.find_one_and_delete(doc! {"_id": id.try_into()?.id()})
             .await?;
         Ok(())
     }
@@ -236,11 +236,11 @@ pub trait Ec: RawEc {
     async fn delete_fxs<I, E>(&self, ids: I) -> MgResult<()>
     where
         I: IntoIterator<Item = E> + Send,
-        E: TryInto<ObjectId, Error = MgError>,
+        E: TryInto<Oid, Error = MgError>,
     {
         let ids = ids
             .into_iter()
-            .map(|e| -> MgResult<ObjectId> { e.try_into() })
+            .map(|e| -> MgResult<ObjectId> { e.try_into().map(|o| *o.id()) })
             .collect::<MgResult<Vec<_>>>()?;
         self.delete_many(doc! {"_id": { "$in": ids }}).await?;
 
@@ -251,11 +251,11 @@ pub trait Ec: RawEc {
     // update operation should based on `Fabrix` index; if index is `None`, call replace method
     async fn update_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
     where
-        I: TryInto<ObjectId, Error = MgError> + Send,
+        I: TryInto<Oid, Error = MgError> + Send,
     {
         let d = bson::to_document(data)?;
         self.find_one_and_update(
-            doc! {"_id": id.try_into()?},
+            doc! {"_id": id.try_into()?.id()},
             UpdateModifications::Document(d),
         )
         .await?;
@@ -265,29 +265,30 @@ pub trait Ec: RawEc {
 
     async fn find_fx<I>(&self, id: I) -> MgResult<Fabrix>
     where
-        I: TryInto<ObjectId, Error = MgError> + Send,
+        I: TryInto<Oid, Error = MgError> + Send,
     {
-        self.find_one::<Fabrix>(doc! {"_id": id.try_into()?}).await
+        self.find_one::<Fabrix>(doc! {"_id": id.try_into()?.id()})
+            .await
     }
 
     async fn find_fxs<I, E>(&self, ids: I) -> MgResult<Vec<Fabrix>>
     where
         I: IntoIterator<Item = E> + Send,
-        E: TryInto<ObjectId, Error = MgError>,
+        E: TryInto<Oid, Error = MgError>,
     {
         let ids = ids
             .into_iter()
-            .map(|e| -> MgResult<ObjectId> { e.try_into() })
+            .map(|e| -> MgResult<ObjectId> { e.try_into().map(|o| *o.id()) })
             .collect::<MgResult<Vec<_>>>()?;
         self.find_many(doc! {"_id": { "$in": ids }}).await
     }
 
     async fn replace_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
     where
-        I: TryInto<ObjectId, Error = MgError> + Send,
+        I: TryInto<Oid, Error = MgError> + Send,
     {
         let d = bson::to_document(data)?;
-        self.find_one_and_replace(doc! {"_id": id.try_into()?}, d)
+        self.find_one_and_replace(doc! {"_id": id.try_into()?.id()}, d)
             .await?;
         Ok(())
     }
@@ -308,8 +309,6 @@ impl Ec for MongoExecutor {}
 
 #[cfg(test)]
 mod dy_tests {
-    use crate::Oid;
-
     use super::*;
 
     use bson::doc;
@@ -364,7 +363,7 @@ mod dy_tests {
         let foo = ec.insert_fx(&df).await;
         assert!(foo.is_ok());
 
-        let oid = Oid::try_from(foo.unwrap()).unwrap();
+        let oid = foo.unwrap();
         let bar = ec.find_fx(oid).await;
         assert!(bar.is_ok());
 

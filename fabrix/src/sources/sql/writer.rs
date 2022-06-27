@@ -25,9 +25,10 @@ impl<T> Writer<T>
 where
     T: DatabaseType,
 {
-    pub async fn new<C: TryInto<SqlConnInfo, Error = SqlError>>(
-        conn: C,
-    ) -> FabrixResult<Writer<T>> {
+    pub async fn new<C>(conn: C) -> FabrixResult<Writer<T>>
+    where
+        C: TryInto<SqlConnInfo, Error = SqlError>,
+    {
         let conn = conn.try_into()?;
         let mut sql_writer = SqlExecutor::new(conn);
         sql_writer.connect().await?;
@@ -48,10 +49,10 @@ where
         })
     }
 
-    pub async fn new_writer<C: TryInto<SqlConnInfo, Error = SqlError>>(
-        &mut self,
-        conn: C,
-    ) -> FabrixResult<Writer<T>> {
+    pub async fn new_writer<C>(&mut self, conn: C) -> FabrixResult<Writer<T>>
+    where
+        C: TryInto<SqlConnInfo, Error = SqlError>,
+    {
         self.sql_writer.disconnect().await?;
         let conn = conn.try_into()?;
         let mut sql_writer = SqlExecutor::new(conn);
