@@ -17,7 +17,7 @@ use serde::Serialize;
 
 use crate::{MgError, MgResult, MongoEc, MongoExecutor};
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait RawEc: MongoEc {
     async fn delete_one(&self, query: Document) -> MgResult<DeleteResult>;
 
@@ -25,20 +25,20 @@ pub trait RawEc: MongoEc {
 
     async fn distinct(
         &self,
-        field_name: impl AsRef<str>,
-        filter: impl Into<Option<Document>>,
+        field_name: impl AsRef<str> + Send,
+        filter: impl Into<Option<Document>> + Send,
     ) -> MgResult<Vec<Bson>>;
 
     async fn update_one(
         &self,
         query: Document,
-        update: impl Into<UpdateModifications>,
+        update: impl Into<UpdateModifications> + Send,
     ) -> MgResult<UpdateResult>;
 
     async fn update_many(
         &self,
         query: Document,
-        update: impl Into<UpdateModifications>,
+        update: impl Into<UpdateModifications> + Send,
     ) -> MgResult<UpdateResult>;
 
     async fn find_one<T>(&self, query: Document) -> MgResult<T>
@@ -64,18 +64,18 @@ pub trait RawEc: MongoEc {
     async fn find_one_and_replace<T>(
         &self,
         query: Document,
-        replace: impl Borrow<T>,
+        replace: impl Borrow<T> + Send,
     ) -> MgResult<T>
     where
-        T: Serialize + DeserializeOwned;
+        T: Serialize + DeserializeOwned + Send + Sync;
 
-    async fn insert_one<T>(&self, doc: impl Borrow<T>) -> MgResult<InsertOneResult>
+    async fn insert_one<T>(&self, doc: impl Borrow<T> + Send + Sync) -> MgResult<InsertOneResult>
     where
         T: Serialize + Unpin + Send + Sync;
 
     async fn insert_many<T>(
         &self,
-        doc: impl IntoIterator<Item = impl Borrow<T>>,
+        doc: impl IntoIterator<Item = impl Borrow<T> + Send> + Send + Sync,
     ) -> MgResult<InsertManyResult>
     where
         T: Serialize + Unpin + Send + Sync;
@@ -83,13 +83,13 @@ pub trait RawEc: MongoEc {
     async fn replace_one<T>(
         &self,
         query: Document,
-        replace: impl Borrow<T>,
+        replace: impl Borrow<T> + Send,
     ) -> MgResult<UpdateResult>
     where
-        T: Serialize;
+        T: Serialize + Send + Sync;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RawEc for MongoExecutor {
     async fn delete_one(&self, query: Document) -> MgResult<DeleteResult> {
         Ok(self.schema::<Document>().delete_one(query, None).await?)
@@ -101,8 +101,8 @@ impl RawEc for MongoExecutor {
 
     async fn distinct(
         &self,
-        field_name: impl AsRef<str>,
-        filter: impl Into<Option<Document>>,
+        field_name: impl AsRef<str> + Send,
+        filter: impl Into<Option<Document>> + Send,
     ) -> MgResult<Vec<Bson>> {
         Ok(self
             .schema::<Document>()
@@ -113,7 +113,7 @@ impl RawEc for MongoExecutor {
     async fn update_one(
         &self,
         query: Document,
-        update: impl Into<UpdateModifications>,
+        update: impl Into<UpdateModifications> + Send,
     ) -> MgResult<UpdateResult> {
         Ok(self
             .schema::<Document>()
@@ -124,7 +124,7 @@ impl RawEc for MongoExecutor {
     async fn update_many(
         &self,
         query: Document,
-        update: impl Into<UpdateModifications>,
+        update: impl Into<UpdateModifications> + Send,
     ) -> MgResult<UpdateResult> {
         Ok(self
             .schema::<Document>()
@@ -179,9 +179,13 @@ impl RawEc for MongoExecutor {
             .ok_or(MgError::ResultNotFound)
     }
 
-    async fn find_one_and_replace<T>(&self, query: Document, replace: impl Borrow<T>) -> MgResult<T>
+    async fn find_one_and_replace<T>(
+        &self,
+        query: Document,
+        replace: impl Borrow<T> + Send,
+    ) -> MgResult<T>
     where
-        T: Serialize + DeserializeOwned,
+        T: Serialize + DeserializeOwned + Send + Sync,
     {
         self.schema::<T>()
             .find_one_and_replace(query, replace, None)
@@ -189,7 +193,7 @@ impl RawEc for MongoExecutor {
             .ok_or(MgError::ResultNotFound)
     }
 
-    async fn insert_one<T>(&self, doc: impl Borrow<T>) -> MgResult<InsertOneResult>
+    async fn insert_one<T>(&self, doc: impl Borrow<T> + Send + Sync) -> MgResult<InsertOneResult>
     where
         T: Serialize + Unpin + Send + Sync,
     {
@@ -198,7 +202,7 @@ impl RawEc for MongoExecutor {
 
     async fn insert_many<T>(
         &self,
-        doc: impl IntoIterator<Item = impl Borrow<T>>,
+        doc: impl IntoIterator<Item = impl Borrow<T> + Send> + Send + Sync,
     ) -> MgResult<InsertManyResult>
     where
         T: Serialize + Unpin + Send + Sync,
@@ -209,20 +213,20 @@ impl RawEc for MongoExecutor {
     async fn replace_one<T>(
         &self,
         query: Document,
-        replace: impl Borrow<T>,
+        replace: impl Borrow<T> + Send,
     ) -> MgResult<UpdateResult>
     where
-        T: Serialize,
+        T: Serialize + Send + Sync,
     {
         Ok(self.schema::<T>().replace_one(query, replace, None).await?)
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait Ec: RawEc {
     async fn delete_fx<I>(&self, id: I) -> MgResult<()>
     where
-        I: TryInto<ObjectId, Error = MgError>,
+        I: TryInto<ObjectId, Error = MgError> + Send,
     {
         self.find_one_and_delete(doc! {"_id": id.try_into()?})
             .await?;
@@ -231,7 +235,7 @@ pub trait Ec: RawEc {
 
     async fn delete_fxs<I, E>(&self, ids: I) -> MgResult<()>
     where
-        I: IntoIterator<Item = E>,
+        I: IntoIterator<Item = E> + Send,
         E: TryInto<ObjectId, Error = MgError>,
     {
         let ids = ids
@@ -247,7 +251,7 @@ pub trait Ec: RawEc {
     // update operation should based on `Fabrix` index; if index is `None`, call replace method
     async fn update_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
     where
-        I: TryInto<ObjectId, Error = MgError>,
+        I: TryInto<ObjectId, Error = MgError> + Send,
     {
         let d = bson::to_document(data)?;
         self.find_one_and_update(
@@ -261,14 +265,14 @@ pub trait Ec: RawEc {
 
     async fn find_fx<I>(&self, id: I) -> MgResult<Fabrix>
     where
-        I: TryInto<ObjectId, Error = MgError>,
+        I: TryInto<ObjectId, Error = MgError> + Send,
     {
         self.find_one::<Fabrix>(doc! {"_id": id.try_into()?}).await
     }
 
     async fn find_fxs<I, E>(&self, ids: I) -> MgResult<Vec<Fabrix>>
     where
-        I: IntoIterator<Item = E>,
+        I: IntoIterator<Item = E> + Send,
         E: TryInto<ObjectId, Error = MgError>,
     {
         let ids = ids
@@ -280,7 +284,7 @@ pub trait Ec: RawEc {
 
     async fn replace_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
     where
-        I: TryInto<ObjectId, Error = MgError>,
+        I: TryInto<ObjectId, Error = MgError> + Send,
     {
         let d = bson::to_document(data)?;
         self.find_one_and_replace(doc! {"_id": id.try_into()?}, d)
@@ -299,7 +303,7 @@ pub trait Ec: RawEc {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Ec for MongoExecutor {}
 
 #[cfg(test)]

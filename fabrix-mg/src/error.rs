@@ -33,6 +33,9 @@ pub enum MgError {
     FuturesIO(#[from] futures::io::Error),
 
     #[error(transparent)]
+    BsonOid(#[from] bson::oid::Error),
+
+    #[error(transparent)]
     BsonSe(#[from] bson::ser::Error),
 
     #[error(transparent)]

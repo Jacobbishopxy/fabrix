@@ -26,6 +26,14 @@ impl TryFrom<Oid> for ObjectId {
     }
 }
 
+impl TryFrom<&str> for Oid {
+    type Error = MgError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(Oid(ObjectId::parse_str(value)?))
+    }
+}
+
 /// MongoDB client
 #[derive(Clone)]
 pub struct MongoExecutor {
