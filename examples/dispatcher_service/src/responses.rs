@@ -1,8 +1,8 @@
 //! All the responses returned by the dispatcher service.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 pub(crate) struct UploadedFile {
     filename: String,
     time: u64,

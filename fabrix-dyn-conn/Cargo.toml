@@ -19,6 +19,6 @@ tokio = { version = "1", features = ["full"] }
 uuid = { version = "0", features = ["serde", "v4"] }
 
 [features]
-default = ["sql"]
+default = ["sql", "mongo"]
 sql = ["dep:fabrix-sql"]
 mongo = ["dep:fabrix-mg"]

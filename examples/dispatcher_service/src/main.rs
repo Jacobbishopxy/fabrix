@@ -38,6 +38,15 @@ async fn main() -> std::io::Result<()> {
                             .route("/show_table_schema", web::get().to(ds::show_table_schema))
                             .route("/to_csv", web::post().to(ds::db_to_csv))
                             .route("/to_parquet", web::post().to(ds::db_to_parquet)),
+                    )
+                    .service(
+                        web::scope("/parquet")
+                            .route("/to_mongo", web::post().to(ds::parquet_to_mongo)),
+                    )
+                    .service(
+                        web::scope("/mongo")
+                            .route("/to_csv", web::post().to(ds::mongo_to_csv))
+                            .route("/to_parquet", web::post().to(ds::mongo_to_parquet)),
                     ),
             )
     })

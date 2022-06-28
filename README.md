@@ -147,20 +147,22 @@ There are three main parts in this crate:
 
    - select data from database and download a parquet file. [code](./examples/dispatcher_service/src/db2parquet.rs)
 
+   - upload parquet file, read data and save into MongoDB. [code](./examples/dispatcher_service/src/parquet2mongo.rs)
+
+   - select data from MongoDB and download a csv file. [code](./examples/dispatcher_service/src/mongo2csv.rs)
+
+   - select data from MongoDB and download a parquet file. [code](./examples/dispatcher_service/src/mongo2parquet.rs)
+
 1. [Dynamic connection service](./examples/dync_service/src/main.rs):
 
    - a dynamic connection pool service for database.
 
 ## Todo
 
-- `examples/dispatcher_service`: add mongo demo
 - `fabrix-dyn-conn`: add `DynConnForMongo`
+- `fabrix-dyn-conn`: add initialization methods (serde_yaml)
 - `fabrix`: alternative se/de method (row wised: `Row`)
 - `fabrix-sql`: wait until `sea-query` uuid update to `^1`
 - `fabrix` sources: csv/json needs new de/se impl for their read/write
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
-- BSON support
-- MongoDB support
-  - [x] compile time verification
-  - [x] runtime verification

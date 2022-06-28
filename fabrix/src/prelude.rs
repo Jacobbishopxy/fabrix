@@ -35,10 +35,6 @@ pub use crate::sources::xl::*;
 #[cfg(feature = "json")]
 pub use crate::sources::json::*;
 
-// sources: bson
-#[cfg(feature = "bson")]
-pub use crate::sources::bson::*;
-
 /// sources: mongo
 #[cfg(feature = "mongo")]
 pub use crate::sources::mongo::*;
