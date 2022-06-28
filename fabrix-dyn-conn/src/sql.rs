@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use fabrix_core::{D1Value, Fabrix, Series};
 use fabrix_sql::{sql_adt, SqlBuilder, SqlEngine};
 
-use crate::{DynConn, DynConnInfo, DynConnResult};
+use crate::{gmv, gv, DynConn, DynConnInfo, DynConnResult};
 
 #[async_trait]
 pub trait DynConnForSql<K>
@@ -108,20 +108,6 @@ where
     async fn delete(&self, key: &K, delete: &sql_adt::Delete) -> DynConnResult<u64>;
 
     async fn select(&self, key: &K, select: &sql_adt::Select) -> DynConnResult<Fabrix>;
-}
-
-/// getting a reference of SqlExecutor by a given key
-macro_rules! gv {
-    ($self:expr, $key:expr) => {{
-        $self.try_get($key)?.value()
-    }};
-}
-
-/// getting a mutable ref SqlExecutor by a given key
-macro_rules! gmv {
-    ($self:expr, $key:expr) => {{
-        $self.try_get_mut($key)?.value_mut()
-    }};
 }
 
 #[async_trait]

@@ -4,11 +4,13 @@
 
 pub mod dc;
 pub mod error;
+pub mod macros;
 pub mod mongo;
 pub mod sql;
 
 pub use dc::*;
 pub use error::*;
+pub(crate) use macros::*;
 
 #[cfg(feature = "sql")]
 pub use sql::*;
