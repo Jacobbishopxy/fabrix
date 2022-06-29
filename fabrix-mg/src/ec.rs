@@ -11,6 +11,10 @@ use crate::{BaseCRUD, MgError, MgResult};
 pub struct Oid(ObjectId);
 
 impl Oid {
+    pub fn new(oid: ObjectId) -> Self {
+        Oid(oid)
+    }
+
     pub fn id(&self) -> &ObjectId {
         &self.0
     }
@@ -32,6 +36,14 @@ impl TryFrom<Oid> for ObjectId {
     }
 }
 
+impl TryFrom<ObjectId> for Oid {
+    type Error = MgError;
+
+    fn try_from(value: ObjectId) -> Result<Self, Self::Error> {
+        Ok(Oid(value))
+    }
+}
+
 impl TryFrom<&str> for Oid {
     type Error = MgError;
 
@@ -44,6 +56,7 @@ impl TryFrom<&str> for Oid {
 #[derive(Clone)]
 pub struct MongoExecutor {
     pub(crate) client: mongodb::Client,
+    pub(crate) conn_str: String,
     pub database: String,
     pub collection: String,
 }
@@ -62,6 +75,7 @@ impl MongoExecutor {
 
         Ok(MongoExecutor {
             client,
+            conn_str: uri.as_ref().to_string(),
             database: database.into(),
             collection: collection.into(),
         })
@@ -162,7 +176,10 @@ impl MongoExecutor {
     }
 }
 
-pub trait MongoEc: Send + Sync {
+pub trait MongoBaseEc: Send + Sync {
+    /// get connection string
+    fn conn_str(&self) -> &str;
+
     /// get database
     fn database(&self) -> &str;
 
@@ -179,7 +196,11 @@ pub trait MongoEc: Send + Sync {
     fn schema<T>(&self) -> mongodb::Collection<T>;
 }
 
-impl MongoEc for MongoExecutor {
+impl MongoBaseEc for MongoExecutor {
+    fn conn_str(&self) -> &str {
+        &self.conn_str
+    }
+
     fn database(&self) -> &str {
         &self.database
     }

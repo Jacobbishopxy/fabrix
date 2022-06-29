@@ -5,7 +5,7 @@ use bson::{doc, oid::ObjectId, to_document};
 use futures::TryStreamExt;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{IndexOptions, MgError, MgResult, MongoEc};
+use crate::{IndexOptions, MgError, MgResult, MongoBaseEc};
 
 /// BaseCRUD trait
 ///
@@ -28,7 +28,7 @@ pub trait BaseCRUD {
 /// According to `crud` crate, any struct who derived `CRUD` will automatically implement this trait.
 /// In other words, `MongoClient` can use methods in this trait to persist `TYPE` data.
 #[async_trait]
-pub trait MongoCRUD<TYPE>: MongoEc
+pub trait MongoCRUD<TYPE>: MongoBaseEc
 where
     TYPE: Send + Sync + Clone + Serialize + DeserializeOwned + Unpin + BaseCRUD,
 {

@@ -15,10 +15,10 @@ use mongodb::results::{DeleteResult, InsertManyResult, InsertOneResult, UpdateRe
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::{MgError, MgResult, MongoEc, MongoExecutor, Oid};
+use crate::{MgError, MgResult, MongoBaseEc, MongoExecutor, Oid};
 
 #[async_trait]
-pub trait RawEc: MongoEc {
+pub trait MongoRawEc: MongoBaseEc {
     async fn delete_one(&self, query: Document) -> MgResult<DeleteResult>;
 
     async fn delete_many(&self, query: Document) -> MgResult<DeleteResult>;
@@ -90,7 +90,7 @@ pub trait RawEc: MongoEc {
 }
 
 #[async_trait]
-impl RawEc for MongoExecutor {
+impl MongoRawEc for MongoExecutor {
     async fn delete_one(&self, query: Document) -> MgResult<DeleteResult> {
         Ok(self.schema::<Document>().delete_one(query, None).await?)
     }
@@ -223,7 +223,7 @@ impl RawEc for MongoExecutor {
 }
 
 #[async_trait]
-pub trait Ec: RawEc {
+pub trait MongoEc: MongoRawEc {
     async fn delete_fx<I>(&self, id: I) -> MgResult<()>
     where
         I: TryInto<Oid, Error = MgError> + Send,
@@ -293,19 +293,24 @@ pub trait Ec: RawEc {
         Ok(())
     }
 
-    async fn insert_fx(&self, fx: &Fabrix) -> MgResult<Bson> {
-        self.insert_one::<Fabrix>(fx).await.map(|r| r.inserted_id)
+    async fn insert_fx(&self, fx: &Fabrix) -> MgResult<Oid> {
+        self.insert_one::<Fabrix>(fx)
+            .await
+            .map(|r| Oid::new(r.inserted_id.as_object_id().unwrap()))
     }
 
-    async fn insert_fxs(&self, fxs: &[Fabrix]) -> MgResult<HashMap<usize, Bson>> {
-        self.insert_many::<Fabrix>(fxs)
-            .await
-            .map(|r| r.inserted_ids)
+    async fn insert_fxs(&self, fxs: &[Fabrix]) -> MgResult<HashMap<usize, Oid>> {
+        self.insert_many::<Fabrix>(fxs).await.map(|r| {
+            r.inserted_ids
+                .into_iter()
+                .map(|(k, v)| (k, Oid::new(v.as_object_id().unwrap())))
+                .collect::<HashMap<_, _>>()
+        })
     }
 }
 
 #[async_trait]
-impl Ec for MongoExecutor {}
+impl MongoEc for MongoExecutor {}
 
 #[cfg(test)]
 mod dy_tests {
@@ -363,7 +368,7 @@ mod dy_tests {
         let foo = ec.insert_fx(&df).await;
         assert!(foo.is_ok());
 
-        let oid = foo.unwrap();
+        let oid = *foo.unwrap().id();
         let bar = ec.find_fx(oid).await;
         assert!(bar.is_ok());
 

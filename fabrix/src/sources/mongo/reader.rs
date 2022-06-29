@@ -4,7 +4,7 @@
 
 use async_trait::async_trait;
 use fabrix_core::Fabrix;
-use fabrix_mg::{Ec, MongoExecutor};
+use fabrix_mg::{MongoEc, MongoExecutor};
 
 use crate::{FabrixError, FabrixResult, FromSource, ReadOptions};
 
