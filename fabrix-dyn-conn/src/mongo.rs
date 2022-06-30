@@ -2,11 +2,7 @@
 //!
 //! Mongo
 
-use std::{
-    collections::HashMap,
-    hash::Hash,
-    ops::{Deref, DerefMut},
-};
+use std::{collections::HashMap, hash::Hash};
 
 use async_trait::async_trait;
 use fabrix_core::Fabrix;
@@ -22,6 +18,10 @@ where
     // ================================================================================================
     // MongoInfo
     // ================================================================================================
+
+    fn is_connected(&self, key: &K) -> DynConnResult<bool>;
+
+    async fn connect(&self, key: &K) -> DynConnResult<()>;
 
     fn get_database(&self, key: &K) -> DynConnResult<String>;
 
@@ -63,13 +63,18 @@ where
 }
 
 #[async_trait]
-impl<K, V> DynConnForMongo<K> for DynConn<K, V>
+impl<K> DynConnForMongo<K> for DynConn<K, MongoExecutor>
 where
     K: Eq + Hash + Send + Sync,
-    V: Deref<Target = MongoExecutor>,
-    V: DerefMut<Target = MongoExecutor>,
-    V: Send + Sync,
 {
+    fn is_connected(&self, key: &K) -> DynConnResult<bool> {
+        Ok(gv!(self, key).is_connected())
+    }
+
+    async fn connect(&self, key: &K) -> DynConnResult<()> {
+        Ok(gmv!(self, key).connect().await?)
+    }
+
     fn get_database(&self, key: &K) -> DynConnResult<String> {
         let result = gv!(self, key)
             .database()
