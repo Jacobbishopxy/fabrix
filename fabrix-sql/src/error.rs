@@ -64,11 +64,11 @@ pub enum SqlError {
     #[error("invalid connection string {0}")]
     InvalidConnStr(String),
 
-    #[error("connection has already been established")]
+    #[error("connection already established")]
     ConnectionAlreadyEstablished,
 
-    #[error("connection has not been established")]
-    ConnectionNotEstablished,
+    #[error("connection not yet established")]
+    ConnectionNotYetEstablished,
 
     #[error("unsupported database operation {0}")]
     UnsupportedDatabaseOperation(&'static str),

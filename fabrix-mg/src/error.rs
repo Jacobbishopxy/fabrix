@@ -26,6 +26,15 @@ pub enum MgError {
     #[error("conversion error: from {0} to {1}")]
     Conversion(String, String),
 
+    #[error("connection already established")]
+    ConnectionAlreadyEstablished,
+
+    #[error("connection not yet established")]
+    ConnectionNotYetEstablished,
+
+    #[error("database/collection not set")]
+    DatabaseOrCollectionNotSet,
+
     #[error(transparent)]
     Core(#[from] fabrix_core::CoreError),
 

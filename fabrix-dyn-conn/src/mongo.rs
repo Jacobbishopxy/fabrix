@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use fabrix_core::Fabrix;
 use fabrix_mg::{MgError, MongoBaseEc, MongoEc, MongoExecutor, Oid};
 
-use crate::{gmv, gv, DynConn, DynConnInfo, DynConnResult};
+use crate::{gmv, gv, DynConn, DynConnError, DynConnInfo, DynConnResult};
 
 #[async_trait]
 pub trait DynConnForMongo<K>
@@ -71,20 +71,30 @@ where
     V: Send + Sync,
 {
     fn get_database(&self, key: &K) -> DynConnResult<String> {
-        Ok(gv!(self, key).database().to_string())
+        let result = gv!(self, key)
+            .database()
+            .ok_or(DynConnError::Mg(MgError::DatabaseOrCollectionNotSet))?
+            .to_string();
+
+        Ok(result)
     }
 
     fn set_database(&self, key: &K, database: &str) -> DynConnResult<()> {
-        gmv!(self, key).set_database(database);
+        gmv!(self, key).set_database(database)?;
         Ok(())
     }
 
     fn get_collection(&self, key: &K) -> DynConnResult<String> {
-        Ok(gv!(self, key).collection().to_string())
+        let result = gv!(self, key)
+            .collection()
+            .ok_or(DynConnError::Mg(MgError::DatabaseOrCollectionNotSet))?
+            .to_string();
+
+        Ok(result)
     }
 
     fn set_collection(&self, key: &K, collection: &str) -> DynConnResult<()> {
-        gmv!(self, key).set_collection(collection);
+        gmv!(self, key).set_collection(collection)?;
         Ok(())
     }
 

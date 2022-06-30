@@ -23,7 +23,7 @@ impl<'a> Reader<'a> {
         database: &'a str,
         collection: &'a str,
     ) -> FabrixResult<Reader<'a>> {
-        let ec = MongoExecutor::new(conn, database, collection).await?;
+        let ec = MongoExecutor::new_and_connect(conn, database, collection).await?;
 
         Ok(Self {
             mg_reader: ec,
@@ -32,12 +32,14 @@ impl<'a> Reader<'a> {
     }
 
     pub fn with_database(&mut self, database: &str) -> &mut Self {
-        self.mg_reader.set_database(database.to_string());
+        self.mg_reader.set_database(database.to_string()).unwrap();
         self
     }
 
     pub fn with_collection(&mut self, collection: &str) -> &mut Self {
-        self.mg_reader.set_collection(collection.to_string());
+        self.mg_reader
+            .set_collection(collection.to_string())
+            .unwrap();
         self
     }
 

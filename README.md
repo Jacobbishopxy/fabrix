@@ -159,7 +159,6 @@ There are three main parts in this crate:
 
 ## Todo
 
-- `fabrix-dyn-conn`: add `DynConnForMongo`
 - `fabrix-dyn-conn`: add initialization methods (serde_yaml)
 - `fabrix`: alternative se/de method (row wised: `Row`)
 - `fabrix-sql`: wait until `sea-query` uuid update to `^1`

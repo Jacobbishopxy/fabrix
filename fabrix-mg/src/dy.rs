@@ -92,11 +92,11 @@ pub trait MongoRawEc: MongoBaseEc {
 #[async_trait]
 impl MongoRawEc for MongoExecutor {
     async fn delete_one(&self, query: Document) -> MgResult<DeleteResult> {
-        Ok(self.schema::<Document>().delete_one(query, None).await?)
+        Ok(self.schema::<Document>()?.delete_one(query, None).await?)
     }
 
     async fn delete_many(&self, query: Document) -> MgResult<DeleteResult> {
-        Ok(self.schema::<Document>().delete_many(query, None).await?)
+        Ok(self.schema::<Document>()?.delete_many(query, None).await?)
     }
 
     async fn distinct(
@@ -105,7 +105,7 @@ impl MongoRawEc for MongoExecutor {
         filter: impl Into<Option<Document>> + Send,
     ) -> MgResult<Vec<Bson>> {
         Ok(self
-            .schema::<Document>()
+            .schema::<Document>()?
             .distinct(field_name, filter, None)
             .await?)
     }
@@ -116,7 +116,7 @@ impl MongoRawEc for MongoExecutor {
         update: impl Into<UpdateModifications> + Send,
     ) -> MgResult<UpdateResult> {
         Ok(self
-            .schema::<Document>()
+            .schema::<Document>()?
             .update_one(query, update, None)
             .await?)
     }
@@ -127,7 +127,7 @@ impl MongoRawEc for MongoExecutor {
         update: impl Into<UpdateModifications> + Send,
     ) -> MgResult<UpdateResult> {
         Ok(self
-            .schema::<Document>()
+            .schema::<Document>()?
             .update_many(query, update, None)
             .await?)
     }
@@ -136,7 +136,7 @@ impl MongoRawEc for MongoExecutor {
     where
         T: DeserializeOwned + Unpin + Send + Sync,
     {
-        self.schema::<T>()
+        self.schema::<T>()?
             .find_one(query, None)
             .await?
             .ok_or(MgError::ResultNotFound)
@@ -147,7 +147,7 @@ impl MongoRawEc for MongoExecutor {
         T: DeserializeOwned + Unpin + Send + Sync,
     {
         Ok(self
-            .schema::<T>()
+            .schema::<T>()?
             .find(query, None)
             .await?
             .map(|v| v.map_err(MgError::from))
@@ -159,7 +159,7 @@ impl MongoRawEc for MongoExecutor {
     where
         T: DeserializeOwned + Unpin + Send + Sync,
     {
-        self.schema::<T>()
+        self.schema::<T>()?
             .find_one_and_delete(query, None)
             .await?
             .ok_or(MgError::ResultNotFound)
@@ -173,7 +173,7 @@ impl MongoRawEc for MongoExecutor {
     where
         T: DeserializeOwned + Unpin + Send + Sync,
     {
-        self.schema::<T>()
+        self.schema::<T>()?
             .find_one_and_update(query, update, None)
             .await?
             .ok_or(MgError::ResultNotFound)
@@ -187,7 +187,7 @@ impl MongoRawEc for MongoExecutor {
     where
         T: Serialize + DeserializeOwned + Send + Sync,
     {
-        self.schema::<T>()
+        self.schema::<T>()?
             .find_one_and_replace(query, replace, None)
             .await?
             .ok_or(MgError::ResultNotFound)
@@ -197,7 +197,7 @@ impl MongoRawEc for MongoExecutor {
     where
         T: Serialize + Unpin + Send + Sync,
     {
-        Ok(self.schema::<T>().insert_one(doc, None).await?)
+        Ok(self.schema::<T>()?.insert_one(doc, None).await?)
     }
 
     async fn insert_many<T>(
@@ -207,7 +207,7 @@ impl MongoRawEc for MongoExecutor {
     where
         T: Serialize + Unpin + Send + Sync,
     {
-        Ok(self.schema::<T>().insert_many(doc, None).await?)
+        Ok(self.schema::<T>()?.insert_many(doc, None).await?)
     }
 
     async fn replace_one<T>(
@@ -218,7 +218,10 @@ impl MongoRawEc for MongoExecutor {
     where
         T: Serialize + Send + Sync,
     {
-        Ok(self.schema::<T>().replace_one(query, replace, None).await?)
+        Ok(self
+            .schema::<T>()?
+            .replace_one(query, replace, None)
+            .await?)
     }
 }
 
@@ -325,7 +328,7 @@ mod dy_tests {
 
     #[tokio::test]
     async fn insert_one_and_find_one_by_raw_ec_success() {
-        let ec = MongoExecutor::new(CONN, DB, CL)
+        let ec = MongoExecutor::new_and_connect(CONN, DB, CL)
             .await
             .expect("connection failed");
 
@@ -350,7 +353,7 @@ mod dy_tests {
 
     #[tokio::test]
     async fn insert_one_and_find_by_id_success() {
-        let ec = MongoExecutor::new(CONN, DB, CL)
+        let ec = MongoExecutor::new_and_connect(CONN, DB, CL)
             .await
             .expect("connection failed");
 

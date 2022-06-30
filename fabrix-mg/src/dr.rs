@@ -40,7 +40,7 @@ where
         // in case of `id` field exists, we need to remove it
         value.remove_id();
         let insert = self
-            .schema::<TYPE>()
+            .schema::<TYPE>()?
             .insert_one(value.clone(), None)
             .await?;
         let oid = insert.inserted_id.as_object_id().unwrap();
@@ -54,7 +54,7 @@ where
         TYPE: 'a,
     {
         let filter = doc! { "_id": id };
-        let result = self.schema::<TYPE>().find_one(filter, None).await?;
+        let result = self.schema::<TYPE>()?.find_one(filter, None).await?;
         Ok(result)
     }
 
@@ -65,7 +65,7 @@ where
     {
         let filter = doc! { "_id": { "$in": ids } };
         let res = self
-            .schema::<TYPE>()
+            .schema::<TYPE>()?
             .find(filter, None)
             .await?
             .try_collect()
@@ -80,7 +80,7 @@ where
         TYPE: 'a,
     {
         let res = self
-            .schema::<TYPE>()
+            .schema::<TYPE>()?
             .find(None, None)
             .await?
             .try_collect()
@@ -97,7 +97,7 @@ where
         let oid = value.get_id().ok_or(MgError::OidNotFound)?;
         let filter = doc! {"_id": oid};
         let update = doc! {"$set": to_document(&value).unwrap()};
-        self.schema::<TYPE>()
+        self.schema::<TYPE>()?
             .update_one(filter, update, None)
             .await?;
         Ok(value)
@@ -110,7 +110,7 @@ where
     {
         let filter = doc! {"_id": id};
         let result = self
-            .schema::<TYPE>()
+            .schema::<TYPE>()?
             .find_one_and_delete(filter, None)
             .await?;
         Ok(result)
@@ -137,14 +137,14 @@ mod tests {
 
     #[tokio::test]
     async fn connection_success() {
-        let ec = MongoExecutor::new(CONN, DB, CL).await;
+        let ec = MongoExecutor::new_and_connect(CONN, DB, CL).await;
 
         assert!(ec.is_ok());
     }
 
     #[tokio::test]
     async fn read_all_success() {
-        let ec = MongoExecutor::new(CONN, DB, CL)
+        let ec = MongoExecutor::new_and_connect(CONN, DB, CL)
             .await
             .expect("connection failed");
 

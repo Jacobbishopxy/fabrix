@@ -228,7 +228,7 @@ macro_rules! conn_e_err {
 macro_rules! conn_n_err {
     ($pool:expr) => {
         if $pool.is_none() {
-            return Err($crate::SqlError::ConnectionNotEstablished);
+            return Err($crate::SqlError::ConnectionNotYetEstablished);
         }
     };
 }

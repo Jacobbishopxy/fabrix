@@ -12,6 +12,9 @@ pub use fabrix_sql::*;
 #[cfg(feature = "xl")]
 pub use fabrix_xl::*;
 
+#[cfg(feature = "mongo")]
+pub use fabrix_mg::*;
+
 #[cfg(feature = "dync")]
 pub use fabrix_dyn_conn::*;
 

@@ -111,3 +111,12 @@ pub enum FabrixError {
     #[error("unknown error")]
     Unknown,
 }
+
+impl FabrixError {
+    pub fn new_uncategorized<T>(msg: T) -> Self
+    where
+        UncategorizedError: From<T>,
+    {
+        Self::Uncategorized(msg.into())
+    }
+}
