@@ -118,9 +118,9 @@ impl MongoExecutor {
         collection: T,
     ) -> MgResult<Self> {
         let mut ec = Self::new(conn_str);
+        ec.connect().await?;
         ec.set_database(database)?;
         ec.set_collection(collection)?;
-        ec.connect().await?;
 
         Ok(ec)
     }
@@ -310,5 +310,22 @@ impl MongoBaseEc for MongoExecutor {
             .collection(self.collection.as_ref().unwrap());
 
         Ok(s)
+    }
+}
+
+#[cfg(test)]
+mod ec_tests {
+    use super::*;
+
+    const CONN: &str = "mongodb://root:secret@localhost:27017";
+    const DB: &str = "dev";
+    const CL: &str = "dev";
+
+    #[tokio::test]
+    async fn connection_and_show_dbs_success() {
+        let ec = MongoExecutor::new_and_connect(CONN, DB, CL).await;
+        assert!(ec.is_ok());
+
+        println!("{:?}", ec.unwrap().show_dbs().await);
     }
 }
