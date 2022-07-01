@@ -25,15 +25,15 @@ pub async fn add(
         .map_err(|_| ErrorInternalServerError("failed to generate mongo executor"))?;
 
     match data.insert(q.uid().to_string(), ec) {
-        Some(_) => Ok(HttpResponse::Ok().finish()),
-        None => Ok(HttpResponse::InternalServerError().finish()),
+        Some(_) => Ok(HttpResponse::Ok().body("replace previous ec")),
+        None => Ok(HttpResponse::Ok().body("new ec registered")),
     }
 }
 
-pub async fn remove(data: web::Data<DcMongo>, key: web::Json<QueryKey>) -> Result<impl Responder> {
+pub async fn remove(data: web::Data<DcMongo>, key: web::Query<QueryKey>) -> Result<impl Responder> {
     match data.remove(&key.into_inner().key) {
-        Some(_) => Ok(HttpResponse::Ok().finish()),
-        None => Ok(HttpResponse::InternalServerError().finish()),
+        Some(_) => Ok(HttpResponse::Ok().body("ec removed")),
+        None => Ok(HttpResponse::Ok().body("key does not exist")),
     }
 }
 
@@ -42,14 +42,14 @@ pub async fn connect(
     key: web::Query<QueryKey>,
 ) -> Result<impl Responder> {
     match data.connect(&key.into_inner().key).await {
-        Ok(_) => Ok(HttpResponse::Ok().finish()),
-        Err(_) => Ok(HttpResponse::InternalServerError().finish()),
+        Ok(_) => Ok(HttpResponse::Ok().body("connection established")),
+        Err(e) => Ok(HttpResponse::InternalServerError().body(e.to_string())),
     }
 }
 
 pub async fn check(data: web::Data<DcMongo>, key: web::Query<QueryKey>) -> Result<impl Responder> {
     match data.is_connected(&key.into_inner().key) {
-        Ok(_) => Ok(HttpResponse::Ok().finish()),
-        Err(_) => Ok(HttpResponse::InternalServerError().finish()),
+        Ok(v) => Ok(HttpResponse::Ok().body(v.to_string())),
+        Err(e) => Ok(HttpResponse::InternalServerError().body(e.to_string())),
     }
 }

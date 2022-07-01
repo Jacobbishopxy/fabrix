@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/check", web::get().to(mongo::check)),
             )
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", 8060))?
     .run()
     .await
 }
