@@ -159,9 +159,10 @@ There are three main parts in this crate:
 
 ## Todo
 
-- `fabrix-dyn-conn`: add initialization methods (serde_yaml)
 - `fabrix`: alternative se/de method (row wised: `Row`)
-- `fabrix-sql`: wait until `sea-query` uuid update to `^1`
+- `fabrix-json`: new package and also with row-wised se/de
+- `fabrix-parquet`: new package (parquet2)
+- `fabrix-dyn-conn`: add initialization methods (serde_yaml)
 - `fabrix` sources: csv/json needs new de/se impl for their read/write
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)

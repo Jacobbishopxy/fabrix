@@ -13,10 +13,6 @@ use serde::{Deserialize, Serialize};
 use super::{alias, sql_adt, sv_2_v};
 use crate::{SqlError, SqlResult};
 
-// TODO:
-// wait until `seq-query` (current ver. 0.25.0) to support `uuid 1.0+`
-// temporarily disable Uuid conversion
-
 // ================================================================================================
 // SqlBuilder
 // ================================================================================================
@@ -79,8 +75,7 @@ pub(crate) fn from_value_to_svalue(value: Value) -> SValue {
             Value2ChronoHelper::convert_value_to_naive_datetime(v).unwrap(),
         ))),
         Value::Decimal(v) => SValue::Decimal(Some(Box::new(v.0))),
-        // Value::Uuid(v) => SValue::Uuid(Some(Box::new(v.0))),
-        Value::Uuid(v) => SValue::Uuid(None),
+        Value::Uuid(v) => SValue::Uuid(Some(Box::new(v.0))),
         Value::Bytes(v) => SValue::Bytes(Some(Box::new(v.0))),
         // Temporary workaround
         Value::Null => SValue::Bool(None),
@@ -145,8 +140,7 @@ pub(crate) fn try_from_value_to_svalue(
             Value2ChronoHelper::convert_value_to_naive_datetime(v)?,
         )))),
         Value::Decimal(v) => Ok(SValue::Decimal(Some(Box::new(v.0)))),
-        // Value::Uuid(v) => Ok(SValue::Uuid(Some(Box::new(v.0)))),
-        Value::Uuid(v) => Err(SqlError::UnsupportedSeaQueryType),
+        Value::Uuid(v) => Ok(SValue::Uuid(Some(Box::new(v.0)))),
         Value::Bytes(v) => Ok(SValue::Bytes(Some(Box::new(v.0)))),
         Value::Null => {
             if nullable {
@@ -178,7 +172,7 @@ pub(crate) fn from_svalue_to_value(svalue: SValue, nullable: bool) -> SqlResult<
         SValue::ChronoTime(ov) => sv_2_v!(ov, NaiveTime, nullable),
         SValue::ChronoDateTime(ov) => sv_2_v!(ov, NaiveDateTime, nullable),
         SValue::Decimal(ov) => sv_2_v!(ov, Decimal, nullable),
-        // SValue::Uuid(ov) => sv_2_v!(ov, Uuid, nullable),
+        SValue::Uuid(ov) => sv_2_v!(ov, Uuid, nullable),
         _ => Err(SqlError::UnsupportedSeaQueryType),
     }
 }
@@ -302,7 +296,7 @@ fn cond_builder(flt: &[sql_adt::Expression], state: &mut RecursiveState) {
                         from_value_ref_to_svalue(&v.0),
                         from_value_ref_to_svalue(&v.1),
                     ),
-                    sql_adt::Equation::Like(v) => expr.like(v),
+                    sql_adt::Equation::Like(v) => expr.like(v.as_str()),
                 };
                 if state.negate {
                     state.add(Cond::all().not().add(expr));
