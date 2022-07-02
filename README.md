@@ -54,6 +54,12 @@ There are three main parts in this crate:
 │   │
 │   └── error.rs                       // Sql error
 │
+├── fabrix-json                        // Json package
+│
+├── fabrix-csv                         // Csv package
+│
+├── fabrix-parquet                     // Parquet package
+│
 ├── fabrix-xl                          // Excel package
 │   │
 │   ├── util.rs                        // Excel utility

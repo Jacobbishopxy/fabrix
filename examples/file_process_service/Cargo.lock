@@ -755,14 +755,23 @@ dependencies = [
 [[package]]
 name = "fabrix-csv"
 version = "0.1.0"
+dependencies = [
+ "fabrix-core",
+]
 
 [[package]]
 name = "fabrix-json"
 version = "0.1.0"
+dependencies = [
+ "fabrix-core",
+]
 
 [[package]]
 name = "fabrix-parquet"
 version = "0.1.0"
+dependencies = [
+ "fabrix-core",
+]
 
 [[package]]
 name = "fabrix-xl"

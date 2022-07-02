@@ -675,6 +675,9 @@ dependencies = [
 [[package]]
 name = "fabrix-csv"
 version = "0.1.0"
+dependencies = [
+ "fabrix-core",
+]
 
 [[package]]
 name = "fabrix-dyn-conn"
@@ -693,6 +696,9 @@ dependencies = [
 [[package]]
 name = "fabrix-json"
 version = "0.1.0"
+dependencies = [
+ "fabrix-core",
+]
 
 [[package]]
 name = "fabrix-mg"
@@ -721,6 +727,9 @@ dependencies = [
 [[package]]
 name = "fabrix-parquet"
 version = "0.1.0"
+dependencies = [
+ "fabrix-core",
+]
 
 [[package]]
 name = "fabrix-sql"
