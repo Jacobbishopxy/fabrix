@@ -2,10 +2,13 @@
 members=[
   "fabrix",
   "fabrix-core",
+  "fabrix-json",
+  "fabrix-csv",
+  "fabrix-parquet",
+  "fabrix-xl",
+  "fabrix-sql",
   "fabrix-mg",
   "fabrix-mg-derive",
-  "fabrix-sql",
-  "fabrix-xl",
   "fabrix-dyn-conn",
 ]
 exclude=[

@@ -898,7 +898,10 @@ dependencies = [
  "async-trait",
  "chrono",
  "fabrix-core",
+ "fabrix-csv",
+ "fabrix-json",
  "fabrix-mg",
+ "fabrix-parquet",
  "fabrix-sql",
  "fabrix-xl",
  "itertools",
@@ -923,6 +926,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabrix-csv"
+version = "0.1.0"
+
+[[package]]
+name = "fabrix-json"
+version = "0.1.0"
+
+[[package]]
 name = "fabrix-mg"
 version = "0.1.0"
 dependencies = [
@@ -944,6 +955,10 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "fabrix-parquet"
+version = "0.1.0"
 
 [[package]]
 name = "fabrix-sql"
