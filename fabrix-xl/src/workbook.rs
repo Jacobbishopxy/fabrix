@@ -88,13 +88,13 @@ pub trait SheetAccessTrait {
 
 impl SheetAccessTrait for &str {
     fn go(&self) -> SheetNameOrNum {
-        SheetNameOrNum::Name(*self)
+        SheetNameOrNum::Name(self)
     }
 }
 
 impl SheetAccessTrait for &String {
     fn go(&self) -> SheetNameOrNum {
-        SheetNameOrNum::Name(*self)
+        SheetNameOrNum::Name(self)
     }
 }
 

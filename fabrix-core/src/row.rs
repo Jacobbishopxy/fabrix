@@ -25,11 +25,12 @@
 
 use itertools::Itertools;
 use polars::prelude::Field;
+use serde::{Deserialize, Serialize};
 
 use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIterator, SeriesRef};
 use crate::{CoreResult, D2Value, Fabrix, Series, Value, ValueType};
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Row {
     pub index: Option<usize>,
     pub data: Vec<Value>,
