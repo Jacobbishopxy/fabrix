@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 fabrix-core = { path = "../fabrix-core" }
+
+serde = { version = "1", features = ["derive"] }
+thiserror = "1"

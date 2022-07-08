@@ -764,6 +764,8 @@ name = "fabrix-json"
 version = "0.1.0"
 dependencies = [
  "fabrix-core",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

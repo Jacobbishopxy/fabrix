@@ -1,14 +1,7 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//! Json
+//!
+//! Fabrix -> Json, Json -> Fabrix
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod error;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use error::*;
