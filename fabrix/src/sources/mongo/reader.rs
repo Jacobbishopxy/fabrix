@@ -4,7 +4,7 @@
 
 use async_trait::async_trait;
 use fabrix_core::Fabrix;
-use fabrix_mg::{MongoEc, MongoExecutor};
+use fabrix_mg::{MongoEc, MongoExecutor, SavingCategory};
 
 use crate::{FabrixError, FabrixResult, FromSource, ReadOptions};
 
@@ -14,6 +14,7 @@ use crate::{FabrixError, FabrixResult, FromSource, ReadOptions};
 
 pub struct Reader<'a> {
     mg_reader: MongoExecutor,
+    saving_category: Option<&'a SavingCategory>,
     id: Option<&'a str>,
 }
 
@@ -27,6 +28,7 @@ impl<'a> Reader<'a> {
 
         Ok(Self {
             mg_reader: ec,
+            saving_category: None,
             id: None,
         })
     }
@@ -43,6 +45,11 @@ impl<'a> Reader<'a> {
         self
     }
 
+    pub fn with_saving_category(&mut self, saving_category: &'a SavingCategory) -> &mut Self {
+        self.saving_category = Some(saving_category);
+        self
+    }
+
     pub fn with_id(&mut self, id: &'a str) -> &mut Self {
         self.id = Some(id);
         self
@@ -50,8 +57,12 @@ impl<'a> Reader<'a> {
 
     pub async fn finish(&mut self) -> FabrixResult<Fabrix> {
         let id = self.id.ok_or(FabrixError::NotSet("it"))?;
+        let saving_category = self
+            .saving_category
+            .unwrap_or(&SavingCategory::Column)
+            .clone();
 
-        let fx = self.mg_reader.find_fx(id).await?;
+        let fx = self.mg_reader.find_fx(id, saving_category).await?;
 
         Ok(fx)
     }
@@ -65,6 +76,7 @@ impl<'a> Reader<'a> {
 pub struct MongoReadOptions<'a> {
     pub database: Option<&'a str>,
     pub collection: Option<&'a str>,
+    pub saving_category: Option<&'a SavingCategory>,
     pub id: Option<&'a str>,
 }
 
@@ -83,6 +95,7 @@ impl<'a> FromSource<'a, MongoReadOptions<'a>> for Reader<'a> {
         let MongoReadOptions {
             database,
             collection,
+            saving_category,
             id,
         } = options;
 
@@ -91,6 +104,9 @@ impl<'a> FromSource<'a, MongoReadOptions<'a>> for Reader<'a> {
         }
         if let Some(collection) = collection {
             self.with_collection(collection);
+        }
+        if let Some(saving_category) = saving_category {
+            self.with_saving_category(saving_category);
         }
         if let Some(id) = id {
             self.with_id(id);

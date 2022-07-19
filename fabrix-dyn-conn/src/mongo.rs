@@ -6,7 +6,7 @@ use std::{collections::HashMap, hash::Hash};
 
 use async_trait::async_trait;
 use fabrix_core::Fabrix;
-use fabrix_mg::{MgError, MongoBaseEc, MongoEc, MongoExecutor, Oid};
+use fabrix_mg::{MgError, MongoBaseEc, MongoEc, MongoExecutor, Oid, SavingCategory};
 
 use crate::{gmv, gv, DynConn, DynConnError, DynConnInfo, DynConnResult};
 
@@ -44,22 +44,48 @@ where
         I: IntoIterator<Item = E> + Send,
         E: TryInto<Oid, Error = MgError>;
 
-    async fn find_fx<I>(&self, key: &K, id: I) -> DynConnResult<Fabrix>
+    async fn find_fx<I>(
+        &self,
+        key: &K,
+        id: I,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<Fabrix>
     where
         I: TryInto<Oid, Error = MgError> + Send;
 
-    async fn find_fxs<I, E>(&self, key: &K, ids: I) -> DynConnResult<Vec<Fabrix>>
+    async fn find_fxs<I, E>(
+        &self,
+        key: &K,
+        ids: I,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<Vec<Fabrix>>
     where
         I: IntoIterator<Item = E> + Send,
         E: TryInto<Oid, Error = MgError>;
 
-    async fn replace_fx<I>(&self, key: &K, id: I, data: &Fabrix) -> DynConnResult<()>
+    async fn replace_fx<I>(
+        &self,
+        key: &K,
+        id: I,
+        data: &Fabrix,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<()>
     where
         I: TryInto<Oid, Error = MgError> + Send;
 
-    async fn insert_fx(&self, key: &K, fx: &Fabrix) -> DynConnResult<Oid>;
+    async fn insert_fx(
+        &self,
+        key: &K,
+        fx: &Fabrix,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<Oid>;
 
-    async fn insert_fxs(&self, key: &K, fxs: &[Fabrix]) -> DynConnResult<HashMap<usize, Oid>>;
+    async fn insert_fxs(
+        &self,
+        key: &K,
+        fxs: &[Fabrix],
+        saving_category: SavingCategory,
+    ) -> DynConnResult<HashMap<usize, Oid>>;
 }
 
 #[async_trait]
@@ -118,35 +144,61 @@ where
         Ok(gv!(self, key).delete_fxs(ids).await?)
     }
 
-    async fn find_fx<I>(&self, key: &K, id: I) -> DynConnResult<Fabrix>
+    async fn find_fx<I>(
+        &self,
+        key: &K,
+        id: I,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<Fabrix>
     where
         I: TryInto<Oid, Error = MgError> + Send,
     {
-        Ok(gv!(self, key).find_fx(id).await?)
+        Ok(gv!(self, key).find_fx(id, saving_category).await?)
     }
 
-    async fn find_fxs<I, E>(&self, key: &K, ids: I) -> DynConnResult<Vec<Fabrix>>
+    async fn find_fxs<I, E>(
+        &self,
+        key: &K,
+        ids: I,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<Vec<Fabrix>>
     where
         I: IntoIterator<Item = E> + Send,
         E: TryInto<Oid, Error = MgError>,
     {
-        Ok(gv!(self, key).find_fxs(ids).await?)
+        Ok(gv!(self, key).find_fxs(ids, saving_category).await?)
     }
 
-    async fn replace_fx<I>(&self, key: &K, id: I, data: &Fabrix) -> DynConnResult<()>
+    async fn replace_fx<I>(
+        &self,
+        key: &K,
+        id: I,
+        data: &Fabrix,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<()>
     where
         I: TryInto<Oid, Error = MgError> + Send,
     {
-        gv!(self, key).replace_fx(id, data).await?;
+        gv!(self, key).replace_fx(id, data, saving_category).await?;
         Ok(())
     }
 
-    async fn insert_fx(&self, key: &K, fx: &Fabrix) -> DynConnResult<Oid> {
-        Ok(gv!(self, key).insert_fx(fx).await?)
+    async fn insert_fx(
+        &self,
+        key: &K,
+        fx: &Fabrix,
+        saving_category: SavingCategory,
+    ) -> DynConnResult<Oid> {
+        Ok(gv!(self, key).insert_fx(fx, saving_category).await?)
     }
 
-    async fn insert_fxs(&self, key: &K, fxs: &[Fabrix]) -> DynConnResult<HashMap<usize, Oid>> {
-        Ok(gv!(self, key).insert_fxs(fxs).await?)
+    async fn insert_fxs(
+        &self,
+        key: &K,
+        fxs: &[Fabrix],
+        saving_category: SavingCategory,
+    ) -> DynConnResult<HashMap<usize, Oid>> {
+        Ok(gv!(self, key).insert_fxs(fxs, saving_category).await?)
     }
 }
 

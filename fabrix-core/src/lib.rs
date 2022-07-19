@@ -1,4 +1,4 @@
-//! Fabrix core  
+//! Fabrix core
 
 #![feature(trait_upcasting)]
 #![allow(incomplete_features)]
@@ -24,5 +24,6 @@ pub use value::*;
 
 pub use chrono::{self, *};
 pub(crate) use macros::*;
+pub use polars;
 pub use util::IDX;
 pub(crate) use util::*;

@@ -41,7 +41,7 @@ xl = ["dep:fabrix-xl"]
 csv = ["dep:fabrix-csv"]
 parquet = ["dep:fabrix-parquet"]
 sql = ["dep:fabrix-sql"]
-mongo = ["dep:fabrix-mg"]
+mongo = ["dep:fabrix-json", "dep:fabrix-mg"]
 dync = ["dep:fabrix-dyn-conn"]
 
 full = [

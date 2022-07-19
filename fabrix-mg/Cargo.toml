@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 fabrix-core = { path = "../fabrix-core" }
+fabrix-json = { path = "../fabrix-json" }
 fabrix-mg-derive = { path = "../fabrix-mg-derive", optional = true }
 
 bson = "2"
