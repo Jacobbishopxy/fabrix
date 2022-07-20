@@ -22,7 +22,7 @@ impl DmlMutation for SqlBuilder {
         statement.columns(columns);
         let column_info = fx.fields();
 
-        for row in fx.into_iter() {
+        for row in fx.iter_rows() {
             let record = row
                 .data
                 .into_iter()
@@ -48,7 +48,7 @@ impl DmlMutation for SqlBuilder {
                 let column_name = it.name().to_owned();
                 let column_loc = it.loc();
                 let mut res = String::new();
-                for row in fx.into_iter() {
+                for row in fx.iter_rows() {
                     let mut statement = Query::update();
                     statement.table(alias!(table_name));
 

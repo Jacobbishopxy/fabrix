@@ -23,12 +23,11 @@
 //! 1. insert_rows
 //! 1. iter_rows
 
-use itertools::Itertools;
 use polars::prelude::Field;
 use serde::{Deserialize, Serialize};
 
 use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIterator, SeriesRef};
-use crate::{CoreResult, D2Value, Fabrix, Series, Value, ValueType};
+use crate::{CoreResult, D2Value, Fabrix, IndexTag, Series, Value, ValueType};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Row {
@@ -60,8 +59,7 @@ impl Row {
 
     /// get index type
     pub fn index_dtype(&self) -> Option<ValueType> {
-        self.index
-            .and_then(|i| self.data.get(i).map(ValueType::from))
+        self.index().map(ValueType::from)
     }
 
     /// get data field
@@ -83,13 +81,13 @@ impl Row {
 impl Fabrix {
     /// create a DataFrame by Rows, slower than column-wise constructors.
     /// cannot build from an empty `Vec<Row>`
-    pub fn from_rows(rows: Vec<Row>) -> CoreResult<Self> {
-        let mut rows = rows;
-        // rows length
-        let m = rows.len();
-        if m == 0 {
+    pub fn from_rows(mut rows: Vec<Row>) -> CoreResult<Self> {
+        if rows.is_empty() {
             return Err(cis_err("row"));
         }
+
+        // rows length
+        let m = rows.len();
         // rows width
         let n = rows.first().unwrap().len();
         let mut series = Vec::with_capacity(n);
@@ -193,8 +191,8 @@ impl Fabrix {
             self.data
                 .iter()
                 .map(|s| Value::from(s.get(idx)))
-                .collect_vec(),
-            self.index_tag.as_ref().map(|it| it.loc),
+                .collect::<Vec<_>>(),
+            self.index_tag().map(|it| it.loc),
         );
 
         Ok(Row { index, data })
@@ -202,9 +200,9 @@ impl Fabrix {
 
     /// get a row by index. This method is slower than get a column.
     pub fn get_row(&self, index: &Value) -> CoreResult<Row> {
-        match self.index_tag {
-            Some(ref it) => {
-                let idx = Series(self.data.column(&it.name)?.clone()).find_index(index);
+        match self.index_tag() {
+            Some(it) => {
+                let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
                 match idx {
                     Some(i) => self.get_row_by_idx(i),
                     None => Err(inf_err()),
@@ -237,7 +235,7 @@ impl Fabrix {
     pub fn insert_row(&mut self, index: &Value, row: Row) -> CoreResult<&mut Self> {
         match &self.index_tag {
             Some(it) => {
-                let idx = Series(self.data.column(&it.name)?.clone()).find_index(index);
+                let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
                 match idx {
                     Some(idx) => self.insert_row_by_idx(idx, row),
                     None => Err(inf_err()),
@@ -265,7 +263,7 @@ impl Fabrix {
     pub fn insert_rows(&mut self, index: &Value, rows: Vec<Row>) -> CoreResult<&mut Self> {
         match &self.index_tag {
             Some(it) => {
-                let idx = Series(self.data.column(&it.name)?.clone()).find_index(index);
+                let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
                 match idx {
                     Some(i) => self.insert_rows_by_idx(i, rows),
                     None => Err(inf_err()),
@@ -276,37 +274,20 @@ impl Fabrix {
     }
 
     /// iterate through the rows of the dataframe, same as `into_iter()`
-    pub fn iter_rows(&self) -> DataFrameIntoIterator {
-        self.into_iter()
+    pub fn iter_rows(&self) -> IntoIteratorRow {
+        FabrixIterToRow(self).into_iter()
     }
 }
 
-impl<'a> IntoIterator for &'a Fabrix {
-    type Item = Row;
-    type IntoIter = DataFrameIntoIterator<'a>;
+pub struct FabrixIterToRow<'a>(&'a Fabrix);
 
-    fn into_iter(self) -> Self::IntoIter {
-        let mut data_iters = Vec::with_capacity(self.width());
-        for s in self.data.iter() {
-            let iter = SeriesRef(s).into_iter();
-            data_iters.push(iter);
-        }
-
-        DataFrameIntoIterator {
-            index: self.index_tag().map(|it| it.loc),
-            data_iters,
-            stepper: Stepper::new(self.height()),
-        }
-    }
-}
-
-pub struct DataFrameIntoIterator<'a> {
+pub struct IntoIteratorRow<'a> {
     index: Option<usize>,
     data_iters: Vec<SeriesIterator<'a>>,
     stepper: Stepper,
 }
 
-impl<'a> Iterator for DataFrameIntoIterator<'a> {
+impl<'a> Iterator for IntoIteratorRow<'a> {
     type Item = Row;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -321,6 +302,25 @@ impl<'a> Iterator for DataFrameIntoIterator<'a> {
 
             self.stepper.forward();
             Some(Row::new(self.index, data))
+        }
+    }
+}
+
+impl<'a> IntoIterator for FabrixIterToRow<'a> {
+    type Item = Row;
+    type IntoIter = IntoIteratorRow<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let mut data_iters = Vec::with_capacity(self.0.width());
+        for s in self.0.data.iter() {
+            let iter = SeriesRef(s).into_iter();
+            data_iters.push(iter);
+        }
+
+        IntoIteratorRow {
+            index: self.0.index_tag().map(IndexTag::loc),
+            data_iters,
+            stepper: Stepper::new(self.0.height()),
         }
     }
 }

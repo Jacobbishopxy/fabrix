@@ -37,6 +37,8 @@
 		"rels",
 		"reqwest",
 		"rowframe",
+		"rowmap",
+		"rowmaps",
 		"serde",
 		"Sqlite",
 		"sqlx",

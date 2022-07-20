@@ -53,7 +53,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     cis_err, idl_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX,
 };
-use crate::{CoreResult, D2Value, Value, ValueType};
+use crate::{CoreResult, D2Value, SeriesRef, Value, ValueType};
 
 /// IndexTag
 ///
@@ -200,7 +200,7 @@ impl Fabrix {
         })
     }
 
-    /// Create a DataFrame from by D2Value, column-wised
+    /// Create a DataFrame from by D2Value, column-wise
     pub fn from_column_values(
         values: D2Value,
         index_col: Option<usize>,
@@ -476,7 +476,7 @@ impl Fabrix {
         match &self.index_tag {
             Some(idx) => {
                 let s = self.data.column(idx.name.as_str())?;
-                match Series(s.clone()).find_index(index) {
+                match SeriesRef(s).find_index(index) {
                     Some(idx) => self.remove_row_by_idx(idx as usize),
                     None => Err(vnf_err(index)),
                 }
@@ -509,7 +509,7 @@ impl Fabrix {
         match &self.index_tag {
             Some(it) => {
                 let s = self.data.column(it.name.as_str())?;
-                let idx = Series(s.clone())
+                let idx = SeriesRef(s)
                     .find_indices(&idx)
                     .into_iter()
                     .map(|i| i as u64)
@@ -556,7 +556,7 @@ impl Fabrix {
         match &self.index_tag {
             Some(it) => {
                 let s = self.data.column(it.name.as_str())?;
-                let idx = Series(s.clone()).find_indices(index);
+                let idx = SeriesRef(s).find_indices(index);
                 let pop = self.popup_rows_by_idx(&idx)?;
 
                 Ok(pop)

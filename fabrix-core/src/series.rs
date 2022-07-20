@@ -822,6 +822,21 @@ impl<'a> SeriesRef<'a> {
     pub fn iter(&self) -> SeriesIterator {
         self.into_iter()
     }
+
+    pub fn find_index(&self, val: &Value) -> Option<usize> {
+        self.into_iter().position(|ref e| e == val)
+    }
+
+    pub fn find_indices(&self, series: &Series) -> Vec<usize> {
+        self.into_iter()
+            .enumerate()
+            .fold(vec![], |mut accum, (idx, e)| {
+                if series.contains(&e) {
+                    accum.push(idx);
+                }
+                accum
+            })
+    }
 }
 
 impl<'a> IntoIterator for SeriesRef<'a> {
