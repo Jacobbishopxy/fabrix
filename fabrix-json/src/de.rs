@@ -1,5 +1,6 @@
 //! Deserialize functions
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 
 use fabrix_core::polars::prelude::{DataFrame, Series as PolarsSeries};
@@ -48,13 +49,15 @@ pub(crate) fn dataframe_row_wise_deserialize<'de, D>(d: D) -> Result<DataFrame, 
 where
     D: Deserializer<'de>,
 {
+    const FIELDS: &[&str] = &["values", "types"];
+
     struct DfVisitor;
 
     impl<'de> Visitor<'de> for DfVisitor {
         type Value = DataFrame;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("{values: [<values map>], types: <type array>}")
+            formatter.write_str("{types: <type array>, values: [<values map>]}")
         }
 
         // fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -76,21 +79,32 @@ where
             A: de::MapAccess<'de>,
         {
             let mut types = Vec::<ValueType>::new();
-            let mut rowmaps = Vec::<Rowmap>::new();
-
-            while let Some(k) = map.next_key::<String>()? {
-                if k == "values" {
-                    let vs = map.next_value::<BTreeMap<String, Value>>()?;
-                    rowmaps.push(Rowmap {
-                        index: None,
-                        data: vs,
-                    });
-                }
-                if k == "types" {
-                    let t = map.next_value::<Vec<ValueType>>()?;
-                    types.extend(t);
+            let mut values_set = false;
+            let mut count = 0;
+            while let Some(k) = map.next_key::<Cow<str>>()? {
+                count += 1;
+                match k.as_ref() {
+                    "types" => {
+                        let t = map.next_value::<Vec<ValueType>>()?;
+                        types.extend(t);
+                    }
+                    "values" => {
+                        values_set = true;
+                        if count != 2 {
+                            return Err(de::Error::custom("field values should behind types"));
+                        }
+                        break;
+                    }
+                    fld => return Err(de::Error::unknown_field(fld, FIELDS)),
                 }
             }
+            if !values_set {
+                return Err(de::Error::missing_field("values"));
+            }
+            // TODO:
+            // here we should convert `Value` based on `types`
+            // check `Series` deserialize
+            let values: Vec<BTreeMap<String, Value>> = map.next_value()?;
 
             todo!()
         }
