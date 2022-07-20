@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use bson::oid::ObjectId;
 use bson::{doc, Bson, Document};
 use fabrix_core::Fabrix;
-use fabrix_json::{FabrixColumnWised, JsonType};
+use fabrix_json::{FabrixColumnWise, JsonType};
 use futures::{StreamExt, TryStreamExt};
 use mongodb::options::UpdateModifications;
 use mongodb::results::{DeleteResult, InsertManyResult, InsertOneResult, UpdateResult};
@@ -280,7 +280,7 @@ pub trait MongoEc: MongoRawEc {
         I: TryInto<Oid, Error = MgError> + Send,
     {
         let d = match saving_category {
-            SavingCategory::Column => bson::to_document(&FabrixColumnWised::from(data.clone()))?,
+            SavingCategory::Column => bson::to_document(&FabrixColumnWise::from(data.clone()))?,
             SavingCategory::Row => todo!(),
             SavingCategory::Dataset => todo!(),
         };
@@ -299,7 +299,7 @@ pub trait MongoEc: MongoRawEc {
     {
         match saving_category {
             SavingCategory::Column => Ok(self
-                .find_one::<FabrixColumnWised>(doc! {"_id": id.try_into()?.id()})
+                .find_one::<FabrixColumnWise>(doc! {"_id": id.try_into()?.id()})
                 .await?
                 .into()),
             SavingCategory::Row => todo!(),
@@ -318,7 +318,7 @@ pub trait MongoEc: MongoRawEc {
             .collect::<MgResult<Vec<_>>>()?;
         match saving_category {
             SavingCategory::Column => Ok(self
-                .find_many::<FabrixColumnWised>(doc! {"_id": { "$in": ids }})
+                .find_many::<FabrixColumnWise>(doc! {"_id": { "$in": ids }})
                 .await?
                 .into_iter()
                 .map(Fabrix::from)
@@ -338,7 +338,7 @@ pub trait MongoEc: MongoRawEc {
         I: TryInto<Oid, Error = MgError> + Send,
     {
         let d = match saving_category {
-            SavingCategory::Column => bson::to_document(&FabrixColumnWised::from(data.clone()))?,
+            SavingCategory::Column => bson::to_document(&FabrixColumnWise::from(data.clone()))?,
             SavingCategory::Row => todo!(),
             SavingCategory::Dataset => todo!(),
         };
@@ -350,7 +350,7 @@ pub trait MongoEc: MongoRawEc {
     async fn insert_fx(&self, fx: &Fabrix, saving_category: SavingCategory) -> MgResult<Oid> {
         let ins = match saving_category {
             SavingCategory::Column => {
-                self.insert_one::<FabrixColumnWised>(&FabrixColumnWised::from(fx.clone()))
+                self.insert_one::<FabrixColumnWise>(&FabrixColumnWise::from(fx.clone()))
                     .await
             }
             SavingCategory::Row => todo!(),
@@ -369,9 +369,9 @@ pub trait MongoEc: MongoRawEc {
             SavingCategory::Column => {
                 let d = fxs
                     .iter()
-                    .map(|i| FabrixColumnWised::from(i.clone()))
+                    .map(|i| FabrixColumnWise::from(i.clone()))
                     .collect::<Vec<_>>();
-                self.insert_many::<FabrixColumnWised>(&d).await
+                self.insert_many::<FabrixColumnWise>(&d).await
             }
             SavingCategory::Row => todo!(),
             SavingCategory::Dataset => todo!(),
@@ -413,15 +413,15 @@ mod dy_tests {
             "val" => [Some(10), None, Some(8)]
         ]
         .unwrap();
-        let dfc = FabrixColumnWised::from(df);
+        let dfc = FabrixColumnWise::from(df);
 
-        let foo = ec.insert_one::<FabrixColumnWised>(&dfc).await;
+        let foo = ec.insert_one::<FabrixColumnWise>(&dfc).await;
         assert!(foo.is_ok());
 
         let id = foo.unwrap().inserted_id;
         println!("{:?}", id);
 
-        let bar = ec.find_one::<FabrixColumnWised>(doc! {"_id": id}).await;
+        let bar = ec.find_one::<FabrixColumnWise>(doc! {"_id": id}).await;
         assert!(bar.is_ok());
         println!("{:?}", Fabrix::from(bar.unwrap()));
     }

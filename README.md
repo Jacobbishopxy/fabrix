@@ -166,8 +166,8 @@ There are three main parts in this crate:
 
 ## Todo
 
-- `fabrix`: alternative se/de method (row wised: `Row`)
-- `fabrix-json`: new package and also with row-wised se/de
+- `fabrix`: alternative se/de method (row wise: `Row`)
+- `fabrix-json`: new package and also with row-wise se/de
 - `fabrix-csv`: new package
 - `fabrix-parquet`: new package (parquet2)
 - `fabrix-dyn-conn`: add initialization methods (serde_yaml)

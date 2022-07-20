@@ -32,7 +32,7 @@ async fn test_xl2db_async_no_index() {
             |d| {
                 xl2db
                     .convertor
-                    .convert_row_wised(d, ())
+                    .convert_row_wise(d, ())
                     .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
@@ -87,7 +87,7 @@ async fn test_xl2db_async_no_index() {
 }
 
 #[tokio::test]
-async fn test_xl2db_async_with_index_row_wised() {
+async fn test_xl2db_async_with_index_row_wise() {
     let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
 
     let mut xl2db = XlDbHelper::<DatabasePg>::new(CONN2).await.unwrap();
@@ -101,7 +101,7 @@ async fn test_xl2db_async_with_index_row_wised() {
             |d| {
                 xl2db
                     .convertor
-                    .convert_row_wised(d, 0)
+                    .convert_row_wise(d, 0)
                     .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
@@ -122,7 +122,7 @@ async fn test_xl2db_async_with_index_row_wised() {
 }
 
 #[tokio::test]
-async fn test_xl2db_async_with_index_col_wised() {
+async fn test_xl2db_async_with_index_col_wise() {
     let source: XlWorkbook<File> = XlSource::Path(XL_PATH.to_owned()).try_into().unwrap();
 
     let xl2db = XlDbHelper::<DatabasePg>::new(CONN2).await.unwrap();
@@ -136,7 +136,7 @@ async fn test_xl2db_async_with_index_col_wised() {
             |d| {
                 xl2db
                     .convertor
-                    .convert_col_wised(d, "id")
+                    .convert_col_wise(d, "id")
                     .map_err(|e| XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
