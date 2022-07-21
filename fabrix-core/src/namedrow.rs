@@ -5,7 +5,7 @@ use serde::{de::Visitor, ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
     util::{cis_err, ims_err, inf_err, oob_err, Stepper},
-    CoreResult, Fabrix, IndexTag, Series, SeriesIterator, SeriesRef, Value, ValueType,
+    CoreError, CoreResult, Fabrix, IndexTag, Series, SeriesIterator, SeriesRef, Value, ValueType,
 };
 
 #[derive(Debug, Clone)]
@@ -40,16 +40,20 @@ impl<'de> Deserialize<'de> for NamedRow {
             type Value = NamedRow;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                todo!()
+                formatter.write_str("{name: Value}")
             }
 
-            fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
             where
                 A: serde::de::MapAccess<'de>,
             {
                 let mut data = Vec::<(String, Value)>::new();
 
-                todo!()
+                while let Some(kv) = map.next_entry()? {
+                    data.push(kv);
+                }
+
+                Ok(NamedRow::new(None, data))
             }
         }
 
@@ -97,6 +101,28 @@ impl NamedRow {
     /// row length
     pub fn len(&self) -> usize {
         self.data.len()
+    }
+
+    /// cast
+    pub fn cast(self, types: &[ValueType]) -> CoreResult<Self> {
+        let types_len = types.len();
+        let self_len = self.len();
+
+        if types_len != self_len {
+            return Err(CoreError::LengthMismatch(types_len, self_len));
+        }
+
+        let data = self
+            .data
+            .into_iter()
+            .zip(types.iter())
+            .map(|((n, v), t)| (n, v.force_cast(t)))
+            .collect();
+
+        Ok(Self {
+            index: self.index,
+            data,
+        })
     }
 }
 
@@ -171,7 +197,7 @@ impl Fabrix {
         }
     }
 
-    pub fn iter_named_row(&self) -> IntoIteratorNamedRow {
+    pub fn iter_named_rows(&self) -> IntoIteratorNamedRow {
         FabrixIterToNamedRow(self).into_iter()
     }
 }

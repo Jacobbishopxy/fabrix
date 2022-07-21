@@ -1,10 +1,9 @@
 //! Deserialize functions
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 use fabrix_core::polars::prelude::{DataFrame, Series as PolarsSeries};
-use fabrix_core::{Fabrix, NamedRow, Row, Series, Value, ValueType};
+use fabrix_core::{CoreResult, Fabrix, NamedRow, Row, Series, ValueType};
 use serde::{
     de::{self, Visitor},
     Deserializer,
@@ -44,7 +43,7 @@ pub(crate) fn dataframe_row_wise_deserialize<'de, D>(d: D) -> Result<DataFrame, 
 where
     D: Deserializer<'de>,
 {
-    const FIELDS: &[&str] = &["values", "types"];
+    const FIELDS: &[&str] = &["types", "values"];
 
     struct DfVisitor;
 
@@ -82,19 +81,18 @@ where
             if !values_set {
                 return Err(de::Error::missing_field("values"));
             }
-            // TODO:
 
-            // let values: Vec<HashMap<String, Value>> = map.next_value()?;
-            // let rowmaps = values
-            //     .into_iter()
-            //     .map(|v| Rowmap::new(None, v))
-            //     .collect::<Vec<_>>();
+            let values: Vec<NamedRow> = map.next_value()?;
 
-            // let fx = Fabrix::from_rowmaps(rowmaps).map_err(de::Error::custom)?;
+            let named_rows = values
+                .into_iter()
+                .map(|nr| nr.cast(&types))
+                .collect::<CoreResult<Vec<_>>>()
+                .map_err(de::Error::custom)?;
 
-            // Ok(fx.data)
+            let fx = Fabrix::from_named_rows(named_rows).map_err(de::Error::custom)?;
 
-            todo!()
+            Ok(fx.data)
         }
     }
 
@@ -105,29 +103,67 @@ pub(crate) fn dataframe_dataset_type_deserialize<'de, D>(d: D) -> Result<DataFra
 where
     D: Deserializer<'de>,
 {
+    const FIELDS: &[&str] = &["names", "types", "values"];
+
     struct DfVisitor;
 
     impl<'de> Visitor<'de> for DfVisitor {
         type Value = DataFrame;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("[<values array>]")
+            formatter
+                .write_str("{names: <name array>, types: <type array>, values: [<values array>]}")
         }
 
-        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
         where
-            A: de::SeqAccess<'de>,
+            A: de::MapAccess<'de>,
         {
-            let mut rows = Vec::<Row>::new();
-
-            while let Some(e) = seq.next_element::<Vec<Value>>()? {
-                rows.push(Row::from_values(e));
+            let mut names = Vec::<String>::new();
+            let mut types = Vec::<ValueType>::new();
+            let mut values_set = false;
+            let mut count = 0;
+            while let Some(k) = map.next_key::<Cow<str>>()? {
+                count += 1;
+                match k.as_ref() {
+                    "names" => {
+                        let n = map.next_value::<Vec<String>>()?;
+                        names.extend(n);
+                    }
+                    "types" => {
+                        let t = map.next_value::<Vec<ValueType>>()?;
+                        types.extend(t);
+                    }
+                    "values" => {
+                        values_set = true;
+                        if count != 3 {
+                            return Err(de::Error::custom(
+                                "field values should behind names and types",
+                            ));
+                        }
+                        break;
+                    }
+                    fld => return Err(de::Error::unknown_field(fld, FIELDS)),
+                }
+            }
+            if !values_set {
+                return Err(de::Error::missing_field("values"));
             }
 
-            let fx = Fabrix::from_rows(rows).map_err(de::Error::custom)?;
+            let values: Vec<Row> = map.next_value()?;
+
+            let rows = values
+                .into_iter()
+                .map(|r| r.cast(&types))
+                .collect::<CoreResult<Vec<_>>>()
+                .map_err(|_| de::Error::custom("rows error"))?;
+
+            let mut fx = Fabrix::from_rows(rows).map_err(|_| de::Error::custom("fx error"))?;
+            fx.set_column_names(&names).map_err(de::Error::custom)?;
+
             Ok(fx.data)
         }
     }
 
-    d.deserialize_seq(DfVisitor)
+    d.deserialize_map(DfVisitor)
 }

@@ -24,10 +24,10 @@
 //! 1. iter_rows
 
 use polars::prelude::Field;
-use serde::{Deserialize, Serialize};
+use serde::{de::Visitor, ser::SerializeSeq, Deserialize, Serialize};
 
 use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIterator, SeriesRef};
-use crate::{CoreResult, D2Value, Fabrix, IndexTag, Series, Value, ValueType};
+use crate::{CoreError, CoreResult, D2Value, Fabrix, IndexTag, Series, Value, ValueType};
 
 #[derive(Debug, Clone)]
 pub struct Row {
@@ -40,7 +40,13 @@ impl Serialize for Row {
     where
         S: serde::Serializer,
     {
-        todo!()
+        let mut q = s.serialize_seq(Some(self.len()))?;
+
+        for v in self.data() {
+            q.serialize_element(v)?;
+        }
+
+        q.end()
     }
 }
 
@@ -49,7 +55,30 @@ impl<'de> Deserialize<'de> for Row {
     where
         D: serde::Deserializer<'de>,
     {
-        todo!()
+        struct RowVisitor;
+
+        impl<'de> Visitor<'de> for RowVisitor {
+            type Value = Row;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("[Value]")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut data = Vec::<Value>::new();
+
+                while let Some(v) = seq.next_element()? {
+                    data.push(v);
+                }
+
+                Ok(Row::new(None, data))
+            }
+        }
+
+        d.deserialize_seq(RowVisitor)
     }
 }
 
@@ -93,6 +122,28 @@ impl Row {
     /// row length
     pub fn len(&self) -> usize {
         self.data.len()
+    }
+
+    /// cast
+    pub fn cast(self, types: &[ValueType]) -> CoreResult<Self> {
+        let types_len = types.len();
+        let self_len = self.len();
+
+        if types_len != self_len {
+            return Err(CoreError::LengthMismatch(types_len, self_len));
+        }
+
+        let data = self
+            .data
+            .into_iter()
+            .zip(types.iter())
+            .map(|(v, t)| v.force_cast(t))
+            .collect();
+
+        Ok(Self {
+            index: self.index,
+            data,
+        })
     }
 }
 
@@ -499,5 +550,26 @@ mod test_row {
 
         let r5 = iter.next();
         assert!(r5.is_none());
+    }
+
+    #[test]
+    fn row_se_and_de_success() {
+        use crate::{date, datetime, time, value};
+
+        let data = vec![
+            value!(date!(2020, 1, 1)),
+            value!(time!(12, 0, 0)),
+            value!(datetime!(2020, 1, 1, 12, 0, 0)),
+        ];
+        let row = Row::new(None, data);
+
+        let foo = serde_json::to_string(&row);
+        println!("{:?}", foo);
+
+        let foo_str = "[18262,43200000000000,1577880000000000000]";
+
+        let bar: Row = serde_json::from_str(foo_str).unwrap();
+
+        println!("{:?}", bar);
     }
 }

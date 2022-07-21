@@ -1,7 +1,7 @@
 //! Serialize functions
 
 use fabrix_core::polars::prelude::DataFrame;
-use fabrix_core::{Fabrix, SeriesRef};
+use fabrix_core::{Fabrix, SeriesRef, ValueType};
 use serde::ser::SerializeMap;
 use serde::{ser::SerializeSeq, Serializer};
 
@@ -32,7 +32,7 @@ where
     let types = fx.dtypes();
     m.serialize_entry("types", &types)?;
 
-    let values = fx.iter_named_row().collect::<Vec<_>>();
+    let values = fx.iter_named_rows().collect::<Vec<_>>();
     m.serialize_entry("values", &values)?;
 
     m.end()
@@ -46,9 +46,19 @@ where
         data: df.clone(),
         index_tag: None,
     };
-    let mut seq = s.serialize_seq(Some(fx.height()))?;
-    for r in fx.iter_rows() {
-        seq.serialize_element(r.data())?;
-    }
-    seq.end()
+    let mut m = s.serialize_map(Some(3))?;
+
+    let (names, types) = fx
+        .fields()
+        .into_iter()
+        .map(|f| (f.name, f.dtype))
+        .unzip::<String, ValueType, Vec<_>, Vec<_>>();
+
+    m.serialize_entry("names", &names)?;
+    m.serialize_entry("types", &types)?;
+
+    let values = fx.iter_rows().collect::<Vec<_>>();
+    m.serialize_entry("values", &values)?;
+
+    m.end()
 }

@@ -3,7 +3,7 @@
 use fabrix_core::Fabrix;
 use serde_json::{Error as SerdeJsonError, Value as SerdeJsonValue};
 
-use crate::{FabrixColumnWise, FabrixRowWise, JsonError, JsonResult, JsonType};
+use crate::{FabrixColumnWise, FabrixDataset, FabrixRowWise, JsonError, JsonResult, JsonType};
 
 #[derive(Default)]
 pub struct JsonExecutor {
@@ -48,7 +48,12 @@ impl JsonExecutor {
 
                 Ok(self)
             }
-            JsonType::Dataset => todo!(),
+            JsonType::Dataset => {
+                let res: Result<FabrixDataset, SerdeJsonError> = serde_json::from_value(json);
+                self.data = Some(res?.into());
+
+                Ok(self)
+            }
         }
     }
 
@@ -66,7 +71,12 @@ impl JsonExecutor {
 
                 Ok(self)
             }
-            JsonType::Dataset => todo!(),
+            JsonType::Dataset => {
+                let res: Result<FabrixDataset, SerdeJsonError> = serde_json::from_str(s);
+                self.data = Some(res?.into());
+
+                Ok(self)
+            }
         }
     }
 
@@ -83,7 +93,11 @@ impl JsonExecutor {
 
                     Ok(res)
                 }
-                JsonType::Dataset => todo!(),
+                JsonType::Dataset => {
+                    let res = serde_json::to_value(FabrixDataset::from(d.clone()))?;
+
+                    Ok(res)
+                }
             },
             None => Err(JsonError::SourceNotFound),
         }
@@ -102,7 +116,11 @@ impl JsonExecutor {
 
                     Ok(res)
                 }
-                JsonType::Dataset => todo!(),
+                JsonType::Dataset => {
+                    let res = serde_json::to_string(&FabrixDataset::from(d.clone()))?;
+
+                    Ok(res)
+                }
             },
             None => Err(JsonError::SourceNotFound),
         }
@@ -182,21 +200,55 @@ mod test_ec {
         ]
         .unwrap();
 
+        println!("{:?}", &df);
+
         let mut jec = JsonExecutor::new();
         jec.with_data(df.clone());
 
         let foo = jec.to_string(JsonType::Row);
         println!("{:?}", foo);
 
-        // let foo_str = "{\"data\":{\"types\":[\"I32\",\"String\",\"Date\",\"Time\",\"DateTime\"],\"values\":[{\"date\":18262,\"datetime\":1577880000000000000,\"id\":1,\"name\":\"a\",\"time\":43200000000000},{\"date\":18263,\"datetime\":1577880001000000000,\"id\":2,\"name\":\"b\",\"time\":43201000000000},{\"date\":18264,\"datetime\":1577880002000000000,\"id\":3,\"name\":\"c\",\"time\":43202000000000}]},\"index_tag\":{\"loc\":0,\"name\":\"id\",\"data_type\":\"I32\"}}";
-        // assert_eq!(foo.unwrap(), foo_str);
+        let foo_str = "{\"data\":{\"types\":[\"I32\",\"String\",\"Date\",\"Time\",\"DateTime\"],\"values\":[{\"id\":1,\"name\":\"a\",\"date\":18262,\"time\":43200000000000,\"datetime\":1577880000000000000},{\"id\":2,\"name\":\"b\",\"date\":18263,\"time\":43201000000000,\"datetime\":1577880001000000000},{\"id\":3,\"name\":\"c\",\"date\":18264,\"time\":43202000000000,\"datetime\":1577880002000000000}]},\"index_tag\":{\"loc\":0,\"name\":\"id\",\"data_type\":\"I32\"}}";
+        assert_eq!(foo.unwrap(), foo_str);
 
-        // jec.from_str(foo_str, JsonType::Row)
-        //     .expect("failed parsing from string");
+        jec.from_str(foo_str, JsonType::Row)
+            .expect("failed parsing from string");
 
-        // let bar = jec.data();
+        let bar = jec.data();
 
-        // println!("{:?}", bar);
-        // assert_eq!(bar.unwrap(), &df);
+        println!("{:?}", bar);
+        assert_eq!(bar.unwrap(), &df);
+    }
+
+    #[test]
+    fn serialize_and_deserialize_dataset_type_success() {
+        let df = fx![
+            "id";
+            "id" => [1, 2, 3],
+            "name" => ["a", "b", "c"],
+            "date" => [date!(2020,1,1), date!(2020,1,2), date!(2020,1,3)],
+            "time" => [time!(12,0,0), time!(12,0,1), time!(12,0,2)],
+            "datetime" => [datetime!(2020,1,1,12,0,0), datetime!(2020,1,1,12,0,1), datetime!(2020,1,1,12,0,2)],
+        ]
+        .unwrap();
+
+        println!("{:?}", &df);
+
+        let mut jec = JsonExecutor::new();
+        jec.with_data(df.clone());
+
+        let foo = jec.to_string(JsonType::Dataset);
+        println!("{:?}", foo);
+
+        let foo_str = "{\"data\":{\"names\":[\"id\",\"name\",\"date\",\"time\",\"datetime\"],\"types\":[\"I32\",\"String\",\"Date\",\"Time\",\"DateTime\"],\"values\":[[1,\"a\",18262,43200000000000,1577880000000000000],[2,\"b\",18263,43201000000000,1577880001000000000],[3,\"c\",18264,43202000000000,1577880002000000000]]},\"index_tag\":{\"loc\":0,\"name\":\"id\",\"data_type\":\"I32\"}}";
+        assert_eq!(foo.unwrap(), foo_str);
+
+        jec.from_str(foo_str, JsonType::Dataset)
+            .expect("failed parsing from string");
+
+        let bar = jec.data();
+
+        println!("{:?}", bar);
+        assert_eq!(bar.unwrap(), &df);
     }
 }
