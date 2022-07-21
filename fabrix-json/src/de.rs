@@ -1,10 +1,10 @@
 //! Deserialize functions
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use fabrix_core::polars::prelude::{DataFrame, Series as PolarsSeries};
-use fabrix_core::{Fabrix, Row, Rowmap, Series, Value, ValueType};
+use fabrix_core::{Fabrix, NamedRow, Row, Series, Value, ValueType};
 use serde::{
     de::{self, Visitor},
     Deserializer,
@@ -40,11 +40,6 @@ where
     d.deserialize_seq(DfVisitor)
 }
 
-pub(crate) struct FxRowWiseDe {
-    values: Vec<BTreeMap<String, Value>>,
-    types: Vec<ValueType>,
-}
-
 pub(crate) fn dataframe_row_wise_deserialize<'de, D>(d: D) -> Result<DataFrame, D::Error>
 where
     D: Deserializer<'de>,
@@ -59,20 +54,6 @@ where
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
             formatter.write_str("{types: <type array>, values: [<values map>]}")
         }
-
-        // fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        // where
-        //     A: de::SeqAccess<'de>,
-        // {
-        //     let mut rowmaps = Vec::<Rowmap>::new();
-
-        //     while let Some(e) = seq.next_element::<BTreeMap<String, Value>>()? {
-        //         rowmaps.push(Rowmap::new(None, e));
-        //     }
-
-        //     let fx = Fabrix::from_rowmaps(rowmaps).map_err(de::Error::custom)?;
-        //     Ok(fx.data)
-        // }
 
         fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
         where
@@ -102,9 +83,16 @@ where
                 return Err(de::Error::missing_field("values"));
             }
             // TODO:
-            // here we should convert `Value` based on `types`
-            // check `Series` deserialize
-            let values: Vec<BTreeMap<String, Value>> = map.next_value()?;
+
+            // let values: Vec<HashMap<String, Value>> = map.next_value()?;
+            // let rowmaps = values
+            //     .into_iter()
+            //     .map(|v| Rowmap::new(None, v))
+            //     .collect::<Vec<_>>();
+
+            // let fx = Fabrix::from_rowmaps(rowmaps).map_err(de::Error::custom)?;
+
+            // Ok(fx.data)
 
             todo!()
         }

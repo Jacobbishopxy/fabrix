@@ -29,10 +29,28 @@ use serde::{Deserialize, Serialize};
 use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIterator, SeriesRef};
 use crate::{CoreResult, D2Value, Fabrix, IndexTag, Series, Value, ValueType};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Row {
     pub index: Option<usize>,
     pub data: Vec<Value>,
+}
+
+impl Serialize for Row {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}
+
+impl<'de> Deserialize<'de> for Row {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        todo!()
+    }
 }
 
 impl Row {

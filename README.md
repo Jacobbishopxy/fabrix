@@ -28,7 +28,7 @@ There are three main parts in this crate:
 │   ├── series.rs                      // series of value
 │   ├── fabrix.rs                      // dataframe holder
 │   ├── row.rs                         // row-wise data structure
-│   ├── rowmap.rs                      // row-wise with name
+│   ├── namedrow.rs                    // row-wise with name
 │   ├── schema.rs                      // dataframe schema
 │   ├── util.rs                        // utility functions
 │   ├── error.rs                       // error handling for core

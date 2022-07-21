@@ -1,8 +1,8 @@
 //! Serialize functions
 
 use fabrix_core::polars::prelude::DataFrame;
-use fabrix_core::{Fabrix, Rowmap, SeriesRef};
-use serde::ser::{SerializeMap, SerializeStruct};
+use fabrix_core::{Fabrix, SeriesRef};
+use serde::ser::SerializeMap;
 use serde::{ser::SerializeSeq, Serializer};
 
 pub(crate) fn dataframe_column_wise_serialize<S>(df: &DataFrame, s: S) -> Result<S::Ok, S::Error>
@@ -32,7 +32,7 @@ where
     let types = fx.dtypes();
     m.serialize_entry("types", &types)?;
 
-    let values = fx.iter_rowmaps().map(|r| r.data).collect::<Vec<_>>();
+    let values = fx.iter_named_row().collect::<Vec<_>>();
     m.serialize_entry("values", &values)?;
 
     m.end()

@@ -1,45 +1,82 @@
 //! Fabrix RowMap
 
-use std::collections::BTreeMap;
-
 use polars::datatypes::Field;
-use serde::{Deserialize, Serialize};
+use serde::{de::Visitor, ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
     util::{cis_err, ims_err, inf_err, oob_err, Stepper},
     CoreResult, Fabrix, IndexTag, Series, SeriesIterator, SeriesRef, Value, ValueType,
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Rowmap {
+#[derive(Debug, Clone)]
+pub struct NamedRow {
     pub index: Option<usize>,
-    pub data: BTreeMap<String, Value>,
+    pub data: Vec<(String, Value)>,
 }
 
-impl Rowmap {
+impl Serialize for NamedRow {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut m = s.serialize_map(Some(self.len()))?;
+
+        for (key, value) in self.data() {
+            m.serialize_entry(key, value)?;
+        }
+
+        m.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for NamedRow {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct NamedRowVisitor;
+
+        impl<'de> Visitor<'de> for NamedRowVisitor {
+            type Value = NamedRow;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                todo!()
+            }
+
+            fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut data = Vec::<(String, Value)>::new();
+
+                todo!()
+            }
+        }
+
+        d.deserialize_map(NamedRowVisitor)
+    }
+}
+
+impl NamedRow {
     /// RowMap constructor
-    pub fn new(index: Option<usize>, data: BTreeMap<String, Value>) -> Self {
+    pub fn new(index: Option<usize>, data: Vec<(String, Value)>) -> Self {
         let index = index.and_then(|i| if i >= data.len() { None } else { Some(i) });
-        Rowmap { index, data }
+        NamedRow { index, data }
     }
 
     /// Row constructor, no index
     pub fn from_values(data: Vec<(String, Value)>) -> Self {
-        Rowmap {
-            index: None,
-            data: BTreeMap::from_iter(data.into_iter()),
-        }
+        NamedRow { index: None, data }
     }
 
     /// get data
-    pub fn data(&self) -> &BTreeMap<String, Value> {
+    pub fn data(&self) -> &[(String, Value)] {
         &self.data
     }
 
     /// get index
     pub fn index(&self) -> Option<&Value> {
-        self.index
-            .and_then(|i| self.data.iter().nth(i).map(|t| t.1))
+        self.index.and_then(|i| self.data.get(i).map(|t| &t.1))
     }
 
     /// get index type
@@ -49,7 +86,7 @@ impl Rowmap {
 
     /// get data field
     pub fn data_fields(&self) -> Vec<Field> {
-        self.data.iter().map(|v| v.1.into()).collect()
+        self.data.iter().map(|v| (&v.1).into()).collect()
     }
 
     /// check if the row is empty
@@ -65,36 +102,38 @@ impl Rowmap {
 
 impl Fabrix {
     /// create a DataFrame by RowMaps
-    pub fn from_rowmaps(mut rowmaps: Vec<Rowmap>) -> CoreResult<Self> {
-        if rowmaps.is_empty() {
+    pub fn from_named_rows(mut named_rows: Vec<NamedRow>) -> CoreResult<Self> {
+        if named_rows.is_empty() {
             return Err(cis_err("rowmap"));
         }
 
-        // rowmaps' length
-        let m = rowmaps.len();
-        // rowmaps' width
-        let n = rowmaps.first().unwrap().len();
+        // rows' length
+        let m = named_rows.len();
+        // rows' width
+        let n = named_rows.first().unwrap().len();
         let mut series = Vec::with_capacity(n);
-        let index_idx = rowmaps.first().unwrap().index;
-        let names = rowmaps
+        let index_idx = named_rows.first().unwrap().index;
+        let names = named_rows
             .first()
             .unwrap()
             .data()
-            .keys()
+            .iter()
             .cloned()
+            .map(|(n, _)| n)
             .collect::<Vec<_>>();
-        for (j, n) in names.iter().enumerate() {
+
+        for (j, nm) in names.iter().enumerate() {
             let mut buf = Vec::with_capacity(m);
-            for r in rowmaps.iter_mut() {
+            for r in named_rows.iter_mut() {
                 if r.index != index_idx {
                     return Err(ims_err());
                 }
                 let mut tmp = Value::Null;
-                let (_, v) = r.data.iter_mut().nth(j).unwrap();
+                let (_, v) = r.data.get_mut(j).unwrap();
                 std::mem::swap(&mut tmp, v);
                 buf.push(tmp);
             }
-            series.push(Series::from_values(buf, n, true)?);
+            series.push(Series::from_values(buf, nm, true)?);
         }
 
         match index_idx {
@@ -103,7 +142,7 @@ impl Fabrix {
         }
     }
 
-    pub fn get_rowmap_by_idx(&self, idx: usize) -> CoreResult<Rowmap> {
+    pub fn get_named_row_by_idx(&self, idx: usize) -> CoreResult<NamedRow> {
         let len = self.height();
         if idx >= len {
             return Err(oob_err(idx, len));
@@ -112,19 +151,19 @@ impl Fabrix {
             self.data
                 .iter()
                 .map(|s| (s.name().to_owned(), Value::from(s.get(idx))))
-                .collect::<BTreeMap<_, _>>(),
+                .collect::<Vec<_>>(),
             self.index_tag().map(|it| it.loc),
         );
 
-        Ok(Rowmap { index, data })
+        Ok(NamedRow::new(index, data))
     }
 
-    pub fn get_rowmap(&self, index: &Value) -> CoreResult<Rowmap> {
+    pub fn get_named_row(&self, index: &Value) -> CoreResult<NamedRow> {
         match self.index_tag() {
             Some(it) => {
                 let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
                 match idx {
-                    Some(i) => self.get_rowmap_by_idx(i),
+                    Some(i) => self.get_named_row_by_idx(i),
                     None => Err(inf_err()),
                 }
             }
@@ -132,21 +171,21 @@ impl Fabrix {
         }
     }
 
-    pub fn iter_rowmaps(&self) -> IntoIteratorRowmap {
-        FabrixIterToRowmap(self).into_iter()
+    pub fn iter_named_row(&self) -> IntoIteratorNamedRow {
+        FabrixIterToNamedRow(self).into_iter()
     }
 }
 
-pub struct FabrixIterToRowmap<'a>(&'a Fabrix);
+pub struct FabrixIterToNamedRow<'a>(&'a Fabrix);
 
-pub struct IntoIteratorRowmap<'a> {
+pub struct IntoIteratorNamedRow<'a> {
     index: Option<usize>,
     data_iters: Vec<(&'a str, SeriesIterator<'a>)>,
     stepper: Stepper,
 }
 
-impl<'a> Iterator for IntoIteratorRowmap<'a> {
-    type Item = Rowmap;
+impl<'a> Iterator for IntoIteratorNamedRow<'a> {
+    type Item = NamedRow;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.stepper.exhausted() {
@@ -156,17 +195,17 @@ impl<'a> Iterator for IntoIteratorRowmap<'a> {
                 .data_iters
                 .iter_mut()
                 .map(|(ref n, s)| (n.to_string(), s.next().unwrap()))
-                .collect::<BTreeMap<_, _>>();
+                .collect::<Vec<_>>();
 
             self.stepper.forward();
-            Some(Rowmap::new(self.index, data))
+            Some(NamedRow::new(self.index, data))
         }
     }
 }
 
-impl<'a> IntoIterator for FabrixIterToRowmap<'a> {
-    type Item = Rowmap;
-    type IntoIter = IntoIteratorRowmap<'a>;
+impl<'a> IntoIterator for FabrixIterToNamedRow<'a> {
+    type Item = NamedRow;
+    type IntoIter = IntoIteratorNamedRow<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         let mut data_iters = Vec::with_capacity(self.0.width());
@@ -175,7 +214,7 @@ impl<'a> IntoIterator for FabrixIterToRowmap<'a> {
             data_iters.push((s.name(), iter));
         }
 
-        IntoIteratorRowmap {
+        IntoIteratorNamedRow {
             index: self.0.index_tag().map(IndexTag::loc),
             data_iters,
             stepper: Stepper::new(self.0.height()),
