@@ -166,11 +166,9 @@ There are three main parts in this crate:
 
 ## Todo
 
-- `fabrix`: alternative se/de method (row wise: `Row`)
-- `fabrix-json`: new package and also with row-wise se/de
+- `fabrix` sources: csv/json needs new de/se impl for their read/write
 - `fabrix-csv`: new package
 - `fabrix-parquet`: new package (parquet2)
 - `fabrix-dyn-conn`: add initialization methods (serde_yaml)
-- `fabrix` sources: csv/json needs new de/se impl for their read/write
 - core: series/df `apply` method
 - sources: from remote (use `reqwest` crate)
