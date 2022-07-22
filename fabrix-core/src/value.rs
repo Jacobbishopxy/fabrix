@@ -142,9 +142,115 @@ pub enum Value {
     Null,
 }
 
+macro_rules! force_cast_numeric {
+    ($s:expr, $v:expr, $d:expr) => {
+        match $d {
+            ValueType::U8 => Value::U8(*$v as u8),
+            ValueType::U16 => Value::U16(*$v as u16),
+            ValueType::U32 => Value::U32(*$v as u32),
+            ValueType::U64 => Value::U64(*$v as u64),
+            ValueType::I8 => Value::I8(*$v as i8),
+            ValueType::I16 => Value::I16(*$v as i16),
+            ValueType::I32 => Value::I32(*$v as i32),
+            ValueType::I64 => Value::I64(*$v as i64),
+            ValueType::F32 => Value::F32(*$v as f32),
+            ValueType::F64 => Value::F64(*$v as f64),
+            ValueType::Date => Value::Date(*$v as i32),
+            ValueType::Time => Value::Time(*$v as i64),
+            ValueType::DateTime => Value::DateTime(*$v as i64),
+            ValueType::String => Value::String($v.to_string()),
+            _ => $s,
+        }
+    };
+}
+
+macro_rules! force_cast_string_to_num {
+    ($s:expr, $v:expr, $t:ident, $vr:ident) => {
+        match $v.parse::<$t>() {
+            Ok(num) => $crate::Value::$vr(num),
+            Err(_) => $s,
+        }
+    };
+}
+
 impl Value {
     pub fn is_null(&self) -> bool {
         matches!(self, Value::Null)
+    }
+
+    pub fn force_cast(self, dtype: &ValueType) -> Self {
+        match &self {
+            Value::Bool(v) => match dtype {
+                ValueType::U8 => Value::U8(if *v { 1 } else { 0 }),
+                ValueType::U16 => Value::U16(if *v { 1 } else { 0 }),
+                ValueType::U32 => Value::U32(if *v { 1 } else { 0 }),
+                ValueType::U64 => Value::U64(if *v { 1 } else { 0 }),
+                ValueType::I8 => Value::I8(if *v { 1 } else { 0 }),
+                ValueType::I16 => Value::I16(if *v { 1 } else { 0 }),
+                ValueType::I32 => Value::I32(if *v { 1 } else { 0 }),
+                ValueType::I64 => Value::I64(if *v { 1 } else { 0 }),
+                ValueType::F32 => Value::F32(if *v { 1. } else { 0. }),
+                ValueType::F64 => Value::F64(if *v { 1. } else { 0. }),
+                ValueType::String => Value::String(if *v {
+                    String::from("true")
+                } else {
+                    String::from("false")
+                }),
+                _ => self,
+            },
+            Value::U8(v) => force_cast_numeric!(self, v, dtype),
+            Value::U16(v) => force_cast_numeric!(self, v, dtype),
+            Value::U32(v) => force_cast_numeric!(self, v, dtype),
+            Value::U64(v) => force_cast_numeric!(self, v, dtype),
+            Value::I8(v) => force_cast_numeric!(self, v, dtype),
+            Value::I16(v) => force_cast_numeric!(self, v, dtype),
+            Value::I32(v) => force_cast_numeric!(self, v, dtype),
+            Value::I64(v) => force_cast_numeric!(self, v, dtype),
+            Value::F32(v) => force_cast_numeric!(self, v, dtype),
+            Value::F64(v) => force_cast_numeric!(self, v, dtype),
+            Value::Date(v) => force_cast_numeric!(self, v, dtype),
+            Value::Time(v) => force_cast_numeric!(self, v, dtype),
+            Value::DateTime(v) => force_cast_numeric!(self, v, dtype),
+            Value::String(v) => match dtype {
+                ValueType::Bool => match v.to_lowercase().as_str() {
+                    "true" => Value::Bool(true),
+                    "false" => Value::Bool(false),
+                    _ => self,
+                },
+                ValueType::U8 => force_cast_string_to_num!(self, v, u8, U8),
+                ValueType::U16 => force_cast_string_to_num!(self, v, u16, U16),
+                ValueType::U32 => force_cast_string_to_num!(self, v, u32, U32),
+                ValueType::U64 => force_cast_string_to_num!(self, v, u64, U64),
+                ValueType::I8 => force_cast_string_to_num!(self, v, i8, I8),
+                ValueType::I16 => force_cast_string_to_num!(self, v, i16, I16),
+                ValueType::I32 => force_cast_string_to_num!(self, v, i32, I32),
+                ValueType::I64 => force_cast_string_to_num!(self, v, i64, I64),
+                ValueType::F32 => force_cast_string_to_num!(self, v, f32, F32),
+                ValueType::F64 => force_cast_string_to_num!(self, v, f64, F64),
+                ValueType::Date => force_cast_string_to_num!(self, v, i32, Date),
+                ValueType::Time => force_cast_string_to_num!(self, v, i64, Time),
+                ValueType::DateTime => force_cast_string_to_num!(self, v, i64, DateTime),
+                ValueType::Decimal => self,
+                ValueType::Uuid => match dtype {
+                    ValueType::String => Uuid::from_string(v.to_string())
+                        .map(Value::from)
+                        .unwrap_or_else(|_| self),
+                    _ => self,
+                },
+                ValueType::Bytes => Value::Bytes(Bytes::from(v.clone())),
+                _ => self,
+            },
+            Value::Uuid(v) => match dtype {
+                ValueType::String => Value::String(v.to_string()),
+                _ => self,
+            },
+            _ => self,
+        }
+    }
+
+    // TODO:
+    pub fn cast(self, _dtype: &ValueType) -> CoreResult<Self> {
+        unimplemented!()
     }
 }
 

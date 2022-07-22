@@ -808,7 +808,7 @@ impl<'a> Iterator for SeriesIterator<'a> {
 /// SeriesRef
 ///
 /// A wrapper of a polars series reference. (used in `row.rs`)
-pub(crate) struct SeriesRef<'a>(pub(crate) &'a PolarsSeries);
+pub struct SeriesRef<'a>(pub &'a PolarsSeries);
 
 impl<'a> SeriesRef<'a> {
     pub fn name(&self) -> &str {
@@ -821,6 +821,21 @@ impl<'a> SeriesRef<'a> {
 
     pub fn iter(&self) -> SeriesIterator {
         self.into_iter()
+    }
+
+    pub fn find_index(&self, val: &Value) -> Option<usize> {
+        self.into_iter().position(|ref e| e == val)
+    }
+
+    pub fn find_indices(&self, series: &Series) -> Vec<usize> {
+        self.into_iter()
+            .enumerate()
+            .fold(vec![], |mut accum, (idx, e)| {
+                if series.contains(&e) {
+                    accum.push(idx);
+                }
+                accum
+            })
     }
 }
 

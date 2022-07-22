@@ -699,6 +699,7 @@ version = "0.1.0"
 dependencies = [
  "fabrix-core",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -709,6 +710,7 @@ dependencies = [
  "async-trait",
  "bson",
  "fabrix-core",
+ "fabrix-json",
  "fabrix-mg-derive",
  "futures",
  "mongodb",

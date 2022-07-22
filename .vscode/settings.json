@@ -29,6 +29,7 @@
 		"iloc",
 		"impls",
 		"itertools",
+		"namedrow",
 		"nanos",
 		"nocapture",
 		"peekable",

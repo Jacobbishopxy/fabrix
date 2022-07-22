@@ -765,6 +765,7 @@ version = "0.1.0"
 dependencies = [
  "fabrix-core",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 

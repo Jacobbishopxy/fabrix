@@ -32,10 +32,10 @@ impl XlFabrix {
 
     fn transform_data(
         data: D2<Value>,
-        is_column_wised: bool,
+        is_column_wise: bool,
         has_header: bool,
     ) -> FabrixResult<Fabrix> {
-        if is_column_wised {
+        if is_column_wise {
             Ok(Fabrix::from_column_values(data, None, has_header)?)
         } else {
             Ok(Fabrix::from_row_values(data, None, has_header)?)
@@ -74,7 +74,7 @@ pub struct Reader<R: Read + Seek> {
     xl_reader: Option<XlFabrixExecutor<R>>,
     sheet_name: Option<String>,
     has_header: Option<bool>,
-    is_column_wised: Option<bool>,
+    is_column_wise: Option<bool>,
 }
 
 impl<R: Read + Seek> Reader<R> {
@@ -83,7 +83,7 @@ impl<R: Read + Seek> Reader<R> {
             xl_reader: Some(XlExecutor::new_with_source(XlWorkbook::new(reader)?)),
             sheet_name: None,
             has_header: None,
-            is_column_wised: None,
+            is_column_wise: None,
         })
     }
 
@@ -101,8 +101,8 @@ impl<R: Read + Seek> Reader<R> {
         self
     }
 
-    pub fn with_column_wised(&mut self, is_column_wised: bool) -> &mut Self {
-        self.is_column_wised = Some(is_column_wised);
+    pub fn with_column_wise(&mut self, is_column_wise: bool) -> &mut Self {
+        self.is_column_wise = Some(is_column_wise);
         self
     }
 
@@ -121,13 +121,13 @@ impl<R: Read + Seek> Reader<R> {
 
         let has_header = self.has_header.take().unwrap_or(true);
 
-        let is_column_wised = self.is_column_wised.take().unwrap_or(false);
+        let is_column_wise = self.is_column_wise.take().unwrap_or(false);
 
         xl_reader.consume_fn_mut(
             None,
             &sheet_name,
             |d| {
-                XlFabrix::transform_data(d, is_column_wised, has_header)
+                XlFabrix::transform_data(d, is_column_wise, has_header)
                     .map_err(|e| fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e)))
             },
             |d| {
@@ -180,7 +180,7 @@ impl TryFrom<XlSource> for Reader<Cursor<Vec<u8>>> {
 pub struct XlReadOptions {
     pub sheet_name: Option<String>,
     pub has_header: Option<bool>,
-    pub is_column_wised: Option<bool>,
+    pub is_column_wise: Option<bool>,
     pub index: Option<usize>,
 }
 
@@ -209,7 +209,7 @@ where
         let XlReadOptions {
             sheet_name,
             has_header,
-            is_column_wised,
+            is_column_wise,
             index,
         } = options;
 
@@ -219,8 +219,8 @@ where
         if let Some(has_header) = has_header {
             self.with_header(*has_header);
         }
-        if let Some(is_column_wised) = is_column_wised {
-            self.with_column_wised(*is_column_wised);
+        if let Some(is_column_wise) = is_column_wise {
+            self.with_column_wise(*is_column_wise);
         }
 
         self.finish(*index)
@@ -234,7 +234,7 @@ mod test_xl_reader {
     const XL_FILE_PATH: &str = "../mock/test.xlsx";
 
     #[test]
-    fn row_wised_file_read() {
+    fn row_wise_file_read() {
         let mut reader: Reader<File> = XlSource::Path(XL_FILE_PATH.to_string()).try_into().unwrap();
 
         assert!(reader.has_reader());
@@ -252,14 +252,14 @@ mod test_xl_reader {
     }
 
     #[test]
-    fn col_wised_file_read() {
+    fn col_wise_file_read() {
         let mut reader: Reader<File> = XlSource::Path(XL_FILE_PATH.to_string()).try_into().unwrap();
 
         assert!(reader.has_reader());
 
         let foo = reader
             .with_header(true)
-            .with_column_wised(true)
+            .with_column_wise(true)
             .with_sheet_name("data_t")
             .finish(Some(0));
 

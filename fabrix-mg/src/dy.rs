@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use bson::oid::ObjectId;
 use bson::{doc, Bson, Document};
 use fabrix_core::Fabrix;
+use fabrix_json::{FabrixColumnWise, JsonType};
 use futures::{StreamExt, TryStreamExt};
 use mongodb::options::UpdateModifications;
 use mongodb::results::{DeleteResult, InsertManyResult, InsertOneResult, UpdateResult};
@@ -225,6 +226,23 @@ impl MongoRawEc for MongoExecutor {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum SavingCategory {
+    Column,
+    Row,
+    Dataset,
+}
+
+impl From<SavingCategory> for JsonType {
+    fn from(v: SavingCategory) -> Self {
+        match v {
+            SavingCategory::Column => JsonType::Column,
+            SavingCategory::Row => JsonType::Row,
+            SavingCategory::Dataset => JsonType::Dataset,
+        }
+    }
+}
+
 #[async_trait]
 pub trait MongoEc: MongoRawEc {
     async fn delete_fx<I>(&self, id: I) -> MgResult<()>
@@ -252,11 +270,20 @@ pub trait MongoEc: MongoRawEc {
 
     // TODO:
     // update operation should based on `Fabrix` index; if index is `None`, call replace method
-    async fn update_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
+    async fn update_fx<I>(
+        &self,
+        id: I,
+        data: &Fabrix,
+        saving_category: SavingCategory,
+    ) -> MgResult<()>
     where
         I: TryInto<Oid, Error = MgError> + Send,
     {
-        let d = bson::to_document(data)?;
+        let d = match saving_category {
+            SavingCategory::Column => bson::to_document(&FabrixColumnWise::from(data.clone()))?,
+            SavingCategory::Row => todo!(),
+            SavingCategory::Dataset => todo!(),
+        };
         self.find_one_and_update(
             doc! {"_id": id.try_into()?.id()},
             UpdateModifications::Document(d),
@@ -266,15 +293,21 @@ pub trait MongoEc: MongoRawEc {
         Ok(())
     }
 
-    async fn find_fx<I>(&self, id: I) -> MgResult<Fabrix>
+    async fn find_fx<I>(&self, id: I, saving_category: SavingCategory) -> MgResult<Fabrix>
     where
         I: TryInto<Oid, Error = MgError> + Send,
     {
-        self.find_one::<Fabrix>(doc! {"_id": id.try_into()?.id()})
-            .await
+        match saving_category {
+            SavingCategory::Column => Ok(self
+                .find_one::<FabrixColumnWise>(doc! {"_id": id.try_into()?.id()})
+                .await?
+                .into()),
+            SavingCategory::Row => todo!(),
+            SavingCategory::Dataset => todo!(),
+        }
     }
 
-    async fn find_fxs<I, E>(&self, ids: I) -> MgResult<Vec<Fabrix>>
+    async fn find_fxs<I, E>(&self, ids: I, saving_category: SavingCategory) -> MgResult<Vec<Fabrix>>
     where
         I: IntoIterator<Item = E> + Send,
         E: TryInto<Oid, Error = MgError>,
@@ -283,27 +316,68 @@ pub trait MongoEc: MongoRawEc {
             .into_iter()
             .map(|e| -> MgResult<ObjectId> { e.try_into().map(|o| *o.id()) })
             .collect::<MgResult<Vec<_>>>()?;
-        self.find_many(doc! {"_id": { "$in": ids }}).await
+        match saving_category {
+            SavingCategory::Column => Ok(self
+                .find_many::<FabrixColumnWise>(doc! {"_id": { "$in": ids }})
+                .await?
+                .into_iter()
+                .map(Fabrix::from)
+                .collect()),
+            SavingCategory::Row => todo!(),
+            SavingCategory::Dataset => todo!(),
+        }
     }
 
-    async fn replace_fx<I>(&self, id: I, data: &Fabrix) -> MgResult<()>
+    async fn replace_fx<I>(
+        &self,
+        id: I,
+        data: &Fabrix,
+        saving_category: SavingCategory,
+    ) -> MgResult<()>
     where
         I: TryInto<Oid, Error = MgError> + Send,
     {
-        let d = bson::to_document(data)?;
+        let d = match saving_category {
+            SavingCategory::Column => bson::to_document(&FabrixColumnWise::from(data.clone()))?,
+            SavingCategory::Row => todo!(),
+            SavingCategory::Dataset => todo!(),
+        };
         self.find_one_and_replace(doc! {"_id": id.try_into()?.id()}, d)
             .await?;
         Ok(())
     }
 
-    async fn insert_fx(&self, fx: &Fabrix) -> MgResult<Oid> {
-        self.insert_one::<Fabrix>(fx)
-            .await
-            .map(|r| Oid::new(r.inserted_id.as_object_id().unwrap()))
+    async fn insert_fx(&self, fx: &Fabrix, saving_category: SavingCategory) -> MgResult<Oid> {
+        let ins = match saving_category {
+            SavingCategory::Column => {
+                self.insert_one::<FabrixColumnWise>(&FabrixColumnWise::from(fx.clone()))
+                    .await
+            }
+            SavingCategory::Row => todo!(),
+            SavingCategory::Dataset => todo!(),
+        };
+
+        ins.map(|r| Oid::new(r.inserted_id.as_object_id().unwrap()))
     }
 
-    async fn insert_fxs(&self, fxs: &[Fabrix]) -> MgResult<HashMap<usize, Oid>> {
-        self.insert_many::<Fabrix>(fxs).await.map(|r| {
+    async fn insert_fxs(
+        &self,
+        fxs: &[Fabrix],
+        saving_category: SavingCategory,
+    ) -> MgResult<HashMap<usize, Oid>> {
+        let ins = match saving_category {
+            SavingCategory::Column => {
+                let d = fxs
+                    .iter()
+                    .map(|i| FabrixColumnWise::from(i.clone()))
+                    .collect::<Vec<_>>();
+                self.insert_many::<FabrixColumnWise>(&d).await
+            }
+            SavingCategory::Row => todo!(),
+            SavingCategory::Dataset => todo!(),
+        };
+
+        ins.map(|r| {
             r.inserted_ids
                 .into_iter()
                 .map(|(k, v)| (k, Oid::new(v.as_object_id().unwrap())))
@@ -339,16 +413,17 @@ mod dy_tests {
             "val" => [Some(10), None, Some(8)]
         ]
         .unwrap();
+        let dfc = FabrixColumnWise::from(df);
 
-        let foo = ec.insert_one::<Fabrix>(&df).await;
+        let foo = ec.insert_one::<FabrixColumnWise>(&dfc).await;
         assert!(foo.is_ok());
 
         let id = foo.unwrap().inserted_id;
         println!("{:?}", id);
 
-        let bar = ec.find_one::<Fabrix>(doc! {"_id": id}).await;
+        let bar = ec.find_one::<FabrixColumnWise>(doc! {"_id": id}).await;
         assert!(bar.is_ok());
-        println!("{:?}", bar.unwrap());
+        println!("{:?}", Fabrix::from(bar.unwrap()));
     }
 
     #[tokio::test]
@@ -368,11 +443,11 @@ mod dy_tests {
         ]
         .unwrap();
 
-        let foo = ec.insert_fx(&df).await;
+        let foo = ec.insert_fx(&df, SavingCategory::Column).await;
         assert!(foo.is_ok());
 
         let oid = *foo.unwrap().id();
-        let bar = ec.find_fx(oid).await;
+        let bar = ec.find_fx(oid, SavingCategory::Column).await;
         assert!(bar.is_ok());
 
         assert_eq!(df, bar.unwrap());

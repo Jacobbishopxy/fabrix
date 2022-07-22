@@ -20,9 +20,9 @@ pub type XlDbExecutor<R, T> = XlExecutor<SqlExecutor<T>, XlDbConvertor, R>;
 /// XlDbConvertor
 ///
 /// Used for converting D2Value to DataFrame.
-/// Notice V2Value can have two kinds of directions: row-wised & column-wised.
-/// A convertor's method may be called several times, but only row-wised data's field
-/// will be cached. this is because column-wised data should be treated as a whole
+/// Notice V2Value can have two kinds of directions: row-wise & column-wise.
+/// A convertor's method may be called several times, but only row-wise data's field
+/// will be cached. this is because column-wise data should be treated as a whole
 /// chunk of data (DataFrame) to be consumed.
 #[derive(Debug, Default)]
 pub struct XlDbConvertor {
@@ -40,8 +40,8 @@ impl XlDbConvertor {
         self.fields = None;
     }
 
-    /// set fields, only works for row-wised data
-    fn set_row_wised_fields(
+    /// set fields, only works for row-wise data
+    fn set_row_wise_fields(
         &mut self,
         data: &mut D2Value,
         index_loc: Option<usize>,
@@ -68,8 +68,8 @@ impl XlDbConvertor {
         Ok(())
     }
 
-    /// transform row-wised data a collection of series
-    fn transform_col_wised_data(data: D2Value) -> FabrixResult<Vec<Series>> {
+    /// transform row-wise data a collection of series
+    fn transform_col_wise_data(data: D2Value) -> FabrixResult<Vec<Series>> {
         // even has 1 row the first row is the index, cannot build up a dataframe
         if data.len() <= 1 {
             return Err(FabrixError::EmptyContent("data"));
@@ -88,16 +88,16 @@ impl XlDbConvertor {
         Ok(collection)
     }
 
-    /// a row-wised 2D-value -> DataFrame, with index
+    /// a row-wise 2D-value -> DataFrame, with index
     /// index is always the first column
-    pub fn convert_row_wised<'a, T: Into<XlIndexSelection<'a>>>(
+    pub fn convert_row_wise<'a, T: Into<XlIndexSelection<'a>>>(
         &mut self,
         mut data: D2Value,
         index_col: T,
     ) -> FabrixResult<Fabrix> {
         match index_col.into() {
             XlIndexSelection::Num(num) => {
-                self.set_row_wised_fields(&mut data, Some(num))?;
+                self.set_row_wise_fields(&mut data, Some(num))?;
                 let mut df = Fabrix::from_row_values(data, Some(num), false)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
@@ -112,13 +112,13 @@ impl XlDbConvertor {
                     .ok_or_else(|| {
                         FabrixError::NotFound(format!("index name: {name} not found"))
                     })?;
-                self.set_row_wised_fields(&mut data, Some(idx))?;
+                self.set_row_wise_fields(&mut data, Some(idx))?;
                 let mut df = Fabrix::from_row_values(data, Some(idx), false)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
             }
             XlIndexSelection::None => {
-                self.set_row_wised_fields(&mut data, None)?;
+                self.set_row_wise_fields(&mut data, None)?;
                 let mut df = Fabrix::from_row_values(data, None, false)?;
                 df.set_column_names(self.fields.as_ref().unwrap())?;
                 Ok(df)
@@ -126,14 +126,14 @@ impl XlDbConvertor {
         }
     }
 
-    /// a column-wised 2D-value -> DataFrame, with index
+    /// a column-wise 2D-value -> DataFrame, with index
     /// index is always the first row
-    pub fn convert_col_wised<'a, T: Into<XlIndexSelection<'a>>>(
+    pub fn convert_col_wise<'a, T: Into<XlIndexSelection<'a>>>(
         &self,
         data: D2Value,
         index_col: T,
     ) -> FabrixResult<Fabrix> {
-        let collection = Self::transform_col_wised_data(data)?;
+        let collection = Self::transform_col_wise_data(data)?;
 
         match index_col.into() {
             XlIndexSelection::Num(num) => {
@@ -373,7 +373,7 @@ mod test_xl_reader {
     const XL_SHEET_NAME2: &str = "data_t";
 
     #[test]
-    fn test_xl_db_convertor_row_wised() {
+    fn test_xl_db_convertor_row_wise() {
         let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let mut convertor = XlDbConvertor::new();
@@ -381,7 +381,7 @@ mod test_xl_reader {
         let iter = xle.iter_sheet(None, XL_SHEET_NAME).unwrap();
 
         for (i, row) in iter.enumerate() {
-            let df = convertor.convert_row_wised(row, 0).unwrap();
+            let df = convertor.convert_row_wise(row, 0).unwrap();
 
             println!("{i} ==========================================================");
             println!("{:?}", df);
@@ -389,7 +389,7 @@ mod test_xl_reader {
     }
 
     #[test]
-    fn test_xl_db_convertor_col_wised() {
+    fn test_xl_db_convertor_col_wise() {
         let source: XlWorkbook<File> = XlSource::Path(XL_SOURCE.to_owned()).try_into().unwrap();
 
         let convertor = XlDbConvertor::new();
@@ -397,7 +397,7 @@ mod test_xl_reader {
         let iter = xle.iter_sheet(None, XL_SHEET_NAME2).unwrap();
 
         for (i, row) in iter.enumerate() {
-            let df = convertor.convert_col_wised(row, 0).unwrap();
+            let df = convertor.convert_col_wise(row, 0).unwrap();
 
             println!("{i} ==========================================================");
             println!("{:?}", df);
@@ -422,7 +422,7 @@ mod test_xl_reader {
         // iterate through the sheet, and save the data to db
         for (i, row) in iter.enumerate() {
             let df = convertor
-                .convert_row_wised(row, XlIndexSelection::None)
+                .convert_row_wise(row, XlIndexSelection::None)
                 .unwrap();
             if consumer
                 .replace_existing_table("test_table", df, true)
@@ -470,7 +470,7 @@ mod test_xl_reader {
                 XL_SHEET_NAME2,
                 |d| {
                     convertor
-                        .convert_col_wised(d, XlIndexSelection::None)
+                        .convert_col_wise(d, XlIndexSelection::None)
                         .map_err(|e| {
                             fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e))
                         })
@@ -513,7 +513,7 @@ mod test_xl_reader {
                 |d| {
                     xl2db
                         .convertor
-                        .convert_col_wised(d, XlIndexSelection::None)
+                        .convert_col_wise(d, XlIndexSelection::None)
                         .map_err(|e| {
                             fabrix_xl::XlError::Unexpected(format!("fabrix error {:?}", e))
                         })
