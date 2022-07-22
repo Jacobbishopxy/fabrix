@@ -23,7 +23,6 @@ There are three main parts in this crate:
 
 ```txt
 ├── fabrix-core                        // Core package
-│   │
 │   ├── value.rs                       // the smallest data unit
 │   ├── series.rs                      // series of value
 │   ├── fabrix.rs                      // dataframe holder
@@ -56,26 +55,28 @@ There are three main parts in this crate:
 │   └── error.rs                       // Sql error
 │
 ├── fabrix-json                        // Json package
+│   ├── se.rs                          // Fabrix serialize
+│   ├── de.rs                          // Fabrix deserialize
+│   ├── ft.rs                          // Fabrix se/de types
+│   ├── ec.rs                          // Fabrix Json executor
+│   └── error.rs                       // Fabrix Json error
 │
 ├── fabrix-csv                         // Csv package
 │
 ├── fabrix-parquet                     // Parquet package
 │
 ├── fabrix-xl                          // Excel package
-│   │
 │   ├── util.rs                        // Excel utility
-│   ├── worksheet.rs                   // Excel worksheet
-│   ├── workbook.rs                    // Excel workbook
-│   ├── executor.rs                    // Excel executor, business logic implementation
+│   ├── ws.rs                          // Excel worksheet
+│   ├── wb.rs                          // Excel workbook
+│   ├── ec.rs                          // Excel executor, business logic implementation
 │   └── error.rs                       // Xl error
 │
 ├── fabrix-mg-derive                   // MongoDB procedural macro
-│   │
 │   ├── dr.rs                          // derive macro
 │   └── indexes.rs                     // mongo indexes methods
 │
 ├── fabrix-mg                          // MongoDB package
-│   │
 │   ├── bd.rs                          // BSON conversion and util
 │   ├── dr.rs                          // MongoDB traits for derived macro
 │   ├── indexes.rs                     // MongoDB index
@@ -83,7 +84,6 @@ There are three main parts in this crate:
 │   └── error.rs                       // MongoError
 │
 ├── fabrix-dyn-conn                    // Dynamic connection package for Database & MongoDB
-│   │
 │   ├── sql.rs                         // DynConn for Sql
 │   └── error.rs                       // DynConn error
 │
@@ -115,7 +115,6 @@ There are three main parts in this crate:
 │   │       └── writer.rs              // MongoDB writer
 │   │
 │   ├── dispatcher                     // dispatcher for different data source
-│   │   │
 │   │   ├── ds.rs                      // dispatcher and source traits
 │   │   ├── xl_db.rs                   // Excel -> Database
 │   │   └── xl_json.rs                 // Excel -> JSON
@@ -166,6 +165,7 @@ There are three main parts in this crate:
 
 ## Todo
 
+- `fabrix-json`: reader: Read + Seek + Send + Sync; writer: Write
 - `fabrix` sources: csv/json needs new de/se impl for their read/write
 - `fabrix-csv`: new package
 - `fabrix-parquet`: new package (parquet2)

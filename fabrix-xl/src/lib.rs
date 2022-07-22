@@ -8,17 +8,17 @@ use std::io::Cursor;
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 
+pub mod ec;
 pub mod error;
-pub mod executor;
 mod util;
-pub mod workbook;
-pub(crate) mod worksheet;
+pub mod wb;
+pub(crate) mod ws;
 
+pub use ec::{AsyncConsumeFP, ConvertFP, SyncConsumeFP, XlConsumer, XlExecutor};
 pub use error::*;
-pub use executor::{AsyncConsumeFP, ConvertFP, SyncConsumeFP, XlConsumer, XlExecutor};
-pub use workbook::XlWorkbook;
-pub(crate) use worksheet::SheetReader;
-pub use worksheet::{RowIter, XlCell, XlWorksheet};
+pub use wb::XlWorkbook;
+pub(crate) use ws::SheetReader;
+pub use ws::{RowIter, XlCell, XlWorksheet};
 
 /// Xl file source type
 #[derive(Debug)]
