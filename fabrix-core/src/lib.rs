@@ -1,6 +1,7 @@
 //! Fabrix core
 
 #![feature(trait_upcasting)]
+#![feature(specialization)]
 #![allow(incomplete_features)]
 
 pub mod error;

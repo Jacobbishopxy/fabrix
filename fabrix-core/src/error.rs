@@ -28,6 +28,9 @@ pub enum CoreError {
     #[error("index mismatch")]
     IndexMismatch,
 
+    #[error("index tag is empty")]
+    EmptyIndexTag,
+
     #[error("type mismatch {0}")]
     TypeMismatch(&'static str),
 

@@ -53,7 +53,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     cis_err, idl_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX,
 };
-use crate::{CoreResult, D2Value, SeriesRef, Value, ValueType};
+use crate::{CoreError, CoreResult, D2Value, SeriesRef, Value, ValueType};
 
 /// IndexTag
 ///
@@ -89,6 +89,12 @@ impl IndexTag {
 
 pub trait IntoIndexTag {
     fn into_index_tag(self, fields: &[Field]) -> CoreResult<IndexTag>;
+}
+
+impl<T> IntoIndexTag for T {
+    default fn into_index_tag(self, _fields: &[Field]) -> CoreResult<IndexTag> {
+        Err(CoreError::Unknown)
+    }
 }
 
 impl IntoIndexTag for usize {
@@ -130,6 +136,18 @@ impl IntoIndexTag for String {
     }
 }
 
+impl<T> IntoIndexTag for Option<T>
+where
+    T: IntoIndexTag,
+{
+    fn into_index_tag(self, fields: &[Field]) -> CoreResult<IndexTag> {
+        match self {
+            Some(i) => i.into_index_tag(fields),
+            None => Err(CoreError::EmptyIndexTag),
+        }
+    }
+}
+
 /// Fabrix
 ///
 /// A data structure used in Fabrix crate, it wrapped `polars` DataFrame as data.
@@ -143,10 +161,15 @@ impl Fabrix {
     /// DataFrame constructor
     pub fn new(data: DataFrame, index_tag: impl IntoIndexTag) -> CoreResult<Self> {
         let fields = data.fields();
-        Ok(Self {
-            data,
-            index_tag: Some(index_tag.into_index_tag(&fields)?),
-        })
+        let index_tag = match index_tag.into_index_tag(&fields) {
+            Ok(it) => Ok(Some(it)),
+            Err(e) => match e {
+                CoreError::EmptyIndexTag => Ok(None),
+                e => Err(e),
+            },
+        }?;
+
+        Ok(Self { data, index_tag })
     }
 
     /// DataFrame constructor, no index
@@ -609,10 +632,50 @@ impl From<DataFrame> for Fabrix {
     }
 }
 
+#[derive(Debug)]
+pub struct FabrixRef<'a> {
+    pub data: &'a DataFrame,
+    pub index_tag: Option<IndexTag>,
+}
+
+impl<'a> FabrixRef<'a> {
+    pub fn new(data: &'a DataFrame, index_tag: impl IntoIndexTag) -> CoreResult<Self> {
+        let fields = data.fields();
+        let index_tag = match index_tag.into_index_tag(&fields) {
+            Ok(it) => Ok(Some(it)),
+            Err(e) => match e {
+                CoreError::EmptyIndexTag => Ok(None),
+                e => Err(e),
+            },
+        }?;
+
+        Ok(Self { data, index_tag })
+    }
+
+    // TODO:
+    // `Fabrix-json/se.rs` methods
+}
+
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{fx, series, FieldInfo, ValueType};
+    use crate::{fx, series, FabrixRef, FieldInfo, ValueType};
+    use polars::prelude::{df, DataFrame, NamedFrom, Series};
+
+    #[test]
+    fn simple_fx_new_success() {
+        let df = df![
+            "names" => ["Jacob", "Sam", "Jason"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)]
+        ]
+        .unwrap();
+
+        let fx = FabrixRef::new(&df, None::<()>);
+        assert!(fx.is_ok());
+
+        println!("{:?}", fx.unwrap());
+    }
 
     #[test]
     fn test_df_new1() {
