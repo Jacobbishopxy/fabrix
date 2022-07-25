@@ -166,6 +166,24 @@ pub trait FabrixViewer {
     /// get a reference of DataFrame's index_tag
     fn index_tag(&self) -> Option<&IndexTag>;
 
+    /// get a column
+    fn get_column<S>(&self, name: S) -> CoreResult<&Series>
+    where
+        S: AsRef<str>,
+    {
+        Ok(self.data().column(name.as_ref())?.as_ref())
+    }
+
+    /// get a vector of cloned columns
+    fn get_columns(&self, names: impl IntoVec<String>) -> CoreResult<Vec<Series>> {
+        Ok(self
+            .data()
+            .select_series(names)?
+            .into_iter()
+            .map(Series)
+            .collect())
+    }
+
     /// get a reference of FDataFrame's index
     fn index(&self) -> Option<&Series> {
         self.index_tag()
@@ -229,6 +247,61 @@ pub trait FabrixViewer {
     /// get height
     fn height(&self) -> usize {
         self.data().height()
+    }
+
+    /// take cloned rows by an indices array
+    fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<Fabrix> {
+        let iter = indices.iter().copied();
+        let data = self.data().take_iter(iter)?;
+
+        Ok(Fabrix {
+            data,
+            index_tag: self.index_tag().cloned(),
+        })
+    }
+
+    /// take cloned DataFrame by an index Series
+    fn take_rows(&self, index: &Series) -> CoreResult<Fabrix> {
+        match self.index_tag() {
+            Some(it) => {
+                let s = self.data().column(it.name.as_str())?;
+                let iter = Series(s.clone())
+                    .find_indices(index)
+                    .into_iter()
+                    .map(|i| i as u64)
+                    .collect();
+                let data = self.data().take(&IdxCa::new_vec("idx", iter))?;
+
+                Ok(Fabrix {
+                    data,
+                    index_tag: self.index_tag().cloned(),
+                })
+            }
+            None => Err(inf_err()),
+        }
+    }
+
+    /// slice the DataFrame along the rows
+    fn slice(&self, offset: i64, length: usize) -> Fabrix {
+        let data = self.data().slice(offset, length);
+
+        Fabrix {
+            data,
+            index_tag: self.index_tag().cloned(),
+        }
+    }
+
+    /// take cloned DataFrame by column names
+    fn take_cols<I, S>(&self, cols: I) -> CoreResult<Fabrix>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let data = self.data().select(cols)?;
+        Ok(Fabrix {
+            data,
+            index_tag: self.index_tag().cloned(),
+        })
     }
 }
 
@@ -353,25 +426,6 @@ impl Fabrix {
         self.data.rechunk();
     }
 
-    /// get a column
-    pub fn get_column<S>(&self, name: S) -> Option<Series>
-    where
-        S: AsRef<str>,
-    {
-        match self.data.column(name.as_ref()) {
-            Ok(s) => Some(Series(s.clone())),
-            Err(_) => None,
-        }
-    }
-
-    /// get a vector of cloned columns
-    pub fn get_columns(&self, names: impl IntoVec<String>) -> Option<Vec<Series>> {
-        match self.data.select_series(names) {
-            Ok(r) => Some(r.into_iter().map(Series).collect()),
-            Err(_) => None,
-        }
-    }
-
     /// set index_tag
     pub fn set_index_tag(&mut self, index_tag: impl IntoIndexTag) -> CoreResult<&IndexTag> {
         let fields = self.data.fields();
@@ -384,11 +438,6 @@ impl Fabrix {
         self.data.with_row_count_mut(IDX, None);
         self.index_tag = Some(IndexTag::new(0, IDX, ValueType::U32));
         self
-    }
-
-    /// get column names
-    pub fn get_column_names(&self) -> Vec<&str> {
-        self.data.get_column_names()
     }
 
     /// set column names
@@ -404,11 +453,6 @@ impl Fabrix {
     pub fn rename(&mut self, origin: &str, new: &str) -> CoreResult<&mut Self> {
         self.data.rename(origin, new)?;
         Ok(self)
-    }
-
-    /// is dtypes match
-    pub fn is_dtypes_match(&self, df: &Fabrix) -> bool {
-        self.dtypes() == df.dtypes()
     }
 
     /// horizontal stack, return cloned data
@@ -459,38 +503,6 @@ impl Fabrix {
         self.data.vstack_mut(df.data())?;
 
         Ok(self)
-    }
-
-    /// take cloned rows by an indices array
-    pub fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<Fabrix> {
-        let iter = indices.iter().copied();
-        let data = self.data.take_iter(iter)?;
-
-        Ok(Self {
-            data,
-            index_tag: self.index_tag.clone(),
-        })
-    }
-
-    /// take cloned DataFrame by an index Series
-    pub fn take_rows(&self, index: &Series) -> CoreResult<Fabrix> {
-        match &self.index_tag {
-            Some(it) => {
-                let s = self.data.column(it.name.as_str())?;
-                let iter = Series(s.clone())
-                    .find_indices(index)
-                    .into_iter()
-                    .map(|i| i as u64)
-                    .collect();
-                let data = self.data.take(&IdxCa::new_vec("idx", iter))?;
-
-                Ok(Fabrix {
-                    data,
-                    index_tag: self.index_tag.clone(),
-                })
-            }
-            None => Err(inf_err()),
-        }
     }
 
     /// pop row
@@ -611,30 +623,6 @@ impl Fabrix {
             }
             None => Err(inf_err()),
         }
-    }
-
-    /// slice the DataFrame along the rows
-    #[must_use]
-    pub fn slice(&self, offset: i64, length: usize) -> Self {
-        let data = self.data.slice(offset, length);
-
-        Self {
-            data,
-            index_tag: self.index_tag.clone(),
-        }
-    }
-
-    /// take cloned DataFrame by column names
-    pub fn take_cols<I, S>(&self, cols: I) -> CoreResult<Fabrix>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let data = self.data.select(cols)?;
-        Ok(Self {
-            data,
-            index_tag: self.index_tag.clone(),
-        })
     }
 
     // TODO:
@@ -780,7 +768,7 @@ mod test_fabrix_dataframe {
         assert!(it.is_ok());
 
         let test1 = df.get_columns(&["names", "val"]);
-        assert!(test1.is_some());
+        assert!(test1.is_ok());
         assert_eq!(test1.unwrap().len(), 2);
 
         let test2 = df.take_rows_by_idx(&[0, 2]);
