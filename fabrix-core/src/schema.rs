@@ -38,6 +38,33 @@ impl From<FieldInfo> for PolarsField {
     }
 }
 
+impl From<PolarsField> for FieldInfo {
+    fn from(f: PolarsField) -> Self {
+        FieldInfo {
+            name: f.name().to_owned(),
+            dtype: f.data_type().into(),
+        }
+    }
+}
+
+impl From<&PolarsField> for FieldInfo {
+    fn from(f: &PolarsField) -> Self {
+        FieldInfo {
+            name: f.name().to_owned(),
+            dtype: f.data_type().into(),
+        }
+    }
+}
+
+impl From<(&str, &ValueType)> for FieldInfo {
+    fn from(t: (&str, &ValueType)) -> Self {
+        FieldInfo {
+            name: t.0.to_owned(),
+            dtype: t.1.to_owned(),
+        }
+    }
+}
+
 /// Schema
 ///
 /// Schema is a subset of DataFrame FieldInfos collection.

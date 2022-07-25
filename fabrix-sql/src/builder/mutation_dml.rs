@@ -1,6 +1,6 @@
 //! Sql Builder: dml mutation
 
-use fabrix_core::Fabrix;
+use fabrix_core::{Fabrix, FabrixViewer};
 use sea_query::{Expr, Query};
 
 use super::{alias, filter_builder, sql_adt, statement, try_from_value_to_svalue, DeleteOrSelect};

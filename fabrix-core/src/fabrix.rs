@@ -53,7 +53,10 @@ use serde::{Deserialize, Serialize};
 use super::{
     cis_err, idl_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX,
 };
-use crate::{CoreError, CoreResult, D2Value, SeriesRef, Value, ValueType};
+use crate::{
+    CoreError, CoreResult, D2Value, FabrixRefIterToNamedRow, FabrixRefIterToRow,
+    IntoIteratorNamedRow, IntoIteratorRow, SeriesRef, Value, ValueType,
+};
 
 /// IndexTag
 ///
@@ -148,6 +151,79 @@ where
     }
 }
 
+pub trait FabrixViewer {
+    /// get a reference of DataFrame's data
+    fn data(&self) -> &DataFrame;
+
+    /// get a reference of DataFrame's index_tag
+    fn index_tag(&self) -> Option<&IndexTag>;
+
+    /// get a reference of FDataFrame's index
+    fn index(&self) -> Option<&Series> {
+        self.index_tag()
+            .and_then(|it| self.data().column(it.name()).ok().map(|s| s.as_ref()))
+    }
+
+    /// get column names
+    fn get_column_names(&self) -> Vec<&str> {
+        self.data().get_column_names()
+    }
+
+    /// dataframe dtypes
+    fn dtypes(&self) -> Vec<&ValueType> {
+        self.data().dtypes().iter().map(|t| t.into()).collect_vec()
+    }
+
+    /// index check null.
+    /// WARNING: object column will cause panic, since `polars` hasn't implemented yet  fn index_has_null(&self) -> Option<bool> {
+    fn index_has_null(&self) -> Option<bool> {
+        match self.index_tag() {
+            Some(it) => self
+                .data()
+                .column(it.name.as_str())
+                .ok()
+                .map(|s| s.is_not_null().all()),
+            None => None,
+        }
+    }
+
+    /// dataframe check null columns
+    /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
+    fn has_null(&self) -> Vec<bool> {
+        self.data().iter().map(|s| !s.is_not_null().all()).collect()
+    }
+
+    /// get DataFrame fields info
+    fn fields(&self) -> Vec<FieldInfo> {
+        self.data()
+            .fields()
+            .iter()
+            .map(FieldInfo::from)
+            .collect::<Vec<_>>()
+    }
+
+    /// get index field info
+    fn index_field(&self) -> Option<FieldInfo> {
+        self.index_tag()
+            .map(|it| FieldInfo::from((it.name(), it.data_type())))
+    }
+
+    /// get shape
+    fn shape(&self) -> (usize, usize) {
+        self.data().shape()
+    }
+
+    /// get width
+    fn width(&self) -> usize {
+        self.data().width()
+    }
+
+    /// get height
+    fn height(&self) -> usize {
+        self.data().height()
+    }
+}
+
 /// Fabrix
 ///
 /// A data structure used in Fabrix crate, it wrapped `polars` DataFrame as data.
@@ -155,6 +231,16 @@ where
 pub struct Fabrix {
     pub data: DataFrame,
     pub index_tag: Option<IndexTag>,
+}
+
+impl FabrixViewer for Fabrix {
+    fn data(&self) -> &DataFrame {
+        &self.data
+    }
+
+    fn index_tag(&self) -> Option<&IndexTag> {
+        self.index_tag.as_ref()
+    }
 }
 
 impl Fabrix {
@@ -274,31 +360,11 @@ impl Fabrix {
         }
     }
 
-    /// get a reference of FDataFrame's data
-    pub fn data(&self) -> &DataFrame {
-        &self.data
-    }
-
-    /// get a reference of FDataFrame's index_tag
-    pub fn index_tag(&self) -> Option<&IndexTag> {
-        self.index_tag.as_ref()
-    }
-
     /// set index_tag
     pub fn set_index_tag(&mut self, index_tag: impl IntoIndexTag) -> CoreResult<&IndexTag> {
         let fields = self.data.fields();
         self.index_tag = Some(index_tag.into_index_tag(&fields)?);
         Ok(self.index_tag.as_ref().unwrap())
-    }
-
-    /// get a reference of FDataFrame's index
-    pub fn index(&self) -> Option<Series> {
-        self.index_tag.as_ref().and_then(|it| {
-            self.data
-                .column(it.name.as_str())
-                .ok()
-                .map(|s| Series(s.clone()))
-        })
     }
 
     /// generate a new column with row count, be careful the index_tag will be overridden
@@ -328,62 +394,9 @@ impl Fabrix {
         Ok(self)
     }
 
-    /// dataframe dtypes
-    pub fn dtypes(&self) -> Vec<ValueType> {
-        self.data.dtypes().iter().map(|t| t.into()).collect_vec()
-    }
-
-    /// index check null.
-    /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
-    pub fn index_has_null(&self) -> Option<bool> {
-        match &self.index_tag {
-            Some(it) => self
-                .data
-                .column(it.name.as_str())
-                .ok()
-                .map(|s| s.is_not_null().all()),
-            None => None,
-        }
-    }
-
-    /// dataframe check null columns
-    /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
-    pub fn has_null(&self) -> Vec<bool> {
-        self.data.iter().map(|s| !s.is_not_null().all()).collect()
-    }
-
     /// is dtypes match
     pub fn is_dtypes_match(&self, df: &Fabrix) -> bool {
         self.dtypes() == df.dtypes()
-    }
-
-    /// get DataFrame fields info
-    pub fn fields(&self) -> Vec<FieldInfo> {
-        self.data
-            .iter()
-            .map(|s| FieldInfo::new(s.name().to_owned(), s.dtype().into()))
-            .collect_vec()
-    }
-
-    pub fn index_field(&self) -> Option<FieldInfo> {
-        self.index_tag
-            .as_ref()
-            .map(|it| FieldInfo::new(it.name.clone(), it.data_type.clone()))
-    }
-
-    /// get shape
-    pub fn shape(&self) -> (usize, usize) {
-        self.data.shape()
-    }
-
-    /// get width
-    pub fn width(&self) -> usize {
-        self.data.width()
-    }
-
-    /// get height
-    pub fn height(&self) -> usize {
-        self.data.height()
     }
 
     /// horizontal stack, return cloned data
@@ -652,14 +665,29 @@ impl<'a> FabrixRef<'a> {
         Ok(Self { data, index_tag })
     }
 
-    // TODO:
-    // `Fabrix-json/se.rs` methods
+    pub fn iter_rows(&self) -> IntoIteratorRow {
+        FabrixRefIterToRow::new(self).into_iter()
+    }
+
+    pub fn iter_named_rows(&self) -> IntoIteratorNamedRow {
+        FabrixRefIterToNamedRow::new(self).into_iter()
+    }
+}
+
+impl<'a> FabrixViewer for FabrixRef<'a> {
+    fn data(&self) -> &DataFrame {
+        self.data
+    }
+
+    fn index_tag(&self) -> Option<&IndexTag> {
+        self.index_tag.as_ref()
+    }
 }
 
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{fx, series, FabrixRef, FieldInfo, ValueType};
+    use crate::{fx, series, FabrixRef, FabrixViewer, FieldInfo, ValueType};
     use polars::prelude::{df, DataFrame, NamedFrom, Series};
 
     #[test]
@@ -691,7 +719,7 @@ mod test_fabrix_dataframe {
 
         assert_eq!(
             df.dtypes(),
-            vec![ValueType::String, ValueType::I32, ValueType::I32]
+            vec![&ValueType::String, &ValueType::I32, &ValueType::I32]
         );
 
         assert_eq!(df.get_column("names").unwrap().len(), 3);

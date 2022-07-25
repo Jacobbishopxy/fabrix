@@ -622,6 +622,12 @@ impl AsRef<PolarsSeries> for Series {
     }
 }
 
+impl AsRef<Series> for PolarsSeries {
+    fn as_ref(&self) -> &Series {
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
 /// Series from values, series type is determined by the first not-null value,
 /// if the who vectors are null then use u64 as the default type.
 ///
@@ -896,6 +902,12 @@ impl<'a> IntoIterator for &'a SeriesRef<'a> {
             // temporary ignore the rest of DataType variants
             _ => unimplemented!(),
         }
+    }
+}
+
+impl<'a> AsRef<PolarsSeries> for SeriesRef<'a> {
+    fn as_ref(&self) -> &PolarsSeries {
+        self.0
     }
 }
 

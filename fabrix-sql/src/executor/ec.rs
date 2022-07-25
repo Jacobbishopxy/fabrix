@@ -8,7 +8,7 @@
 use std::{any::Any, str::FromStr};
 
 use async_trait::async_trait;
-use fabrix_core::{D1Value, Fabrix, Series, Value, ValueType};
+use fabrix_core::{D1Value, Fabrix, FabrixViewer, Series, Value, ValueType};
 
 use super::{
     conn_e_err, conn_n_err,
@@ -518,7 +518,7 @@ where
             sql_adt::SaveStrategy::Upsert => {
                 if let Some(s) = data.index() {
                     // get existing ids from selected table
-                    let existing_ids = self.get_existing_ids(table_name, &s).await?;
+                    let existing_ids = self.get_existing_ids(table_name, s).await?;
 
                     let existing_ids = Series::from_values_default_name(existing_ids, false)?;
 

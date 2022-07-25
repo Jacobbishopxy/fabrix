@@ -616,6 +616,8 @@ macro_rules! rows {
 #[cfg(test)]
 mod test_macros {
 
+    use crate::FabrixViewer;
+
     #[test]
     fn test_value() {
         println!("{:?}", value!("Jacob"));
