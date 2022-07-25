@@ -6,7 +6,7 @@ use serde::{de::Visitor, ser::SerializeMap, Deserialize, Serialize};
 use crate::{
     util::{cis_err, ims_err, inf_err, oob_err, Stepper},
     CoreError, CoreResult, Fabrix, FabrixRef, FabrixViewer, IndexTag, Series, SeriesIterator,
-    SeriesRef, Value, ValueType,
+    SeriesRef, SeriesViewer, Value, ValueType,
 };
 
 #[derive(Debug, Clone)]
@@ -188,7 +188,7 @@ impl Fabrix {
     pub fn get_named_row(&self, index: &Value) -> CoreResult<NamedRow> {
         match self.index_tag() {
             Some(it) => {
-                let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
+                let idx = SeriesRef::new(self.data.column(&it.name)?).find_index(index);
                 match idx {
                     Some(i) => self.get_named_row_by_idx(i),
                     None => Err(inf_err()),
@@ -251,7 +251,7 @@ impl<'a> IntoIterator for FabrixIterToNamedRow<'a> {
     fn into_iter(self) -> Self::IntoIter {
         let mut data_iters = Vec::with_capacity(self.0.width());
         for s in self.0.data.iter() {
-            let iter = SeriesRef(s).into_iter();
+            let iter = SeriesRef::new(s).into_iter();
             data_iters.push((s.name(), iter));
         }
 
@@ -270,7 +270,7 @@ impl<'a> IntoIterator for FabrixRefIterToNamedRow<'a> {
     fn into_iter(self) -> Self::IntoIter {
         let mut data_iters = Vec::with_capacity(self.0.width());
         for s in self.0.data.iter() {
-            let iter = SeriesRef(s).into_iter();
+            let iter = SeriesRef::new(s).into_iter();
             data_iters.push((s.name(), iter));
         }
 

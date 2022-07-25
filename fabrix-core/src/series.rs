@@ -267,6 +267,119 @@ impl_named_from_ref!([Bytes], ObjectTypeBytes, from_slice);
 impl_named_from_ref!([Option<Bytes>], ObjectTypeBytes, from_slice_options);
 
 // ================================================================================================
+// SeriesViewer
+// ================================================================================================
+
+pub trait SeriesViewer {
+    /// show data
+    fn data(&self) -> &PolarsSeries;
+
+    /// get Series' name
+    fn name(&self) -> &str {
+        self.data().name()
+    }
+
+    /// show data length
+    fn len(&self) -> usize {
+        self.data().len()
+    }
+
+    /// show Series type
+    fn dtype(&self) -> &ValueType {
+        self.data().dtype().into()
+    }
+
+    /// get series field
+    fn field(&self) -> FieldInfo {
+        let name = self.name();
+        let dtype = self.dtype();
+
+        (name, dtype).into()
+    }
+
+    /// check whether the series is empty
+    fn is_empty(&self) -> bool {
+        self.data().is_empty()
+    }
+
+    /// check if contains null value
+    fn has_null(&self) -> bool {
+        !self.data().is_not_null().all()
+    }
+
+    /// head, if length is `None`, return a series only contains the first element
+    fn head(&self, length: Option<usize>) -> Series {
+        self.data().head(length).into()
+    }
+
+    /// tail, if length is `None`, return a series only contains the last element
+    fn tail(&self, length: Option<usize>) -> Series {
+        self.data().tail(length).into()
+    }
+
+    /// get a cloned value by idx
+    fn get(&self, idx: usize) -> CoreResult<Value> {
+        let len = self.len();
+
+        if idx >= len {
+            Err(oob_err(idx, len))
+        } else {
+            Ok(value!(self.data().get(idx)))
+        }
+    }
+
+    /// take a cloned slice by an indices array
+    fn take(&self, indices: &[usize]) -> CoreResult<Series> {
+        let mut iter = indices.iter().copied();
+        Ok(Series(self.data().take_iter(&mut iter)?))
+    }
+
+    /// slice the Series
+    fn slice(&self, offset: i64, length: usize) -> Series {
+        self.data().slice(offset, length).into()
+    }
+
+    /// check Series whether contains a value (`self.into_iter` is not zero copy)
+    fn contains(&self, val: &Value) -> bool {
+        SeriesRef::new(self.data()).iter().contains(val)
+    }
+
+    /// find idx by a Value (`self.into_iter` is not zero copy)
+    fn find_index(&self, val: &Value) -> Option<usize> {
+        SeriesRef::new(self.data())
+            .iter()
+            .position(|ref e| e == val)
+    }
+
+    /// find idx vector by a Series (`self.into_iter` is not zero copy)
+    fn find_indices(&self, series: &Series) -> Vec<usize> {
+        SeriesRef::new(self.data())
+            .iter()
+            .enumerate()
+            .fold(Vec::new(), |mut accum, (idx, e)| {
+                if series.contains(&e) {
+                    accum.push(idx);
+                }
+                accum
+            })
+    }
+
+    /// split into two series
+    fn split(&self, idx: usize) -> CoreResult<(Series, Series)> {
+        let len = self.len();
+
+        if idx >= len {
+            Err(oob_err(idx, len))
+        } else {
+            let (l1, l2) = (idx, len - idx);
+            let s1 = self.slice(0, l1);
+            let s2 = self.slice(idx as i64, l2);
+            Ok((s1, s2))
+        }
+    }
+}
+
+// ================================================================================================
 // Series
 // ================================================================================================
 
@@ -338,11 +451,6 @@ impl Series {
         self.0 = self.0.rechunk();
     }
 
-    /// get Series' name
-    pub fn name(&self) -> &str {
-        self.0.name()
-    }
-
     /// rename Series
     pub fn rename<S>(&mut self, name: S) -> &mut Self
     where
@@ -350,114 +458,6 @@ impl Series {
     {
         self.0.rename(name.as_ref());
         self
-    }
-
-    /// show data
-    pub fn data(&self) -> &PolarsSeries {
-        &self.0
-    }
-
-    /// show data length
-    pub fn len(&self) -> usize {
-        self.data().len()
-    }
-
-    /// show Series type
-    pub fn dtype(&self) -> &ValueType {
-        self.0.dtype().into()
-    }
-
-    /// get series field
-    pub fn field(&self) -> FieldInfo {
-        FieldInfo::new(self.0.name().to_owned(), self.0.dtype().into())
-    }
-
-    /// check whether the series is empty
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// check if contains null value
-    pub fn has_null(&self) -> bool {
-        !self.0.is_not_null().all()
-    }
-
-    /// head, if length is `None`, return a series only contains the first element
-    pub fn head(&self, length: Option<usize>) -> CoreResult<Series> {
-        let len = self.len();
-
-        match length {
-            Some(l) => {
-                if l >= self.len() {
-                    Err(oob_err(l, len))
-                } else {
-                    Ok(self.0.head(length).into())
-                }
-            }
-            None => Ok(self.0.head(Some(1)).into()),
-        }
-    }
-
-    /// tail, if length is `None`, return a series only contains the last element
-    pub fn tail(&self, length: Option<usize>) -> CoreResult<Series> {
-        let len = self.len();
-
-        match length {
-            Some(l) => {
-                if l >= len {
-                    Err(oob_err(l, len))
-                } else {
-                    Ok(self.0.tail(length).into())
-                }
-            }
-            None => Ok(self.0.tail(Some(1)).into()),
-        }
-    }
-
-    /// get a cloned value by idx
-    pub fn get(&self, idx: usize) -> CoreResult<Value> {
-        let len = self.len();
-
-        if idx >= len {
-            Err(oob_err(idx, len))
-        } else {
-            let v = self.0.get(idx);
-            Ok(value!(v))
-        }
-    }
-
-    /// take a cloned slice by an indices array
-    pub fn take(&self, indices: &[usize]) -> CoreResult<Series> {
-        let mut iter = indices.iter().copied();
-        Ok(Series(self.0.take_iter(&mut iter)?))
-    }
-
-    /// slice the Series
-    #[must_use]
-    pub fn slice(&self, offset: i64, length: usize) -> Series {
-        self.0.slice(offset, length).into()
-    }
-
-    /// check Series whether contains a value (`self.into_iter` is not zero copy)
-    pub fn contains(&self, val: &Value) -> bool {
-        self.into_iter().contains(val)
-    }
-
-    /// find idx by a Value (`self.into_iter` is not zero copy)
-    pub fn find_index(&self, val: &Value) -> Option<usize> {
-        self.into_iter().position(|ref e| e == val)
-    }
-
-    /// find idx vector by a Series (`self.into_iter` is not zero copy)
-    pub fn find_indices(&self, series: &Series) -> Vec<usize> {
-        self.into_iter()
-            .enumerate()
-            .fold(vec![], |mut accum, (idx, e)| {
-                if series.contains(&e) {
-                    accum.push(idx);
-                }
-                accum
-            })
     }
 
     /// drop nulls
@@ -470,18 +470,6 @@ impl Series {
     pub fn concat(&mut self, series: Series) -> CoreResult<&mut Self> {
         self.0.append(&series.0)?;
         Ok(self)
-    }
-
-    /// split into two series
-    pub fn split(&self, idx: usize) -> CoreResult<(Series, Series)> {
-        let len = self.len();
-
-        if idx >= len {
-            Err(oob_err(idx, len))
-        } else {
-            let (len1, len2) = (idx, len - idx);
-            Ok((self.slice(0, len1), self.slice(idx as i64, len2)))
-        }
     }
 
     /// push a value at the end of the series, self mutation
@@ -568,6 +556,12 @@ impl Series {
 
     pub fn iter(&self) -> SeriesIterator {
         self.into_iter()
+    }
+}
+
+impl SeriesViewer for Series {
+    fn data(&self) -> &PolarsSeries {
+        &self.0
     }
 }
 
@@ -811,37 +805,28 @@ impl<'a> Iterator for SeriesIterator<'a> {
     }
 }
 
+// ================================================================================================
+// SeriesRef
+// ================================================================================================
+
 /// SeriesRef
 ///
 /// A wrapper of a polars series reference. (used in `row.rs`)
-pub struct SeriesRef<'a>(pub &'a PolarsSeries);
+pub struct SeriesRef<'a>(&'a PolarsSeries);
 
 impl<'a> SeriesRef<'a> {
-    pub fn name(&self) -> &str {
-        self.0.name()
-    }
-
-    pub fn dtype(&self) -> &ValueType {
-        self.0.dtype().into()
+    pub fn new(s: &'a PolarsSeries) -> Self {
+        Self(s)
     }
 
     pub fn iter(&self) -> SeriesIterator {
         self.into_iter()
     }
+}
 
-    pub fn find_index(&self, val: &Value) -> Option<usize> {
-        self.into_iter().position(|ref e| e == val)
-    }
-
-    pub fn find_indices(&self, series: &Series) -> Vec<usize> {
-        self.into_iter()
-            .enumerate()
-            .fold(vec![], |mut accum, (idx, e)| {
-                if series.contains(&e) {
-                    accum.push(idx);
-                }
-                accum
-            })
+impl<'a> SeriesViewer for SeriesRef<'a> {
+    fn data(&self) -> &PolarsSeries {
+        self.0
     }
 }
 
@@ -1428,13 +1413,11 @@ mod test_fabrix_series {
     fn series_get_success() {
         let s = series!("dollars" => ["Jacob", "Sam", "James", "April", "Julia", "Jack", "Henry"]);
 
-        assert_eq!(s.head(None).unwrap().get(0).unwrap(), value!("Jacob"));
-        assert_eq!(s.head(Some(2)).unwrap().len(), 2);
-        assert!(s.head(Some(10)).is_err());
+        assert_eq!(s.head(None).get(0).unwrap(), value!("Jacob"));
+        assert_eq!(s.head(Some(2)).len(), 2);
 
-        assert_eq!(s.tail(None).unwrap().get(0).unwrap(), value!("Henry"));
-        assert_eq!(s.tail(Some(2)).unwrap().len(), 2);
-        assert!(s.tail(Some(10)).is_err());
+        assert_eq!(s.tail(None).get(0).unwrap(), value!("Henry"));
+        assert_eq!(s.tail(Some(2)).len(), 2);
 
         let (s1, s2) = s.split(4).unwrap();
         assert_eq!(s1.len(), 4);

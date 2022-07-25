@@ -9,7 +9,11 @@ pub(crate) fn dataframe_column_wise_serialize<S>(df: &DataFrame, s: S) -> Result
 where
     S: Serializer,
 {
-    let series = df.get_columns().iter().map(SeriesRef).collect::<Vec<_>>();
+    let series = df
+        .get_columns()
+        .iter()
+        .map(SeriesRef::new)
+        .collect::<Vec<_>>();
     let mut seq = s.serialize_seq(Some(series.len()))?;
     for e in series {
         seq.serialize_element(&e)?;

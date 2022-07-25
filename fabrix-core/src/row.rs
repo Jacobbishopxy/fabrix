@@ -28,8 +28,8 @@ use serde::{de::Visitor, ser::SerializeSeq, Deserialize, Serialize};
 
 use super::{cis_err, ims_err, inf_err, oob_err, util::Stepper, SeriesIterator, SeriesRef};
 use crate::{
-    CoreError, CoreResult, D2Value, Fabrix, FabrixRef, FabrixViewer, IndexTag, Series, Value,
-    ValueType,
+    CoreError, CoreResult, D2Value, Fabrix, FabrixRef, FabrixViewer, IndexTag, Series,
+    SeriesViewer, Value, ValueType,
 };
 
 #[derive(Debug, Clone)]
@@ -274,7 +274,7 @@ impl Fabrix {
     pub fn get_row(&self, index: &Value) -> CoreResult<Row> {
         match self.index_tag() {
             Some(it) => {
-                let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
+                let idx = SeriesRef::new(self.data.column(&it.name)?).find_index(index);
                 match idx {
                     Some(i) => self.get_row_by_idx(i),
                     None => Err(inf_err()),
@@ -307,7 +307,7 @@ impl Fabrix {
     pub fn insert_row(&mut self, index: &Value, row: Row) -> CoreResult<&mut Self> {
         match &self.index_tag {
             Some(it) => {
-                let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
+                let idx = SeriesRef::new(self.data.column(&it.name)?).find_index(index);
                 match idx {
                     Some(idx) => self.insert_row_by_idx(idx, row),
                     None => Err(inf_err()),
@@ -335,7 +335,7 @@ impl Fabrix {
     pub fn insert_rows(&mut self, index: &Value, rows: Vec<Row>) -> CoreResult<&mut Self> {
         match &self.index_tag {
             Some(it) => {
-                let idx = SeriesRef(self.data.column(&it.name)?).find_index(index);
+                let idx = SeriesRef::new(self.data.column(&it.name)?).find_index(index);
                 match idx {
                     Some(i) => self.insert_rows_by_idx(i, rows),
                     None => Err(inf_err()),
@@ -399,7 +399,7 @@ impl<'a> IntoIterator for FabrixIterToRow<'a> {
     fn into_iter(self) -> Self::IntoIter {
         let mut data_iters = Vec::with_capacity(self.0.width());
         for s in self.0.data.iter() {
-            let iter = SeriesRef(s).into_iter();
+            let iter = SeriesRef::new(s).into_iter();
             data_iters.push(iter);
         }
 
@@ -418,7 +418,7 @@ impl<'a> IntoIterator for FabrixRefIterToRow<'a> {
     fn into_iter(self) -> Self::IntoIter {
         let mut data_iters = Vec::with_capacity(self.0.width());
         for s in self.0.data.iter() {
-            let iter = SeriesRef(s).into_iter();
+            let iter = SeriesRef::new(s).into_iter();
             data_iters.push(iter);
         }
 

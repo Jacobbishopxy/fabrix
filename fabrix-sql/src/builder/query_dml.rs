@@ -1,6 +1,6 @@
 //! Sql Builder: dml query
 
-use fabrix_core::Series;
+use fabrix_core::{Series, SeriesViewer};
 use sea_query::{Expr, Order, Query};
 
 use super::{

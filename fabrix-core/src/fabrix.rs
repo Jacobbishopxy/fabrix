@@ -55,8 +55,12 @@ use super::{
 };
 use crate::{
     CoreError, CoreResult, D2Value, FabrixRefIterToNamedRow, FabrixRefIterToRow,
-    IntoIteratorNamedRow, IntoIteratorRow, SeriesRef, Value, ValueType,
+    IntoIteratorNamedRow, IntoIteratorRow, SeriesRef, SeriesViewer, Value, ValueType,
 };
+
+// ================================================================================================
+// IndexTag
+// ================================================================================================
 
 /// IndexTag
 ///
@@ -151,6 +155,10 @@ where
     }
 }
 
+// ================================================================================================
+// FabrixViewer
+// ================================================================================================
+
 pub trait FabrixViewer {
     /// get a reference of DataFrame's data
     fn data(&self) -> &DataFrame;
@@ -223,6 +231,10 @@ pub trait FabrixViewer {
         self.data().height()
     }
 }
+
+// ================================================================================================
+// Fabrix
+// ================================================================================================
 
 /// Fabrix
 ///
@@ -512,7 +524,7 @@ impl Fabrix {
         match &self.index_tag {
             Some(idx) => {
                 let s = self.data.column(idx.name.as_str())?;
-                match SeriesRef(s).find_index(index) {
+                match SeriesRef::new(s).find_index(index) {
                     Some(idx) => self.remove_row_by_idx(idx as usize),
                     None => Err(vnf_err(index)),
                 }
@@ -545,7 +557,7 @@ impl Fabrix {
         match &self.index_tag {
             Some(it) => {
                 let s = self.data.column(it.name.as_str())?;
-                let idx = SeriesRef(s)
+                let idx = SeriesRef::new(s)
                     .find_indices(&idx)
                     .into_iter()
                     .map(|i| i as u64)
@@ -592,7 +604,7 @@ impl Fabrix {
         match &self.index_tag {
             Some(it) => {
                 let s = self.data.column(it.name.as_str())?;
-                let idx = SeriesRef(s).find_indices(index);
+                let idx = SeriesRef::new(s).find_indices(index);
                 let pop = self.popup_rows_by_idx(&idx)?;
 
                 Ok(pop)
@@ -645,6 +657,10 @@ impl From<DataFrame> for Fabrix {
     }
 }
 
+// ================================================================================================
+// FabrixRef
+// ================================================================================================
+
 #[derive(Debug)]
 pub struct FabrixRef<'a> {
     pub data: &'a DataFrame,
@@ -687,7 +703,7 @@ impl<'a> FabrixViewer for FabrixRef<'a> {
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{fx, series, FabrixRef, FabrixViewer, FieldInfo, ValueType};
+    use crate::{fx, series, FabrixRef, FabrixViewer, FieldInfo, SeriesViewer, ValueType};
     use polars::prelude::{df, DataFrame, NamedFrom, Series};
 
     #[test]
