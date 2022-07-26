@@ -52,6 +52,7 @@ use polars::prelude::{
 use polars::prelude::{
     DataType, Field, IntoSeries, NamedFrom, NewChunkedArray, Series as PolarsSeries, TimeUnit,
 };
+use ref_cast::RefCast;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -386,7 +387,8 @@ pub trait SeriesViewer {
 
 /// Series is a data structure used in Fabrix crate, it wrapped `polars` Series and provides
 /// additional customized functionalities
-#[derive(Clone)]
+#[derive(Clone, RefCast)]
+#[repr(transparent)]
 pub struct Series(pub PolarsSeries);
 
 impl Series {
@@ -619,7 +621,7 @@ impl AsRef<PolarsSeries> for Series {
 
 impl AsRef<Series> for PolarsSeries {
     fn as_ref(&self) -> &Series {
-        unsafe { std::mem::transmute(self) }
+        Series::ref_cast(self)
     }
 }
 

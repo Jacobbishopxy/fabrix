@@ -76,6 +76,40 @@ macro_rules! impl_custom_value_outer {
 pub(crate) use impl_custom_value_inner;
 pub(crate) use impl_custom_value_outer;
 
+macro_rules! force_cast_numeric {
+    ($s:expr, $v:expr, $d:expr) => {
+        match $d {
+            ValueType::U8 => Value::U8(*$v as u8),
+            ValueType::U16 => Value::U16(*$v as u16),
+            ValueType::U32 => Value::U32(*$v as u32),
+            ValueType::U64 => Value::U64(*$v as u64),
+            ValueType::I8 => Value::I8(*$v as i8),
+            ValueType::I16 => Value::I16(*$v as i16),
+            ValueType::I32 => Value::I32(*$v as i32),
+            ValueType::I64 => Value::I64(*$v as i64),
+            ValueType::F32 => Value::F32(*$v as f32),
+            ValueType::F64 => Value::F64(*$v as f64),
+            ValueType::Date => Value::Date(*$v as i32),
+            ValueType::Time => Value::Time(*$v as i64),
+            ValueType::DateTime => Value::DateTime(*$v as i64),
+            ValueType::String => Value::String($v.to_string()),
+            _ => $s,
+        }
+    };
+}
+
+macro_rules! force_cast_string_to_num {
+    ($s:expr, $v:expr, $t:ident, $vr:ident) => {
+        match $v.parse::<$t>() {
+            Ok(num) => $crate::Value::$vr(num),
+            Err(_) => $s,
+        }
+    };
+}
+
+pub(crate) use force_cast_numeric;
+pub(crate) use force_cast_string_to_num;
+
 /// Type conversion: standard type into Value. Used in `value.rs`.
 ///
 /// Equivalent to:

@@ -13,6 +13,7 @@ polars = { version = "0", features = [
     "dtype-full",
     "object",
 ] }
+ref-cast = "1"
 rust_decimal = "1"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
