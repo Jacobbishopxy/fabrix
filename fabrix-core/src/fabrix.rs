@@ -109,7 +109,7 @@ impl IntoIndexTag for usize {
         match fields.get(self) {
             Some(field) => Ok(IndexTag {
                 loc: self,
-                name: field.name().clone(),
+                name: field.name().to_owned(),
                 data_type: field.data_type().into(),
             }),
             None => Err(lnm_err(fields.len(), self)),
@@ -265,7 +265,7 @@ pub trait FabrixViewer {
         match self.index_tag() {
             Some(it) => {
                 let s = self.data().column(it.name.as_str())?;
-                let iter = Series(s.clone())
+                let iter = SeriesRef::new(s)
                     .find_indices(index)
                     .into_iter()
                     .map(|i| i as u64)
@@ -462,7 +462,7 @@ impl Fabrix {
 
         Ok(Self {
             data,
-            index_tag: self.index_tag.clone(),
+            index_tag: self.index_tag.to_owned(),
         })
     }
 
@@ -494,7 +494,7 @@ impl Fabrix {
 
         Ok(Self {
             data,
-            index_tag: self.index_tag.clone(),
+            index_tag: self.index_tag.to_owned(),
         })
     }
 

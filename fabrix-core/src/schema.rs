@@ -112,14 +112,14 @@ impl Schema {
 
     pub fn get(&self, index: usize) -> Option<FieldInfo> {
         self.0.get_index(index).map(|(name, dtype)| FieldInfo {
-            name: name.clone(),
+            name: name.to_owned(),
             dtype: dtype.clone().into(),
         })
     }
 
     pub fn iter(&self) -> impl Iterator<Item = FieldInfo> + '_ {
         self.0.iter().map(|(name, dtype)| FieldInfo {
-            name: name.clone(),
+            name: name.to_owned(),
             dtype: dtype.clone().into(),
         })
     }
