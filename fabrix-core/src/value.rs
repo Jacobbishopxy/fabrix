@@ -52,10 +52,14 @@ impl Decimal {
     pub fn new(num: i64, scale: u32) -> Self {
         Decimal(rust_decimal::Decimal::new(num, scale))
     }
+}
 
-    pub fn from_string(value: String) -> CoreResult<Self> {
-        let d = rust_decimal::Decimal::from_str(&value)
-            .map_err(|_| CoreError::Parse(value, "Decimal".to_owned()))?;
+impl FromStr for Decimal {
+    type Err = CoreError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let d = rust_decimal::Decimal::from_str(value)
+            .map_err(|_| CoreError::Parse(value.to_string(), "Decimal".to_owned()))?;
         Ok(Decimal(d))
     }
 }
@@ -70,10 +74,14 @@ impl Uuid {
     pub fn new(uuid: uuid::Uuid) -> Self {
         Uuid(uuid)
     }
+}
 
-    pub fn from_string(value: String) -> CoreResult<Self> {
-        let u =
-            uuid::Uuid::from_str(&value).map_err(|_| CoreError::Parse(value, "Uuid".to_owned()))?;
+impl FromStr for Uuid {
+    type Err = CoreError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let u = uuid::Uuid::from_str(value)
+            .map_err(|_| CoreError::Parse(value.to_string(), "Uuid".to_owned()))?;
         Ok(Uuid(u))
     }
 }
@@ -230,13 +238,8 @@ impl Value {
                 ValueType::Date => force_cast_string_to_num!(self, v, i32, Date),
                 ValueType::Time => force_cast_string_to_num!(self, v, i64, Time),
                 ValueType::DateTime => force_cast_string_to_num!(self, v, i64, DateTime),
-                ValueType::Decimal => self,
-                ValueType::Uuid => match dtype {
-                    ValueType::String => Uuid::from_string(v.to_string())
-                        .map(Value::from)
-                        .unwrap_or_else(|_| self),
-                    _ => self,
-                },
+                ValueType::Decimal => Decimal::from_str(v).map_or(self, Value::Decimal),
+                ValueType::Uuid => Uuid::from_str(v).map(Value::from).unwrap_or_else(|_| self),
                 ValueType::Bytes => Value::Bytes(Bytes::from(v.clone())),
                 _ => self,
             },

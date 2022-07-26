@@ -201,7 +201,6 @@ pub trait FabrixViewer {
     }
 
     /// index check null.
-    /// WARNING: object column will cause panic, since `polars` hasn't implemented yet  fn index_has_null(&self) -> Option<bool> {
     fn index_has_null(&self) -> Option<bool> {
         match self.index_tag() {
             Some(it) => self
@@ -214,7 +213,6 @@ pub trait FabrixViewer {
     }
 
     /// dataframe check null columns
-    /// WARNING: object column will cause panic, since `polars` hasn't implemented yet
     fn has_null(&self) -> Vec<bool> {
         self.data().iter().map(|s| !s.is_not_null().all()).collect()
     }
@@ -312,7 +310,7 @@ pub trait FabrixViewer {
 /// Fabrix
 ///
 /// A data structure used in Fabrix crate, it wrapped `polars` DataFrame as data.
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Fabrix {
     pub data: DataFrame,
     pub index_tag: Option<IndexTag>,
@@ -688,10 +686,57 @@ impl<'a> FabrixViewer for FabrixRef<'a> {
     }
 }
 
+// ================================================================================================
+// PartialEq
+// ================================================================================================
+
+impl PartialEq for Fabrix {
+    fn eq(&self, other: &Self) -> bool {
+        if self.index_tag != other.index_tag {
+            return false;
+        }
+
+        if self.shape() != other.shape() {
+            return false;
+        }
+
+        for (s1, s2) in self.data.iter().zip(other.data.iter()) {
+            if SeriesRef::new(s1) != SeriesRef::new(s2) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+impl<'a> PartialEq for FabrixRef<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.index_tag != other.index_tag {
+            return false;
+        }
+
+        if self.shape() != other.shape() {
+            return false;
+        }
+
+        for (s1, s2) in self.data.iter().zip(other.data.iter()) {
+            if SeriesRef::new(s1) != SeriesRef::new(s2) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{fx, series, FabrixRef, FabrixViewer, FieldInfo, SeriesViewer, ValueType};
+    use crate::{
+        date, datetime, decimal, fx, series, time, uuid, FabrixRef, FabrixViewer, FieldInfo,
+        SeriesViewer, ValueType,
+    };
     use polars::prelude::{df, DataFrame, NamedFrom, Series};
 
     #[test]
@@ -710,7 +755,7 @@ mod test_fabrix_dataframe {
     }
 
     #[test]
-    fn test_df_new1() {
+    fn fx_dtypes_match_success() {
         let df = fx![
             "names" => ["Jacob", "Sam", "Jason"],
             "ord" => [1,2,3],
@@ -730,7 +775,7 @@ mod test_fabrix_dataframe {
     }
 
     #[test]
-    fn test_df_new2() {
+    fn fx_fields_match_success() {
         let df = fx![
             "ord";
             "names" => ["Jacob", "Sam", "Jason"],
@@ -754,7 +799,7 @@ mod test_fabrix_dataframe {
     }
 
     #[test]
-    fn test_df_op1() {
+    fn fx_viewing_success() {
         let df = fx![
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
@@ -787,7 +832,7 @@ mod test_fabrix_dataframe {
     }
 
     #[test]
-    fn test_df_op2() {
+    fn fx_concat_success() {
         let mut df1 = fx![
             "names" => ["Jacob", "Sam", "James"],
             "ord" => [1,2,3],
@@ -805,6 +850,27 @@ mod test_fabrix_dataframe {
         // vconcat needs fields (type and name) to be the same
         let res = df1.vconcat_mut(&df2);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn fx_has_null_success() {
+        let fx = fx![
+            "uuid";
+            "names" => ["Jacob", "Sam", "James"],
+            "ord" => [1,2,3],
+            "val" => [Some(10), None, Some(8)],
+            "date" => [date!(2020,1,1), date!(2020,1,2), date!(2020,1,3)],
+            "time" => [time!(12,0,0), time!(12,0,1), time!(12,0,2)],
+            "datetime" => [datetime!(2020,1,1,12,0,0), datetime!(2020,1,1,12,0,1), datetime!(2020,1,1,12,0,2)],
+            "decimal" => [decimal!(1000, 24), decimal!(820, 23), decimal!(2100, 15)],
+            "uuid" => [Some(uuid!("72b1e846-1f57-47da-bae0-9c08b0ba0fce")), None, Some(uuid!("088a052c-aa47-41c2-b3b4-6813776d0edc"))],
+        ].unwrap();
+
+        assert_eq!(fx.index_has_null(), Some(false));
+        assert_eq!(
+            fx.has_null(),
+            vec![false, false, true, false, false, false, false, true]
+        )
     }
 
     // TODO: test the rest of the methods

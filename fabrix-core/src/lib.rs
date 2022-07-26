@@ -26,5 +26,7 @@ pub use value::*;
 pub use chrono::{self, *};
 pub(crate) use macros::*;
 pub use polars;
+pub use rust_decimal::{self, Decimal as RustDecimal};
 pub use util::IDX;
 pub(crate) use util::*;
+pub use uuid::{self, Uuid as RustUuid};

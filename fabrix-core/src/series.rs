@@ -38,6 +38,7 @@
 
 use std::borrow::Cow;
 use std::fmt::Formatter;
+use std::str::FromStr;
 
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use itertools::Itertools;
@@ -1084,7 +1085,7 @@ impl<'de> Deserialize<'de> for Series {
                         let values: Vec<Option<String>> = map.next_value()?;
                         let values = values
                             .into_iter()
-                            .map(|o| o.and_then(|v| Decimal::from_string(v).ok()))
+                            .map(|o| o.and_then(|v| Decimal::from_str(&v).ok()))
                             .collect::<Vec<_>>();
                         Ok(Series::new(&name, values))
                     }
@@ -1092,7 +1093,7 @@ impl<'de> Deserialize<'de> for Series {
                         let values: Vec<Option<String>> = map.next_value()?;
                         let values = values
                             .into_iter()
-                            .map(|o| o.and_then(|v| Uuid::from_string(v).ok()))
+                            .map(|o| o.and_then(|v| Uuid::from_str(&v).ok()))
                             .collect::<Vec<_>>();
                         Ok(Series::new(&name, values))
                     }
@@ -1110,6 +1111,104 @@ impl<'de> Deserialize<'de> for Series {
         }
 
         deserializer.deserialize_map(SeriesVisitor)
+    }
+}
+
+// ================================================================================================
+// PartialEq
+// ================================================================================================
+
+impl PartialEq for Series {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.dtype(), other.dtype()) {
+            (ValueType::Decimal, ValueType::Decimal) => {
+                if self.len() != other.len() || self.name() != other.name() {
+                    return false;
+                }
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if l != r {
+                        return false;
+                    }
+                }
+                true
+            }
+            (ValueType::Uuid, ValueType::Uuid) => {
+                if self.len() != other.len() || self.name() != other.name() {
+                    return false;
+                }
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if l != r {
+                        return false;
+                    }
+                }
+                true
+            }
+            (ValueType::Bytes, ValueType::Bytes) => {
+                if self.len() != other.len() || self.name() != other.name() {
+                    return false;
+                }
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if l != r {
+                        return false;
+                    }
+                }
+                true
+            }
+            (s, o) => {
+                if *s == o {
+                    self.0 == other.0
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+impl<'a> PartialEq for SeriesRef<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.dtype(), other.dtype()) {
+            (ValueType::Decimal, ValueType::Decimal) => {
+                if self.len() != other.len() || self.name() != other.name() {
+                    return false;
+                }
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if l != r {
+                        return false;
+                    }
+                }
+                true
+            }
+            (ValueType::Uuid, ValueType::Uuid) => {
+                if self.len() != other.len() || self.name() != other.name() {
+                    return false;
+                }
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if l != r {
+                        return false;
+                    }
+                }
+                true
+            }
+            (ValueType::Bytes, ValueType::Bytes) => {
+                if self.len() != other.len() || self.name() != other.name() {
+                    return false;
+                }
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if l != r {
+                        return false;
+                    }
+                }
+                true
+            }
+            (s, o) => {
+                if *s == o {
+                    self.0 == other.0
+                } else {
+                    false
+                }
+            }
+        }
     }
 }
 
@@ -1502,5 +1601,21 @@ mod test_fabrix_series {
         assert_eq!(iter.next().unwrap(), value!("Jack!"));
         assert_eq!(iter.next().unwrap(), value!("Henry!"));
         assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn series_comparison_success() {
+        let s1 = series!("decimal" => [decimal!(10,5), decimal!(10,3), decimal!(10,1)]);
+        println!("{:?}", s1);
+
+        let s2 = series!("decimal" => [decimal!(10,5), decimal!(10,3), decimal!(10,1)]);
+        println!("{:?}", s2);
+
+        assert_eq!(s1, s2);
+
+        let s1 = series!("name" => ["Jacob", "Sam", "James"]);
+        let s2 = series!(["Jacob", "Sam", "James"]);
+
+        assert_ne!(s1, s2);
     }
 }
