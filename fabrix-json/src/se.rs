@@ -1,7 +1,7 @@
 //! Serialize functions
 
 use fabrix_core::polars::prelude::DataFrame;
-use fabrix_core::{FabrixRef, FabrixViewer, SeriesRef, ValueType};
+use fabrix_core::{Fabrix, ValueType};
 use serde::ser::SerializeMap;
 use serde::{ser::SerializeSeq, Serializer};
 
@@ -9,13 +9,12 @@ pub(crate) fn dataframe_column_wise_serialize<S>(df: &DataFrame, s: S) -> Result
 where
     S: Serializer,
 {
-    let series = df
-        .get_columns()
-        .iter()
-        .map(SeriesRef::new)
-        .collect::<Vec<_>>();
-    let mut seq = s.serialize_seq(Some(series.len()))?;
-    for e in series {
+    let fx = Fabrix {
+        data: df.clone(),
+        index_tag: None,
+    };
+    let mut seq = s.serialize_seq(Some(fx.width()))?;
+    for e in fx.iter_column() {
         seq.serialize_element(&e)?;
     }
     seq.end()
@@ -25,8 +24,8 @@ pub(crate) fn dataframe_row_wise_serialize<S>(df: &DataFrame, s: S) -> Result<S:
 where
     S: Serializer,
 {
-    let fx = FabrixRef {
-        data: df,
+    let fx = Fabrix {
+        data: df.clone(),
         index_tag: None,
     };
     let mut m = s.serialize_map(Some(2))?;
@@ -43,8 +42,8 @@ pub(crate) fn dataframe_dataset_type_serialize<S>(df: &DataFrame, s: S) -> Resul
 where
     S: Serializer,
 {
-    let fx = FabrixRef {
-        data: df,
+    let fx = Fabrix {
+        data: df.clone(),
         index_tag: None,
     };
     let mut m = s.serialize_map(Some(3))?;

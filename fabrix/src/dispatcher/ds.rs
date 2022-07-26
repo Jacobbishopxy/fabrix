@@ -182,8 +182,8 @@ mod dispatcher_tests {
 
     use super::*;
     use crate::{
-        CsvReadOptions, CsvReader, CsvWriteOptions, CsvWriter, FabrixViewer, JsonWriteOptions,
-        JsonWriter, ParquetReadOptions, ParquetReader, ParquetWriteOptions, ParquetWriter,
+        CsvReadOptions, CsvReader, CsvWriteOptions, CsvWriter, JsonWriteOptions, JsonWriter,
+        ParquetReadOptions, ParquetReader, ParquetWriteOptions, ParquetWriter,
     };
 
     const CSV_READ: &str = "../mock/test.csv";

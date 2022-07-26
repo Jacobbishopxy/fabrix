@@ -269,119 +269,6 @@ impl_named_from_ref!([Bytes], ObjectTypeBytes, from_slice);
 impl_named_from_ref!([Option<Bytes>], ObjectTypeBytes, from_slice_options);
 
 // ================================================================================================
-// SeriesViewer
-// ================================================================================================
-
-pub trait SeriesViewer {
-    /// show data
-    fn data(&self) -> &PolarsSeries;
-
-    /// get Series' name
-    fn name(&self) -> &str {
-        self.data().name()
-    }
-
-    /// show data length
-    fn len(&self) -> usize {
-        self.data().len()
-    }
-
-    /// show Series type
-    fn dtype(&self) -> &ValueType {
-        self.data().dtype().into()
-    }
-
-    /// get series field
-    fn field(&self) -> FieldInfo {
-        let name = self.name();
-        let dtype = self.dtype();
-
-        (name, dtype).into()
-    }
-
-    /// check whether the series is empty
-    fn is_empty(&self) -> bool {
-        self.data().is_empty()
-    }
-
-    /// check if contains null value
-    fn has_null(&self) -> bool {
-        !self.data().is_not_null().all()
-    }
-
-    /// head, if length is `None`, return a series only contains the first element
-    fn head(&self, length: Option<usize>) -> Series {
-        self.data().head(length).into()
-    }
-
-    /// tail, if length is `None`, return a series only contains the last element
-    fn tail(&self, length: Option<usize>) -> Series {
-        self.data().tail(length).into()
-    }
-
-    /// get a cloned value by idx
-    fn get(&self, idx: usize) -> CoreResult<Value> {
-        let len = self.len();
-
-        if idx >= len {
-            Err(oob_err(idx, len))
-        } else {
-            Ok(value!(self.data().get(idx)))
-        }
-    }
-
-    /// take a cloned slice by an indices array
-    fn take(&self, indices: &[usize]) -> CoreResult<Series> {
-        let mut iter = indices.iter().copied();
-        Ok(Series(self.data().take_iter(&mut iter)?))
-    }
-
-    /// slice the Series
-    fn slice(&self, offset: i64, length: usize) -> Series {
-        self.data().slice(offset, length).into()
-    }
-
-    /// check Series whether contains a value (`self.into_iter` is not zero copy)
-    fn contains(&self, val: &Value) -> bool {
-        SeriesRef::new(self.data()).iter().contains(val)
-    }
-
-    /// find idx by a Value (`self.into_iter` is not zero copy)
-    fn find_index(&self, val: &Value) -> Option<usize> {
-        SeriesRef::new(self.data())
-            .iter()
-            .position(|ref e| e == val)
-    }
-
-    /// find idx vector by a Series (`self.into_iter` is not zero copy)
-    fn find_indices(&self, series: &Series) -> Vec<usize> {
-        SeriesRef::new(self.data())
-            .iter()
-            .enumerate()
-            .fold(Vec::new(), |mut accum, (idx, e)| {
-                if series.contains(&e) {
-                    accum.push(idx);
-                }
-                accum
-            })
-    }
-
-    /// split into two series
-    fn split(&self, idx: usize) -> CoreResult<(Series, Series)> {
-        let len = self.len();
-
-        if idx >= len {
-            Err(oob_err(idx, len))
-        } else {
-            let (l1, l2) = (idx, len - idx);
-            let s1 = self.slice(0, l1);
-            let s2 = self.slice(idx as i64, l2);
-            Ok((s1, s2))
-        }
-    }
-}
-
-// ================================================================================================
 // Series
 // ================================================================================================
 
@@ -448,6 +335,111 @@ impl Series {
     // pub fn from_chunked_array<A>(array: ChunkedArray<A>) -> CoreResult<Self> {
     //     Ok(Self(array.into_series()))
     // }
+
+    pub fn data(&self) -> &PolarsSeries {
+        &self.0
+    }
+
+    /// get Series' name
+    pub fn name(&self) -> &str {
+        self.data().name()
+    }
+
+    /// show data length
+    pub fn len(&self) -> usize {
+        self.data().len()
+    }
+
+    /// show Series type
+    pub fn dtype(&self) -> &ValueType {
+        self.data().dtype().into()
+    }
+
+    /// get series field
+    pub fn field(&self) -> FieldInfo {
+        let name = self.name();
+        let dtype = self.dtype();
+
+        (name, dtype).into()
+    }
+
+    /// check whether the series is empty
+    pub fn is_empty(&self) -> bool {
+        self.data().is_empty()
+    }
+
+    /// check if contains null value
+    pub fn has_null(&self) -> bool {
+        !self.data().is_not_null().all()
+    }
+
+    /// head, if length is `None`, return a series only contains the first element
+    pub fn head(&self, length: Option<usize>) -> Series {
+        self.data().head(length).into()
+    }
+
+    /// tail, if length is `None`, return a series only contains the last element
+    pub fn tail(&self, length: Option<usize>) -> Series {
+        self.data().tail(length).into()
+    }
+
+    /// get a cloned value by idx
+    pub fn get(&self, idx: usize) -> CoreResult<Value> {
+        let len = self.len();
+
+        if idx >= len {
+            Err(oob_err(idx, len))
+        } else {
+            Ok(value!(self.data().get(idx)))
+        }
+    }
+
+    /// take a cloned slice by an indices array
+    pub fn take(&self, indices: &[usize]) -> CoreResult<Series> {
+        let mut iter = indices.iter().copied();
+        Ok(Series(self.data().take_iter(&mut iter)?))
+    }
+
+    /// slice the Series
+    pub fn slice(&self, offset: i64, length: usize) -> Series {
+        self.data().slice(offset, length).into()
+    }
+
+    /// check Series whether contains a value (`self.into_iter` is not zero copy)
+    pub fn contains(&self, val: &Value) -> bool {
+        self.iter().contains(val)
+    }
+
+    /// find idx by a Value (`self.into_iter` is not zero copy)
+    pub fn find_index(&self, val: &Value) -> Option<usize> {
+        self.iter().position(|ref e| e == val)
+    }
+
+    /// find idx vector by a Series (`self.into_iter` is not zero copy)
+    pub fn find_indices(&self, series: &Series) -> Vec<usize> {
+        self.iter()
+            .enumerate()
+            .fold(Vec::new(), |mut accum, (idx, e)| {
+                if series.contains(&e) {
+                    accum.push(idx);
+                }
+                accum
+            })
+    }
+
+    /// split into two series
+    pub fn split(&self, idx: usize) -> CoreResult<(Series, Series)> {
+        let len = self.len();
+
+        if idx >= len {
+            Err(oob_err(idx, len))
+        } else {
+            let (l1, l2) = (idx, len - idx);
+            let s1 = self.slice(0, l1);
+            let s2 = self.slice(idx as i64, l2);
+            Ok((s1, s2))
+        }
+    }
 
     /// rechunk: aggregate all chunks to a contiguous array of memory
     pub fn rechunk(&mut self) {
@@ -559,12 +551,6 @@ impl Series {
 
     pub fn iter(&self) -> SeriesIterator {
         self.into_iter()
-    }
-}
-
-impl SeriesViewer for Series {
-    fn data(&self) -> &PolarsSeries {
-        &self.0
     }
 }
 
@@ -809,97 +795,6 @@ impl<'a> Iterator for SeriesIterator<'a> {
 }
 
 // ================================================================================================
-// SeriesRef
-// ================================================================================================
-
-/// SeriesRef
-///
-/// A wrapper of a polars series reference. (used in `row.rs`)
-pub struct SeriesRef<'a>(&'a PolarsSeries);
-
-impl<'a> SeriesRef<'a> {
-    pub fn new(s: &'a PolarsSeries) -> Self {
-        Self(s)
-    }
-
-    pub fn iter(&self) -> SeriesIterator {
-        self.into_iter()
-    }
-}
-
-impl<'a> SeriesViewer for SeriesRef<'a> {
-    fn data(&self) -> &PolarsSeries {
-        self.0
-    }
-}
-
-impl<'a> IntoIterator for SeriesRef<'a> {
-    type Item = Value;
-    type IntoIter = SeriesIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self.dtype() {
-            ValueType::Bool => si!(self.0.bool(), Bool),
-            ValueType::U8 => si!(self.0.u8(), U8),
-            ValueType::U16 => si!(self.0.u16(), U16),
-            ValueType::U32 => si!(self.0.u32(), U32),
-            ValueType::U64 => si!(self.0.u64(), U64),
-            ValueType::I8 => si!(self.0.i8(), I8),
-            ValueType::I16 => si!(self.0.i16(), I16),
-            ValueType::I32 => si!(self.0.i32(), I32),
-            ValueType::I64 => si!(self.0.i64(), I64),
-            ValueType::F32 => si!(self.0.f32(), F32),
-            ValueType::F64 => si!(self.0.f64(), F64),
-            ValueType::String => si!(self.0.utf8(), String),
-            ValueType::Date => si!(self.0.date(), Date),
-            ValueType::Time => si!(self.0.time(), Time),
-            ValueType::DateTime => si!(self.0.datetime(), DateTime),
-            ValueType::Decimal => si!(self.0.as_any(), Decimal, Decimal),
-            ValueType::Uuid => si!(self.0.as_any(), Uuid, Uuid),
-            ValueType::Bytes => si!(self.0.as_any(), Bytes, Bytes),
-            // temporary ignore the rest of DataType variants
-            _ => unimplemented!(),
-        }
-    }
-}
-
-impl<'a> IntoIterator for &'a SeriesRef<'a> {
-    type Item = Value;
-    type IntoIter = SeriesIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self.dtype() {
-            ValueType::Bool => si!(self.0.bool(), Bool),
-            ValueType::U8 => si!(self.0.u8(), U8),
-            ValueType::U16 => si!(self.0.u16(), U16),
-            ValueType::U32 => si!(self.0.u32(), U32),
-            ValueType::U64 => si!(self.0.u64(), U64),
-            ValueType::I8 => si!(self.0.i8(), I8),
-            ValueType::I16 => si!(self.0.i16(), I16),
-            ValueType::I32 => si!(self.0.i32(), I32),
-            ValueType::I64 => si!(self.0.i64(), I64),
-            ValueType::F32 => si!(self.0.f32(), F32),
-            ValueType::F64 => si!(self.0.f64(), F64),
-            ValueType::String => si!(self.0.utf8(), String),
-            ValueType::Date => si!(self.0.date(), Date),
-            ValueType::Time => si!(self.0.time(), Time),
-            ValueType::DateTime => si!(self.0.datetime(), DateTime),
-            ValueType::Decimal => si!(self.0.as_any(), Decimal, Decimal),
-            ValueType::Uuid => si!(self.0.as_any(), Uuid, Uuid),
-            ValueType::Bytes => si!(self.0.as_any(), Bytes, Bytes),
-            // temporary ignore the rest of DataType variants
-            _ => unimplemented!(),
-        }
-    }
-}
-
-impl<'a> AsRef<PolarsSeries> for SeriesRef<'a> {
-    fn as_ref(&self) -> &PolarsSeries {
-        self.0
-    }
-}
-
-// ================================================================================================
 // Serialize & Deserialize
 // ================================================================================================
 
@@ -933,35 +828,6 @@ impl<'a> Serialize for SeriesIterator<'a> {
 }
 
 impl Serialize for Series {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.dtype() {
-            ValueType::Bool => se_series!(serializer, self),
-            ValueType::U8 => se_series!(serializer, self),
-            ValueType::U16 => se_series!(serializer, self),
-            ValueType::U32 => se_series!(serializer, self),
-            ValueType::U64 => se_series!(serializer, self),
-            ValueType::I8 => se_series!(serializer, self),
-            ValueType::I16 => se_series!(serializer, self),
-            ValueType::I32 => se_series!(serializer, self),
-            ValueType::I64 => se_series!(serializer, self),
-            ValueType::F32 => se_series!(serializer, self),
-            ValueType::F64 => se_series!(serializer, self),
-            ValueType::Date => se_series!(serializer, self),
-            ValueType::Time => se_series!(serializer, self),
-            ValueType::DateTime => se_series!(serializer, self),
-            ValueType::String => se_series!(serializer, self),
-            ValueType::Decimal => se_series!(serializer, self),
-            ValueType::Uuid => se_series!(serializer, self),
-            ValueType::Bytes => se_series!(serializer, self),
-            ValueType::Null => se_series!(serializer, self),
-        }
-    }
-}
-
-impl<'a> Serialize for SeriesRef<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -1121,53 +987,6 @@ impl<'de> Deserialize<'de> for Series {
 // ================================================================================================
 
 impl PartialEq for Series {
-    fn eq(&self, other: &Self) -> bool {
-        match (&self.dtype(), other.dtype()) {
-            (ValueType::Decimal, ValueType::Decimal) => {
-                if self.len() != other.len() || self.name() != other.name() {
-                    return false;
-                }
-                for (l, r) in self.iter().zip(other.iter()) {
-                    if l != r {
-                        return false;
-                    }
-                }
-                true
-            }
-            (ValueType::Uuid, ValueType::Uuid) => {
-                if self.len() != other.len() || self.name() != other.name() {
-                    return false;
-                }
-                for (l, r) in self.iter().zip(other.iter()) {
-                    if l != r {
-                        return false;
-                    }
-                }
-                true
-            }
-            (ValueType::Bytes, ValueType::Bytes) => {
-                if self.len() != other.len() || self.name() != other.name() {
-                    return false;
-                }
-                for (l, r) in self.iter().zip(other.iter()) {
-                    if l != r {
-                        return false;
-                    }
-                }
-                true
-            }
-            (s, o) => {
-                if *s == o {
-                    self.0 == other.0
-                } else {
-                    false
-                }
-            }
-        }
-    }
-}
-
-impl<'a> PartialEq for SeriesRef<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (&self.dtype(), other.dtype()) {
             (ValueType::Decimal, ValueType::Decimal) => {

@@ -650,8 +650,6 @@ macro_rules! rows {
 #[cfg(test)]
 mod test_macros {
 
-    use crate::FabrixViewer;
-
     #[test]
     fn test_value() {
         println!("{:?}", value!("Jacob"));
@@ -666,13 +664,6 @@ mod test_macros {
 
         let series = series!("name" => ["Jacob", "Sam", "Jason"]);
         println!("{:?}", series);
-
-        // let series = series!("date" => [
-        //     NaiveDate::from_ymd(2019, 1, 1),
-        //     NaiveDate::from_ymd(2019, 1, 2),
-        //     NaiveDate::from_ymd(2019, 1, 3),
-        // ]);
-        // println!("{:?}", series);
     }
 
     #[test]
