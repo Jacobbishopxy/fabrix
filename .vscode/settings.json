@@ -36,6 +36,7 @@
 		"Postgres",
 		"rechunk",
 		"rels",
+		"repr",
 		"reqwest",
 		"rowframe",
 		"serde",

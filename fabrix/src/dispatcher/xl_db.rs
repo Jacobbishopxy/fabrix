@@ -7,7 +7,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use fabrix_core::{value, D2Value, Fabrix, Series, SeriesViewer, Value};
+use fabrix_core::{value, D2Value, Fabrix, Series, Value};
 use fabrix_sql::{sql_adt, DatabaseType, SqlEngine, SqlExecutor, SqlMeta};
 use fabrix_xl::{ExcelValue, XlCell, XlConsumer, XlExecutor};
 use itertools::Itertools;

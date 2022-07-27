@@ -5,8 +5,8 @@ use serde::{de::Visitor, ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
     util::{cis_err, ims_err, inf_err, oob_err, Stepper},
-    CoreError, CoreResult, Fabrix, FabrixRef, FabrixViewer, IndexTag, Series, SeriesIterator,
-    SeriesRef, SeriesViewer, Value, ValueType,
+    CoreError, CoreResult, Fabrix, FabrixDataFrame, IndexTag, Series, SeriesIterator, Value,
+    ValueType,
 };
 
 #[derive(Debug, Clone)]
@@ -188,7 +188,7 @@ impl Fabrix {
     pub fn get_named_row(&self, index: &Value) -> CoreResult<NamedRow> {
         match self.index_tag() {
             Some(it) => {
-                let idx = SeriesRef::new(self.data.column(&it.name)?).find_index(index);
+                let idx = self.get_column(&it.name)?.find_index(index);
                 match idx {
                     Some(i) => self.get_named_row_by_idx(i),
                     None => Err(inf_err()),
@@ -203,21 +203,12 @@ impl Fabrix {
     }
 }
 
+// ================================================================================================
+// IntoIteratorNamedRow for Fabrix & FabrixDataFrame
+// ================================================================================================
+
+/// FabrixIterToNamedRow
 pub struct FabrixIterToNamedRow<'a>(&'a Fabrix);
-
-impl<'a> FabrixIterToNamedRow<'a> {
-    pub fn new(f: &'a Fabrix) -> Self {
-        Self(f)
-    }
-}
-
-pub struct FabrixRefIterToNamedRow<'a>(&'a FabrixRef<'a>);
-
-impl<'a> FabrixRefIterToNamedRow<'a> {
-    pub fn new(f: &'a FabrixRef) -> Self {
-        Self(f)
-    }
-}
 
 pub struct IntoIteratorNamedRow<'a> {
     index: Option<usize>,
@@ -250,9 +241,8 @@ impl<'a> IntoIterator for FabrixIterToNamedRow<'a> {
 
     fn into_iter(self) -> Self::IntoIter {
         let mut data_iters = Vec::with_capacity(self.0.width());
-        for s in self.0.data.iter() {
-            let iter = SeriesRef::new(s).into_iter();
-            data_iters.push((s.name(), iter));
+        for s in self.0.iter_column() {
+            data_iters.push((s.name(), s.into_iter()));
         }
 
         IntoIteratorNamedRow {
@@ -263,21 +253,28 @@ impl<'a> IntoIterator for FabrixIterToNamedRow<'a> {
     }
 }
 
-impl<'a> IntoIterator for FabrixRefIterToNamedRow<'a> {
+pub struct FabrixDataFrameIterToNamedRow<'a>(&'a FabrixDataFrame);
+
+impl<'a> IntoIterator for FabrixDataFrameIterToNamedRow<'a> {
     type Item = NamedRow;
     type IntoIter = IntoIteratorNamedRow<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         let mut data_iters = Vec::with_capacity(self.0.width());
-        for s in self.0.data.iter() {
-            let iter = SeriesRef::new(s).into_iter();
-            data_iters.push((s.name(), iter));
+        for s in self.0.iter_column() {
+            data_iters.push((s.name(), s.into_iter()));
         }
 
         IntoIteratorNamedRow {
-            index: self.0.index_tag().map(IndexTag::loc),
+            index: None,
             data_iters,
             stepper: Stepper::new(self.0.height()),
         }
+    }
+}
+
+impl FabrixDataFrame {
+    pub fn iter_named_rows(&self) -> IntoIteratorNamedRow {
+        FabrixDataFrameIterToNamedRow(self).into_iter()
     }
 }

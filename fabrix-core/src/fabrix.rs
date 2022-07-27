@@ -47,16 +47,14 @@
 
 use itertools::Itertools;
 use polars::datatypes::IdxCa;
-use polars::prelude::{BooleanChunked, DataFrame, Field, IntoVec, NewChunkedArray};
+use polars::prelude::{BooleanChunked, DataFrame, Field, NewChunkedArray};
+use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 use super::{
     cis_err, idl_err, inf_err, lnm_err, nnf_err, oob_err, vnf_err, FieldInfo, Series, IDX,
 };
-use crate::{
-    CoreError, CoreResult, D2Value, FabrixRefIterToNamedRow, FabrixRefIterToRow,
-    IntoIteratorNamedRow, IntoIteratorRow, SeriesRef, SeriesViewer, Value, ValueType,
-};
+use crate::{CoreError, CoreResult, D2Value, Value, ValueType};
 
 // ================================================================================================
 // IndexTag
@@ -156,154 +154,6 @@ where
 }
 
 // ================================================================================================
-// FabrixViewer
-// ================================================================================================
-
-pub trait FabrixViewer {
-    /// get a reference of DataFrame's data
-    fn data(&self) -> &DataFrame;
-
-    /// get a reference of DataFrame's index_tag
-    fn index_tag(&self) -> Option<&IndexTag>;
-
-    /// get a column
-    fn get_column<S>(&self, name: S) -> CoreResult<&Series>
-    where
-        S: AsRef<str>,
-    {
-        Ok(self.data().column(name.as_ref())?.as_ref())
-    }
-
-    /// get a vector of cloned columns
-    fn get_columns(&self, names: impl IntoVec<String>) -> CoreResult<Vec<Series>> {
-        Ok(self
-            .data()
-            .select_series(names)?
-            .into_iter()
-            .map(Series)
-            .collect())
-    }
-
-    /// get a reference of FDataFrame's index
-    fn index(&self) -> Option<&Series> {
-        self.index_tag()
-            .and_then(|it| self.data().column(it.name()).ok().map(|s| s.as_ref()))
-    }
-
-    /// get column names
-    fn get_column_names(&self) -> Vec<&str> {
-        self.data().get_column_names()
-    }
-
-    /// dataframe dtypes
-    fn dtypes(&self) -> Vec<&ValueType> {
-        self.data().dtypes().iter().map(|t| t.into()).collect_vec()
-    }
-
-    /// index check null.
-    fn index_has_null(&self) -> Option<bool> {
-        match self.index_tag() {
-            Some(it) => self
-                .data()
-                .column(it.name.as_str())
-                .ok()
-                .map(|s| s.is_not_null().all()),
-            None => None,
-        }
-    }
-
-    /// dataframe check null columns
-    fn has_null(&self) -> Vec<bool> {
-        self.data().iter().map(|s| !s.is_not_null().all()).collect()
-    }
-
-    /// get DataFrame fields info
-    fn fields(&self) -> Vec<FieldInfo> {
-        self.data()
-            .fields()
-            .iter()
-            .map(FieldInfo::from)
-            .collect::<Vec<_>>()
-    }
-
-    /// get index field info
-    fn index_field(&self) -> Option<FieldInfo> {
-        self.index_tag()
-            .map(|it| FieldInfo::from((it.name(), it.data_type())))
-    }
-
-    /// get shape
-    fn shape(&self) -> (usize, usize) {
-        self.data().shape()
-    }
-
-    /// get width
-    fn width(&self) -> usize {
-        self.data().width()
-    }
-
-    /// get height
-    fn height(&self) -> usize {
-        self.data().height()
-    }
-
-    /// take cloned rows by an indices array
-    fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<Fabrix> {
-        let iter = indices.iter().copied();
-        let data = self.data().take_iter(iter)?;
-
-        Ok(Fabrix {
-            data,
-            index_tag: self.index_tag().cloned(),
-        })
-    }
-
-    /// take cloned DataFrame by an index Series
-    fn take_rows(&self, index: &Series) -> CoreResult<Fabrix> {
-        match self.index_tag() {
-            Some(it) => {
-                let s = self.data().column(it.name.as_str())?;
-                let iter = SeriesRef::new(s)
-                    .find_indices(index)
-                    .into_iter()
-                    .map(|i| i as u64)
-                    .collect();
-                let data = self.data().take(&IdxCa::new_vec("idx", iter))?;
-
-                Ok(Fabrix {
-                    data,
-                    index_tag: self.index_tag().cloned(),
-                })
-            }
-            None => Err(inf_err()),
-        }
-    }
-
-    /// slice the DataFrame along the rows
-    fn slice(&self, offset: i64, length: usize) -> Fabrix {
-        let data = self.data().slice(offset, length);
-
-        Fabrix {
-            data,
-            index_tag: self.index_tag().cloned(),
-        }
-    }
-
-    /// take cloned DataFrame by column names
-    fn take_cols<I, S>(&self, cols: I) -> CoreResult<Fabrix>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let data = self.data().select(cols)?;
-        Ok(Fabrix {
-            data,
-            index_tag: self.index_tag().cloned(),
-        })
-    }
-}
-
-// ================================================================================================
 // Fabrix
 // ================================================================================================
 
@@ -314,16 +164,6 @@ pub trait FabrixViewer {
 pub struct Fabrix {
     pub data: DataFrame,
     pub index_tag: Option<IndexTag>,
-}
-
-impl FabrixViewer for Fabrix {
-    fn data(&self) -> &DataFrame {
-        &self.data
-    }
-
-    fn index_tag(&self) -> Option<&IndexTag> {
-        self.index_tag.as_ref()
-    }
 }
 
 impl Fabrix {
@@ -417,6 +257,156 @@ impl Fabrix {
             Some(i) => Fabrix::from_series(series, i),
             None => Fabrix::from_series_no_index(series),
         }
+    }
+
+    pub fn data(&self) -> &DataFrame {
+        &self.data
+    }
+
+    pub fn index_tag(&self) -> Option<&IndexTag> {
+        self.index_tag.as_ref()
+    }
+
+    /// get a column
+    pub fn get_column<S>(&self, name: S) -> CoreResult<&Series>
+    where
+        S: AsRef<str>,
+    {
+        Ok(self.data().column(name.as_ref())?.as_ref())
+    }
+
+    /// get a vector of cloned columns
+    pub fn get_columns<I, S>(&self, names: I) -> CoreResult<Vec<&Series>>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let res = self
+            .data()
+            .columns(names)?
+            .into_iter()
+            .map(|s| s.as_ref())
+            .collect();
+
+        Ok(res)
+    }
+
+    /// get a reference of FDataFrame's index
+    pub fn index(&self) -> Option<&Series> {
+        self.index_tag()
+            .and_then(|it| self.data().column(it.name()).ok().map(|s| s.as_ref()))
+    }
+
+    /// get column names
+    pub fn get_column_names(&self) -> Vec<&str> {
+        self.data().get_column_names()
+    }
+
+    /// dataframe dtypes
+    pub fn dtypes(&self) -> Vec<&ValueType> {
+        self.data().dtypes().iter().map(|t| t.into()).collect_vec()
+    }
+
+    /// index check null.
+    pub fn index_has_null(&self) -> Option<bool> {
+        match self.index_tag() {
+            Some(it) => self
+                .data()
+                .column(it.name.as_str())
+                .ok()
+                .map(|s| s.is_not_null().all()),
+            None => None,
+        }
+    }
+
+    /// dataframe check null columns
+    pub fn has_null(&self) -> Vec<bool> {
+        self.data().iter().map(|s| !s.is_not_null().all()).collect()
+    }
+
+    /// get DataFrame fields info
+    pub fn fields(&self) -> Vec<FieldInfo> {
+        self.data()
+            .fields()
+            .iter()
+            .map(FieldInfo::from)
+            .collect::<Vec<_>>()
+    }
+
+    /// get index field info
+    pub fn index_field(&self) -> Option<FieldInfo> {
+        self.index_tag()
+            .map(|it| FieldInfo::from((it.name(), it.data_type())))
+    }
+
+    /// get shape
+    pub fn shape(&self) -> (usize, usize) {
+        self.data().shape()
+    }
+
+    /// get width
+    pub fn width(&self) -> usize {
+        self.data().width()
+    }
+
+    /// get height
+    pub fn height(&self) -> usize {
+        self.data().height()
+    }
+
+    /// take cloned rows by an indices array
+    pub fn take_rows_by_idx(&self, indices: &[usize]) -> CoreResult<Fabrix> {
+        let iter = indices.iter().copied();
+        let data = self.data().take_iter(iter)?;
+
+        Ok(Fabrix {
+            data,
+            index_tag: self.index_tag().cloned(),
+        })
+    }
+
+    /// take cloned DataFrame by an index Series
+    pub fn take_rows(&self, index: &Series) -> CoreResult<Fabrix> {
+        match self.index_tag() {
+            Some(it) => {
+                let s = self.get_column(it.name.as_str())?;
+                let iter = s
+                    .find_indices(index)
+                    .into_iter()
+                    .map(|i| i as u64)
+                    .collect();
+                let data = self.data().take(&IdxCa::new_vec("idx", iter))?;
+
+                Ok(Fabrix {
+                    data,
+                    index_tag: self.index_tag().cloned(),
+                })
+            }
+            None => Err(inf_err()),
+        }
+    }
+
+    /// slice the DataFrame along the rows
+    pub fn slice(&self, offset: i64, length: usize) -> Fabrix {
+        let data = self.data().slice(offset, length);
+
+        Fabrix {
+            data,
+            index_tag: self.index_tag().cloned(),
+        }
+    }
+
+    /// take cloned DataFrame by column names
+    pub fn take_cols<I, S>(&self, cols: I) -> CoreResult<Fabrix>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let data = self.data().select(cols)?;
+        Ok(Fabrix {
+            data,
+            index_tag: self.index_tag().cloned(),
+        })
     }
 
     /// rechunk: aggregate all chunks to a contiguous array of memory
@@ -533,8 +523,8 @@ impl Fabrix {
     pub fn remove_row(&mut self, index: &Value) -> CoreResult<&mut Self> {
         match &self.index_tag {
             Some(idx) => {
-                let s = self.data.column(idx.name.as_str())?;
-                match SeriesRef::new(s).find_index(index) {
+                let s = self.get_column(idx.name.as_str())?;
+                match s.find_index(index) {
                     Some(idx) => self.remove_row_by_idx(idx as usize),
                     None => Err(vnf_err(index)),
                 }
@@ -566,8 +556,8 @@ impl Fabrix {
 
         match &self.index_tag {
             Some(it) => {
-                let s = self.data.column(it.name.as_str())?;
-                let idx = SeriesRef::new(s)
+                let idx = self
+                    .get_column(it.name.as_str())?
                     .find_indices(&idx)
                     .into_iter()
                     .map(|i| i as u64)
@@ -613,8 +603,7 @@ impl Fabrix {
     pub fn popup_rows(&mut self, index: &Series) -> CoreResult<Fabrix> {
         match &self.index_tag {
             Some(it) => {
-                let s = self.data.column(it.name.as_str())?;
-                let idx = SeriesRef::new(s).find_indices(index);
+                let idx = self.get_column(it.name.as_str())?.find_indices(index);
                 let pop = self.popup_rows_by_idx(&idx)?;
 
                 Ok(pop)
@@ -632,6 +621,10 @@ impl Fabrix {
     pub fn apply_at_idx() {
         unimplemented!()
     }
+
+    pub fn iter_column(&self) -> IntoIteratorColumn {
+        FabrixRefIterToColumn(self).into_iter()
+    }
 }
 
 impl From<DataFrame> for Fabrix {
@@ -643,46 +636,107 @@ impl From<DataFrame> for Fabrix {
     }
 }
 
-// ================================================================================================
-// FabrixRef
-// ================================================================================================
+#[derive(RefCast)]
+#[repr(transparent)]
+pub struct FabrixDataFrame(DataFrame);
 
-#[derive(Debug)]
-pub struct FabrixRef<'a> {
-    pub data: &'a DataFrame,
-    pub index_tag: Option<IndexTag>,
+impl FabrixDataFrame {
+    pub fn new(df: DataFrame) -> Self {
+        Self(df)
+    }
+
+    pub fn shape(&self) -> (usize, usize) {
+        self.0.shape()
+    }
+
+    pub fn width(&self) -> usize {
+        self.0.width()
+    }
+
+    pub fn height(&self) -> usize {
+        self.0.height()
+    }
+
+    pub fn dtypes(&self) -> Vec<&ValueType> {
+        self.0.dtypes().iter().map(|t| t.into()).collect_vec()
+    }
+
+    pub fn fields(&self) -> Vec<FieldInfo> {
+        self.0
+            .fields()
+            .iter()
+            .map(FieldInfo::from)
+            .collect::<Vec<_>>()
+    }
+
+    pub fn data(&self) -> &DataFrame {
+        &self.0
+    }
+
+    pub fn iter_column(&self) -> IntoIteratorColumn {
+        FabrixDataFrameIterToColumn(self).into_iter()
+    }
 }
 
-impl<'a> FabrixRef<'a> {
-    pub fn new(data: &'a DataFrame, index_tag: impl IntoIndexTag) -> CoreResult<Self> {
-        let fields = data.fields();
-        let index_tag = match index_tag.into_index_tag(&fields) {
-            Ok(it) => Ok(Some(it)),
-            Err(e) => match e {
-                CoreError::EmptyIndexTag => Ok(None),
-                e => Err(e),
-            },
-        }?;
-
-        Ok(Self { data, index_tag })
-    }
-
-    pub fn iter_rows(&self) -> IntoIteratorRow {
-        FabrixRefIterToRow::new(self).into_iter()
-    }
-
-    pub fn iter_named_rows(&self) -> IntoIteratorNamedRow {
-        FabrixRefIterToNamedRow::new(self).into_iter()
+impl AsRef<FabrixDataFrame> for DataFrame {
+    fn as_ref(&self) -> &FabrixDataFrame {
+        FabrixDataFrame::ref_cast(self)
     }
 }
 
-impl<'a> FabrixViewer for FabrixRef<'a> {
-    fn data(&self) -> &DataFrame {
-        self.data
-    }
+// ================================================================================================
+// IntoIteratorColumn for Fabrix & FabrixDataFrame
+// ================================================================================================
 
-    fn index_tag(&self) -> Option<&IndexTag> {
-        self.index_tag.as_ref()
+/// FabrixRefIterToColumn
+pub struct FabrixRefIterToColumn<'a>(&'a Fabrix);
+
+pub struct IntoIteratorColumn<'a> {
+    data_iters: std::vec::IntoIter<&'a Series>,
+}
+
+impl<'a> Iterator for IntoIteratorColumn<'a> {
+    type Item = &'a Series;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.data_iters.next()
+    }
+}
+
+impl<'a> IntoIterator for FabrixRefIterToColumn<'a> {
+    type Item = &'a Series;
+    type IntoIter = IntoIteratorColumn<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let data_iters = self
+            .0
+            .data()
+            .iter()
+            .map(AsRef::as_ref)
+            .collect::<Vec<&Series>>()
+            .into_iter();
+
+        IntoIteratorColumn { data_iters }
+    }
+}
+
+/// FabrixDataFrameIterToColumn
+pub struct FabrixDataFrameIterToColumn<'a>(&'a FabrixDataFrame);
+
+impl<'a> IntoIterator for FabrixDataFrameIterToColumn<'a> {
+    type Item = &'a Series;
+    type IntoIter = IntoIteratorColumn<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let data_iters = self
+            .0
+            .data()
+            .iter()
+            .map(AsRef::as_ref)
+            .collect::<Vec<&Series>>()
+            .into_iter();
+
+        IntoIteratorColumn { data_iters }
     }
 }
 
@@ -701,27 +755,9 @@ impl PartialEq for Fabrix {
         }
 
         for (s1, s2) in self.data.iter().zip(other.data.iter()) {
-            if SeriesRef::new(s1) != SeriesRef::new(s2) {
-                return false;
-            }
-        }
-
-        true
-    }
-}
-
-impl<'a> PartialEq for FabrixRef<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.index_tag != other.index_tag {
-            return false;
-        }
-
-        if self.shape() != other.shape() {
-            return false;
-        }
-
-        for (s1, s2) in self.data.iter().zip(other.data.iter()) {
-            if SeriesRef::new(s1) != SeriesRef::new(s2) {
+            let s1: &Series = s1.as_ref();
+            let s2: &Series = s2.as_ref();
+            if s1 != s2 {
                 return false;
             }
         }
@@ -733,26 +769,7 @@ impl<'a> PartialEq for FabrixRef<'a> {
 #[cfg(test)]
 mod test_fabrix_dataframe {
 
-    use crate::{
-        date, datetime, decimal, fx, series, time, uuid, FabrixRef, FabrixViewer, FieldInfo,
-        SeriesViewer, ValueType,
-    };
-    use polars::prelude::{df, DataFrame, NamedFrom, Series};
-
-    #[test]
-    fn simple_fx_new_success() {
-        let df = df![
-            "names" => ["Jacob", "Sam", "Jason"],
-            "ord" => [1,2,3],
-            "val" => [Some(10), None, Some(8)]
-        ]
-        .unwrap();
-
-        let fx = FabrixRef::new(&df, None::<()>);
-        assert!(fx.is_ok());
-
-        println!("{:?}", fx.unwrap());
-    }
+    use crate::{date, datetime, decimal, fx, series, time, uuid, FieldInfo, ValueType};
 
     #[test]
     fn fx_dtypes_match_success() {

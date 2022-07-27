@@ -8,7 +8,7 @@
 use std::{any::Any, str::FromStr};
 
 use async_trait::async_trait;
-use fabrix_core::{D1Value, Fabrix, FabrixViewer, Series, SeriesViewer, Value, ValueType};
+use fabrix_core::{D1Value, Fabrix, Series, Value, ValueType};
 
 use super::{
     conn_e_err, conn_n_err,
