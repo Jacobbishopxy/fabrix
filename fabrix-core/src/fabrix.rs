@@ -48,6 +48,7 @@
 use itertools::Itertools;
 use polars::datatypes::IdxCa;
 use polars::prelude::{BooleanChunked, DataFrame, Field, NewChunkedArray};
+use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -635,16 +636,59 @@ impl From<DataFrame> for Fabrix {
     }
 }
 
-impl AsRef<Fabrix> for DataFrame {
-    fn as_ref(&self) -> &Fabrix {
-        todo!()
+#[derive(RefCast)]
+#[repr(transparent)]
+pub struct FabrixDataFrame(DataFrame);
+
+impl FabrixDataFrame {
+    pub fn new(df: DataFrame) -> Self {
+        Self(df)
+    }
+
+    pub fn shape(&self) -> (usize, usize) {
+        self.0.shape()
+    }
+
+    pub fn width(&self) -> usize {
+        self.0.width()
+    }
+
+    pub fn height(&self) -> usize {
+        self.0.height()
+    }
+
+    pub fn dtypes(&self) -> Vec<&ValueType> {
+        self.0.dtypes().iter().map(|t| t.into()).collect_vec()
+    }
+
+    pub fn fields(&self) -> Vec<FieldInfo> {
+        self.0
+            .fields()
+            .iter()
+            .map(FieldInfo::from)
+            .collect::<Vec<_>>()
+    }
+
+    pub fn data(&self) -> &DataFrame {
+        &self.0
+    }
+
+    pub fn iter_column(&self) -> IntoIteratorColumn {
+        FabrixDataFrameIterToColumn(self).into_iter()
+    }
+}
+
+impl AsRef<FabrixDataFrame> for DataFrame {
+    fn as_ref(&self) -> &FabrixDataFrame {
+        FabrixDataFrame::ref_cast(self)
     }
 }
 
 // ================================================================================================
-// IntoIteratorColumn
+// IntoIteratorColumn for Fabrix & FabrixDataFrame
 // ================================================================================================
 
+/// FabrixRefIterToColumn
 pub struct FabrixRefIterToColumn<'a>(&'a Fabrix);
 
 pub struct IntoIteratorColumn<'a> {
@@ -668,7 +712,27 @@ impl<'a> IntoIterator for FabrixRefIterToColumn<'a> {
             .0
             .data()
             .iter()
-            .map(|s| s.as_ref())
+            .map(AsRef::as_ref)
+            .collect::<Vec<&Series>>()
+            .into_iter();
+
+        IntoIteratorColumn { data_iters }
+    }
+}
+
+/// FabrixDataFrameIterToColumn
+pub struct FabrixDataFrameIterToColumn<'a>(&'a FabrixDataFrame);
+
+impl<'a> IntoIterator for FabrixDataFrameIterToColumn<'a> {
+    type Item = &'a Series;
+    type IntoIter = IntoIteratorColumn<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let data_iters = self
+            .0
+            .data()
+            .iter()
+            .map(AsRef::as_ref)
             .collect::<Vec<&Series>>()
             .into_iter();
 
