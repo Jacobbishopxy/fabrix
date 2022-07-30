@@ -14,7 +14,7 @@ async fn main() -> anyhow::Result<()> {
         .connect()
         .await;
 
-    assert!(conn.is_ok());
+    assert!(conn.is_ok(), "connection should not fail");
 
     Ok(())
 }

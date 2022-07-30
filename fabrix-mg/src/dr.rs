@@ -139,7 +139,7 @@ mod tests {
     async fn connection_success() {
         let ec = MongoExecutor::new_and_connect(CONN, DB, CL).await;
 
-        assert!(ec.is_ok());
+        assert!(ec.is_ok(), "connection should not fail");
     }
 
     #[tokio::test]

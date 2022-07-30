@@ -254,7 +254,7 @@ mod dispatcher_tests {
         let mut dispatcher = Dispatcher::new(EmptyRead, EmptyWrite);
 
         let res = dispatcher.sync_read(&EmptyOption);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "sync_read empty option is always true");
         assert!(dispatcher.fabrix_ref().is_some());
         assert_eq!(dispatcher.fabrix_ref().unwrap().shape(), (0, 0));
     }
@@ -264,7 +264,7 @@ mod dispatcher_tests {
         let mut dispatcher = Dispatcher::new(EmptyRead, EmptyWrite);
 
         let res = dispatcher.async_read(&EmptyOption).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "async_read empty option is always true");
         assert!(dispatcher.fabrix_ref().is_some());
         assert_eq!(dispatcher.fabrix_ref().unwrap().shape(), (0, 0));
     }
@@ -278,11 +278,11 @@ mod dispatcher_tests {
 
         let ro = CsvReadOptions::default();
         let res = dispatcher.sync_read(&ro);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "sync_read csv option is always true");
 
         let wo = CsvWriteOptions::default();
         let res = dispatcher.sync_write(&wo);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "sync_write csv option is always true");
     }
 
     #[test]
@@ -294,7 +294,7 @@ mod dispatcher_tests {
 
         let ro = CsvReadOptions::default();
         let res = dispatcher.sync_read(&ro);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "sync_read csv option is always true");
 
         let fx = dispatcher.fabrix_ref();
         assert!(fx.is_some());
@@ -302,7 +302,7 @@ mod dispatcher_tests {
 
         let wo = ParquetWriteOptions::default();
         let res = dispatcher.sync_write(&wo);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "sync_write parquet option is always true");
     }
 
     #[test]
@@ -314,7 +314,7 @@ mod dispatcher_tests {
 
         let ro = ParquetReadOptions::default();
         let res = dispatcher.sync_read(&ro);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "sync_read parquet option is always true");
 
         let fx = dispatcher.fabrix_ref();
         assert!(fx.is_some());
@@ -324,6 +324,6 @@ mod dispatcher_tests {
             is_json: Some(true),
         };
         let res = dispatcher.sync_write(&wo);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "sync_write parquet option is always true");
     }
 }

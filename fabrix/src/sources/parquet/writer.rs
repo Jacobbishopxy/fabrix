@@ -157,7 +157,7 @@ mod test_parquet_writer {
 
         let foo = writer.finish(fx);
 
-        assert!(foo.is_ok());
+        assert!(foo.is_ok(), "writing to parquet should not fail");
         assert!(!writer.has_writer());
     }
 }

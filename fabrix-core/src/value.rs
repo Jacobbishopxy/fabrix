@@ -1014,15 +1014,15 @@ mod test_value {
 
         let v = value!(123);
         let i = i32::try_from(v);
-        assert!(i.is_ok());
+        assert!(i.is_ok(), "value try_from i32 should work");
 
         let v = value!(Some(123));
         let i = Option::<i32>::try_from(v);
-        assert!(i.is_ok());
+        assert!(i.is_ok(), "value try_from Option<i32> should work");
 
         let v = value!(None::<i32>);
         let i = Option::<i32>::try_from(v);
-        assert!(i.is_ok());
+        assert!(i.is_ok(), "value try_from None::<i32> should work");
     }
 
     #[test]

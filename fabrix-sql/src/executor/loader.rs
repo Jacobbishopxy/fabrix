@@ -661,7 +661,7 @@ mod test_pool {
             .fetch_all(&pool1)
             .await;
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "get_table_schema should not fail");
 
         // Pg
         let pool2 = sqlx::PgPool::connect(CONN2).await.unwrap();
@@ -678,7 +678,7 @@ mod test_pool {
             .fetch_all(&pool2)
             .await;
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "get_table_schema should not fail");
 
         // Sqlite
         let sqlx_pool = sqlx::SqlitePool::connect(CONN3).await.unwrap();
@@ -695,7 +695,7 @@ mod test_pool {
             .fetch_all(&sqlx_pool)
             .await;
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "get_table_schema should not fail");
     }
 
     // Test table if exists

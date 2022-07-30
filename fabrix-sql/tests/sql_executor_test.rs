@@ -38,7 +38,7 @@ async fn create_sqlite_db_success() -> anyhow::Result<()> {
         .connect()
         .await;
 
-    assert!(conn.is_ok());
+    assert!(conn.is_ok(), "create local sqlite db should not fail");
 
     Ok(())
 }
@@ -53,13 +53,13 @@ async fn connection_success() {
     let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
 
     let r1 = exc1.connect().await;
-    assert!(r1.is_ok());
+    assert!(r1.is_ok(), "connection should not fail");
 
     let r2 = exc2.connect().await;
-    assert!(r2.is_ok());
+    assert!(r2.is_ok(), "connection should not fail");
 
     let r3 = exc3.connect().await;
-    assert!(r3.is_ok());
+    assert!(r3.is_ok(), "connection should not fail");
 }
 
 /*
@@ -89,21 +89,21 @@ async fn save_fail_if_exists_success() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res1.is_ok());
+    assert!(res1.is_ok(), "saving to table should not fail");
 
     // postgres
     let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res2.is_ok());
+    assert!(res2.is_ok(), "saving to table should not fail");
 
     // sqlite
     let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res3.is_ok());
+    assert!(res3.is_ok(), "saving to table should not fail");
 }
 
 /*
@@ -136,21 +136,21 @@ async fn save_replace_success() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res1.is_ok());
+    assert!(res1.is_ok(), "saving to table should not fail");
 
     // postgres
     let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res2.is_ok());
+    assert!(res2.is_ok(), "saving to table should not fail");
 
     // sqlite
     let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res3.is_ok());
+    assert!(res3.is_ok(), "saving to table should not fail");
 }
 
 /*
@@ -180,21 +180,21 @@ async fn save_append_success() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res1.is_ok());
+    assert!(res1.is_ok(), "saving to table should not fail");
 
     // postgres
     let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res2.is_ok());
+    assert!(res2.is_ok(), "saving to table should not fail");
 
     // sqlite
     let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res3.is_ok());
+    assert!(res3.is_ok(), "saving to table should not fail");
 }
 
 /*
@@ -217,21 +217,21 @@ async fn save_upsert_success() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res1.is_ok());
+    assert!(res1.is_ok(), "saving to table should not fail");
 
     // postgres
     let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res2.is_ok());
+    assert!(res2.is_ok(), "saving to table should not fail");
 
     // sqlite
     let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.save(TABLE_NAME, df.clone(), &save_strategy).await;
-    assert!(res3.is_ok());
+    assert!(res3.is_ok(), "saving to table should not fail");
 }
 
 /*
@@ -259,21 +259,30 @@ async fn delete_success() {
     exc1.connect().await.expect("connection is ok");
 
     let res1 = exc1.delete(&delete).await;
-    assert!(res1.is_ok());
+    assert!(
+        res1.is_ok(),
+        "deleting from an existing table should not fail"
+    );
 
     // postgres
     let mut exc2 = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
     exc2.connect().await.expect("connection is ok");
 
     let res2 = exc2.delete(&delete).await;
-    assert!(res2.is_ok());
+    assert!(
+        res2.is_ok(),
+        "deleting from an existing table should not fail"
+    );
 
     // sqlite
     let mut exc3 = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
     exc3.connect().await.expect("connection is ok");
 
     let res3 = exc3.delete(&delete).await;
-    assert!(res3.is_ok());
+    assert!(
+        res3.is_ok(),
+        "deleting from an existing table should not fail"
+    );
 }
 
 /*
@@ -331,6 +340,6 @@ async fn transaction_success() {
         }
     };
 
-    assert!(res.is_ok());
+    assert!(res.is_ok(), "transaction execution should not fail");
     assert_eq!(assert_value, 2);
 }

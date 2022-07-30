@@ -158,7 +158,7 @@ mod test_json_writer {
 
         let foo = writer.with_json_format(true).finish(fx);
 
-        assert!(foo.is_ok());
+        assert!(foo.is_ok(), "writing to json should not fail");
         assert!(!writer.has_writer());
     }
 
@@ -180,7 +180,7 @@ mod test_json_writer {
 
         let foo = writer.with_json_format(true).finish(fx);
 
-        assert!(foo.is_ok());
+        assert!(foo.is_ok(), "writing to json should not fail");
         assert!(!writer.has_writer());
 
         println!("{:?}", crs.get_ref());

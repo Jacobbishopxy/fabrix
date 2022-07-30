@@ -1060,7 +1060,7 @@ mod test_fabrix_series {
 
         let s = s.unwrap();
         assert_eq!(s.dtype(), &ValueType::U8);
-        assert!(s.get(100).is_err());
+        assert!(s.get(100).is_err(), "get value by exceeded index is error");
         assert_eq!(s.take(&[0, 4]).unwrap().len(), 2);
 
         let s = Series::from_values_default_name(
@@ -1089,7 +1089,7 @@ mod test_fabrix_series {
             ],
             true,
         );
-        assert!(s.is_ok());
+        assert!(s.is_ok(), "new series from_values_default_name should work");
 
         let s = Series::from_values_default_name(
             vec![
@@ -1101,7 +1101,7 @@ mod test_fabrix_series {
             ],
             true,
         );
-        assert!(s.is_ok());
+        assert!(s.is_ok(), "new series from_values_default_name should work");
     }
 
     #[test]

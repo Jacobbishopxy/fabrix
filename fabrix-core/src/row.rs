@@ -512,11 +512,11 @@ mod test_row {
 
         let row1 = Row::new(Some(1), vec![value!("Mia"), value!(4), value!(10)]);
         let res1 = df.append(row1);
-        assert!(res1.is_ok());
+        assert!(res1.is_ok(), "append row should work");
 
         let row2 = Row::new(Some(1), vec![value!("Mandy"), value!(5), value!(9)]);
         let res2 = df.insert_row(&value!(2), row2);
-        assert!(res2.is_ok());
+        assert!(res2.is_ok(), "insert row should work");
         assert!(df.shape() == (5, 3));
 
         let rows = rows!(
@@ -527,18 +527,18 @@ mod test_row {
         );
 
         let res3 = df.insert_rows(&value!(5), rows);
-        assert!(res3.is_ok());
+        assert!(res3.is_ok(), "insert rows should work");
 
         let res4 = df.remove_row(&value!(7));
-        assert!(res4.is_ok());
+        assert!(res4.is_ok(), "remove row should work");
         assert_eq!(df.shape(), (7, 3));
 
         let res4 = df.remove_slice(1, 2);
-        assert!(res4.is_ok());
+        assert!(res4.is_ok(), "remove slice should work");
         assert_eq!(df.shape(), (5, 3));
 
         let res5 = df.remove_rows(vec![value!(2), value!(4)]);
-        assert!(res5.is_ok());
+        assert!(res5.is_ok(), "remove rows should work");
         assert_eq!(df.shape(), (2, 3));
     }
 

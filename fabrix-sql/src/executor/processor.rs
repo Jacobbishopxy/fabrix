@@ -171,7 +171,7 @@ mod test_processor {
             .await;
 
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "fetch_all should not fail");
     }
 
     // processor with new processing fn
@@ -209,6 +209,6 @@ mod test_processor {
             .await;
 
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "fetch_all should not fail");
     }
 }

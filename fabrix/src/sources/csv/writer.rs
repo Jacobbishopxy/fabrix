@@ -203,7 +203,7 @@ mod test_csv_writer {
 
         let foo = writer.finish(fx);
 
-        assert!(foo.is_ok());
+        assert!(foo.is_ok(), "writing to csv should not fail");
         assert!(!writer.has_writer());
     }
 }

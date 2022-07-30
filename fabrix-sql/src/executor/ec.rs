@@ -670,15 +670,15 @@ mod test_executor {
     async fn database_connection_success() {
         let mut exc = SqlExecutor::<DatabaseMysql>::from_str(CONN1).unwrap();
         let con = exc.connect().await;
-        assert!(con.is_ok());
+        assert!(con.is_ok(), "connection should not fail");
 
         let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
         let con = exc.connect().await;
-        assert!(con.is_ok());
+        assert!(con.is_ok(), "connection should not fail");
 
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
         let con = exc.connect().await;
-        assert!(con.is_ok());
+        assert!(con.is_ok(), "connection should not fail");
     }
 
     #[tokio::test]
@@ -815,7 +815,7 @@ mod test_executor {
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
 
         // postgres
         let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
@@ -823,7 +823,7 @@ mod test_executor {
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
 
         // sqlite
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
@@ -831,7 +831,7 @@ mod test_executor {
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
         println!("{:?}", res);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
     }
 
     #[tokio::test]
@@ -858,21 +858,21 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
 
         // postgres
         let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
 
         // sqlite
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
     }
 
     #[tokio::test]
@@ -892,21 +892,21 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
 
         // postgres
         let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
 
         // sqlite
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.save(TABLE_NAME, df.clone(), &save_strategy).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "saving table should not fail");
     }
 
     #[tokio::test]
@@ -931,21 +931,21 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "delete should not fail");
 
         // postgres
         let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "delete should not fail");
 
         // sqlite
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.delete(&delete).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "delete should not fail");
     }
 
     #[tokio::test]
@@ -954,19 +954,19 @@ mod test_executor {
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "get_primary_key should not fail");
 
         let mut exc = SqlExecutor::<DatabasePg>::from_str(CONN2).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "get_primary_key should not fail");
 
         let mut exc = SqlExecutor::<DatabaseSqlite>::from_str(CONN3).unwrap();
         exc.connect().await.expect("connection is ok");
 
         let res = exc.get_primary_key(TABLE_NAME).await;
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "get_primary_key should not fail");
     }
 
     #[tokio::test]

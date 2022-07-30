@@ -99,7 +99,7 @@ mod test_query_dml {
         let sql = SqlBuilder::Mysql.select_existing_ids("dev", &ids);
         println!("{:?}", sql);
 
-        assert!(sql.is_ok());
+        assert!(sql.is_ok(), "select_ids should not fail");
     }
 
     #[test]

@@ -827,7 +827,7 @@ mod test_fabrix_dataframe {
 
         let mut df = df.unwrap();
         let it = df.set_index_tag(1);
-        assert!(it.is_ok());
+        assert!(it.is_ok(), "set index tag should work");
 
         let test1 = df.get_columns(&["names", "val"]);
         assert!(test1.is_ok());
@@ -866,7 +866,7 @@ mod test_fabrix_dataframe {
 
         // vconcat needs fields (type and name) to be the same
         let res = df1.vconcat_mut(&df2);
-        assert!(res.is_ok());
+        assert!(res.is_ok(), "vconcat_mut should work");
     }
 
     #[test]

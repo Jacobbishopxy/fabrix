@@ -565,7 +565,7 @@ mod test_xl_executor {
 
         let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
 
-        assert!(foo.is_ok());
+        assert!(foo.is_ok(), "consuming source should not fail");
     }
 
     // consume synchronously
@@ -576,7 +576,7 @@ mod test_xl_executor {
 
         let foo = xle.consume(Some(20), SHEET_NAME, convert_fn, consume_fn);
 
-        println!("{:?}", foo);
+        assert!(foo.is_ok(), "consuming source should not fail");
     }
 
     // consume synchronously
@@ -591,7 +591,7 @@ mod test_xl_executor {
             })
             .await;
 
-        println!("{:?}", foo);
+        assert!(foo.is_ok(), "consuming source should not fail");
     }
 
     // consume synchronously, mutable
@@ -613,7 +613,7 @@ mod test_xl_executor {
             })
             .await;
 
-        println!("{:?}", foo);
+        assert!(foo.is_ok(), "async consuming source should not fail");
         println!("{:?}", sc.lock().await.count);
     }
 }
