@@ -38,13 +38,13 @@ impl<R: MmapBytesReader> Reader<R> {
         self
     }
 
-    pub fn with_read_parallel(&mut self, parallel: bool) -> &mut Self {
-        self.parquet_reader = self
-            .parquet_reader
-            .take()
-            .map(|r| r.read_parallel(parallel));
-        self
-    }
+    // pub fn with_read_parallel(&mut self, parallel: bool) -> &mut Self {
+    //     self.parquet_reader = self
+    //         .parquet_reader
+    //         .take()
+    //         .map(|r| r.read_parallel(parallel));
+    //     self
+    // }
 
     pub fn with_n_rows(&mut self, num_rows: usize) -> &mut Self {
         self.parquet_reader = self
@@ -132,7 +132,7 @@ impl<'a> TryFrom<ParquetSource<'a>> for Reader<Cursor<Vec<u8>>> {
 
 #[derive(Default)]
 pub struct ParquetReadOptions {
-    pub read_parallel: Option<bool>,
+    // pub read_parallel: Option<bool>,
     pub num_rows: Option<usize>,
     pub select_columns: Option<Vec<String>>,
     pub projection: Option<Vec<usize>>,
@@ -163,7 +163,7 @@ where
         'o: 'a,
     {
         let ParquetReadOptions {
-            read_parallel,
+            // read_parallel,
             num_rows,
             select_columns,
             projection,
@@ -171,9 +171,9 @@ where
             index,
         } = options;
 
-        if let Some(read_parallel) = read_parallel {
-            self.with_read_parallel(*read_parallel);
-        }
+        // if let Some(read_parallel) = read_parallel {
+        //     self.with_read_parallel(*read_parallel);
+        // }
         if let Some(num_rows) = num_rows {
             self.with_n_rows(*num_rows);
         }

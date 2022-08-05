@@ -354,12 +354,10 @@ pub(crate) use sfv;
 /// ```
 macro_rules! si {
     ($fn_call:expr, $series_iter_var:ident) => {{
-        use polars::prelude::ChunkLen;
         let arr = $fn_call.unwrap();
         $crate::SeriesIterator::$series_iter_var(arr, $crate::util::Stepper::new(arr.len()))
     }};
     ($fn_call:expr, $downcast_type:ident, $series_iter_var:ident) => {{
-        use polars::prelude::ChunkLen;
         let arr = $fn_call
             .downcast_ref::<polars::prelude::ObjectChunked<$downcast_type>>()
             .unwrap();

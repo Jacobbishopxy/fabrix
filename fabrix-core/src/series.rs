@@ -585,32 +585,6 @@ fn from_range(rng: [Value; 2], name: &str) -> CoreResult<Series> {
     }
 }
 
-// Simple conversion
-impl From<PolarsSeries> for Series {
-    fn from(s: PolarsSeries) -> Self {
-        Series(s)
-    }
-}
-
-// Simple conversion
-impl From<Series> for PolarsSeries {
-    fn from(s: Series) -> Self {
-        s.0
-    }
-}
-
-impl AsRef<PolarsSeries> for Series {
-    fn as_ref(&self) -> &PolarsSeries {
-        &self.0
-    }
-}
-
-impl AsRef<Series> for PolarsSeries {
-    fn as_ref(&self) -> &Series {
-        Series::ref_cast(self)
-    }
-}
-
 /// Series from values, series type is determined by the first not-null value,
 /// if the who vectors are null then use u64 as the default type.
 ///
@@ -707,6 +681,36 @@ fn empty_series_from_field(field: &Field, nullable: bool) -> CoreResult<Series> 
         DataType::Object(BYTES) => sfv!(nullable; field.name(); Bytes, ObjectTypeBytes),
         DataType::Null => sfv!(nullable; field.name(); u64, UInt64Type),
         _ => unimplemented!(),
+    }
+}
+
+// ================================================================================================
+// From & AsRef
+// ================================================================================================
+
+// Simple conversion
+impl From<PolarsSeries> for Series {
+    fn from(s: PolarsSeries) -> Self {
+        Series(s)
+    }
+}
+
+// Simple conversion
+impl From<Series> for PolarsSeries {
+    fn from(s: Series) -> Self {
+        s.0
+    }
+}
+
+impl AsRef<PolarsSeries> for Series {
+    fn as_ref(&self) -> &PolarsSeries {
+        &self.0
+    }
+}
+
+impl AsRef<Series> for PolarsSeries {
+    fn as_ref(&self) -> &Series {
+        Series::ref_cast(self)
     }
 }
 

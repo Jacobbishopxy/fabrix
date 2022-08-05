@@ -276,7 +276,7 @@ where
                                 if let Some(stripped) = s.strip_prefix('/') {
                                     stripped.to_string()
                                 } else {
-                                    "xl/".to_owned() + s
+                                    format!("xl/{}", s)
                                 }
                             };
                             let ws = XlWorksheet::new(name, current_sheet_num, id, target, num);
