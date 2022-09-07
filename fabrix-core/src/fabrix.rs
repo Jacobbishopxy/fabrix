@@ -829,7 +829,7 @@ mod test_fabrix_dataframe {
         let it = df.set_index_tag(1);
         assert!(it.is_ok(), "set index tag should work");
 
-        let test1 = df.get_columns(&["names", "val"]);
+        let test1 = df.get_columns(["names", "val"]);
         assert!(test1.is_ok());
         assert_eq!(test1.unwrap().len(), 2);
 
@@ -837,7 +837,7 @@ mod test_fabrix_dataframe {
         assert!(test2.is_ok());
         assert_eq!(test2.unwrap().shape(), (2, 3));
 
-        let test3 = df.take_cols(&["names", "val"]);
+        let test3 = df.take_cols(["names", "val"]);
         assert!(test3.is_ok());
         assert_eq!(test3.unwrap().shape(), (3, 2));
 

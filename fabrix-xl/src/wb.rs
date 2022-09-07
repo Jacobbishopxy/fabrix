@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::io::{BufReader, Read, Seek};
 
 use lazy_static::lazy_static;
-use quick_xml::{events::Event, Reader};
+use quick_xml::{events::Event, name::QName, Reader};
 use zip::ZipArchive;
 
 use super::{util, DateSystem, SheetReader, XlWorksheet};
@@ -192,16 +192,16 @@ where
 
                 let mut buf = Vec::new();
                 loop {
-                    match reader.read_event(&mut buf) {
-                        Ok(Event::Empty(ref e)) if e.name() == b"Relationship" => {
+                    match reader.read_event_into(&mut buf) {
+                        Ok(Event::Empty(ref e)) if e.name() == QName(b"Relationship") => {
                             let mut id = String::new();
                             let mut target = String::new();
                             e.attributes().for_each(|a| {
                                 let a = a.unwrap();
-                                if a.key == b"Id" {
+                                if a.key == QName(b"Id") {
                                     id = util::attr_value(&a);
                                 }
-                                if a.key == b"Target" {
+                                if a.key == QName(b"Target") {
                                     target = util::attr_value(&a);
                                 }
                             });
@@ -248,21 +248,21 @@ where
                 let mut current_sheet_num: u8 = 0;
 
                 loop {
-                    match reader.read_event(&mut buf) {
-                        Ok(Event::Empty(ref e)) if e.name() == b"sheet" => {
+                    match reader.read_event_into(&mut buf) {
+                        Ok(Event::Empty(ref e)) if e.name() == QName(b"sheet") => {
                             current_sheet_num += 1;
                             let mut name = String::new();
                             let mut id = String::new();
                             let mut num = 0;
                             e.attributes().for_each(|a| {
                                 let a = a.unwrap();
-                                if a.key == b"r:id" {
+                                if a.key == QName(b"r:id") {
                                     id = util::attr_value(&a);
                                 }
-                                if a.key == b"name" {
+                                if a.key == QName(b"name") {
                                     name = util::attr_value(&a);
                                 }
-                                if a.key == b"sheetId" {
+                                if a.key == QName(b"sheetId") {
                                     if let Ok(r) = util::attr_value(&a).parse() {
                                         num = r;
                                     }
@@ -389,8 +389,8 @@ fn strings<READER: Read + Seek>(zip_file: &mut ZipArchive<READER>) -> XlResult<V
             let mut preserve_space = false;
 
             loop {
-                match reader.read_event(&mut buf) {
-                    Ok(Event::Start(ref e)) if e.name() == b"t" => {
+                match reader.read_event_into(&mut buf) {
+                    Ok(Event::Start(ref e)) if e.name() == QName(b"t") => {
                         if let Some(att) = util::get(e.attributes(), b"xml:space") {
                             if att == "preserve" {
                                 preserve_space = true;
@@ -401,11 +401,11 @@ fn strings<READER: Read + Seek>(zip_file: &mut ZipArchive<READER>) -> XlResult<V
                             preserve_space = false;
                         }
                     }
-                    Ok(Event::Text(ref e)) => {
-                        this_string.push_str(&e.unescape_and_decode(&reader).unwrap()[..])
+                    Ok(Event::Text(ref e)) => this_string.push_str(&e.unescape()?[..]),
+                    Ok(Event::Empty(ref e)) if e.name() == QName(b"t") => {
+                        strings.push("".to_owned())
                     }
-                    Ok(Event::Empty(ref e)) if e.name() == b"t" => strings.push("".to_owned()),
-                    Ok(Event::End(ref e)) if e.name() == b"t" => {
+                    Ok(Event::End(ref e)) if e.name() == QName(b"t") => {
                         if preserve_space {
                             strings.push(this_string.to_owned());
                         } else {
@@ -443,21 +443,21 @@ fn find_styles<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> XlResult<V
     let mut buf = Vec::new();
     let mut record_styles = false;
     loop {
-        match reader.read_event(&mut buf) {
-            Ok(Event::Empty(ref e)) if e.name() == b"numFmt" => {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(ref e)) if e.name() == QName(b"numFmt") => {
                 let id = util::get(e.attributes(), b"numFmtId").unwrap();
                 let code = util::get(e.attributes(), b"formatCode").unwrap();
                 number_formats.insert(id, code);
             }
-            Ok(Event::Start(ref e)) if e.name() == b"cellXfs" => {
+            Ok(Event::Start(ref e)) if e.name() == QName(b"cellXfs") => {
                 // Section 2.1.589 Part 1 Section 18.3.1.4, c (Cell)
                 // Item g. states that Office specifies that @s indexes into the cellXfs collection
                 // in the style part. See https://tinyurl.com/yju9a6ox for more information.
                 record_styles = true;
             }
-            Ok(Event::End(ref e)) if e.name() == b"cellXfs" => record_styles = false,
+            Ok(Event::End(ref e)) if e.name() == QName(b"cellXfs") => record_styles = false,
             Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e))
-                if record_styles && e.name() == b"xf" =>
+                if record_styles && e.name() == QName(b"xf") =>
             {
                 let id = util::get(e.attributes(), b"numFmtId").unwrap();
                 if number_formats.contains_key(&id) {
@@ -525,8 +525,8 @@ fn get_date_system<READER: Read + Seek>(xlsx: &mut ZipArchive<READER>) -> XlResu
             reader.trim_text(true);
             let mut buf = Vec::new();
             loop {
-                match reader.read_event(&mut buf) {
-                    Ok(Event::Empty(ref e)) if e.name() == b"workbookPr" => {
+                match reader.read_event_into(&mut buf) {
+                    Ok(Event::Empty(ref e)) if e.name() == QName(b"workbookPr") => {
                         if let Some(system) = util::get(e.attributes(), b"date1904") {
                             if system == "1" {
                                 break Ok(DateSystem::V1904);

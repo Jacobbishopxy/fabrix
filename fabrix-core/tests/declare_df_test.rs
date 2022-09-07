@@ -56,9 +56,9 @@ fn test_df_query() {
     ]
     .unwrap();
 
-    println!("{:?}", df.get_columns(&["names", "val"]).unwrap());
+    println!("{:?}", df.get_columns(["names", "val"]).unwrap());
 
-    println!("{:?}", df.take_cols(&["names", "val"]).unwrap());
+    println!("{:?}", df.take_cols(["names", "val"]).unwrap());
 
     println!("{:?}", df.take_rows_by_idx(&[0, 2]));
 

@@ -4,6 +4,7 @@
 
 use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
 use quick_xml::events::attributes::{Attribute, Attributes};
+use quick_xml::name::QName;
 
 use super::DateSystem;
 use crate::{XlError, XlResult};
@@ -17,7 +18,7 @@ pub(crate) fn attr_value(a: &Attribute) -> String {
 pub(crate) fn get(attrs: Attributes, which: &[u8]) -> Option<String> {
     for attr in attrs {
         let a = attr.unwrap();
-        if a.key == which {
+        if a.key == QName(which) {
             return Some(attr_value(&a));
         }
     }
