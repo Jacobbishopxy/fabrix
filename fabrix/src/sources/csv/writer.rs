@@ -68,7 +68,7 @@ impl<W: Write> Writer<W> {
         self.csv_writer = self
             .csv_writer
             .take()
-            .map(|r| r.with_datetime(Some(format.to_owned())));
+            .map(|r| r.with_datetime_format(Some(format.to_owned())));
         self
     }
 
